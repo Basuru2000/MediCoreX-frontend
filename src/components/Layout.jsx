@@ -28,7 +28,8 @@ import {
   ShoppingCart,
   Assessment,
   AccountCircle,
-  Logout
+  Logout,
+  Category
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -60,6 +61,7 @@ function Layout() {
     { text: 'Dashboard', icon: <Dashboard />, path: '/', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
     { text: 'Users', icon: <People />, path: '/users', roles: ['HOSPITAL_MANAGER'] },
     { text: 'Products', icon: <Inventory />, path: '/products', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
+    { text: 'Categories', icon: <Category />, path: '/categories', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
     { text: 'Procurement', icon: <ShoppingCart />, path: '/procurement', roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'] },
     { text: 'Reports', icon: <Assessment />, path: '/reports', roles: ['HOSPITAL_MANAGER'] },
   ]
