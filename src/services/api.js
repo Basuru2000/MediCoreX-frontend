@@ -59,6 +59,66 @@ export const updateUser = (id, data) => api.put(`/users/${id}`, data)
 export const deleteUser = (id) => api.delete(`/users/${id}`)
 export const toggleUserStatus = (id) => api.put(`/users/${id}/toggle-status`)
 
+// Product endpoints
+export const getProducts = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    page: params.page || 0,
+    size: params.size || 10,
+    sortBy: params.sortBy || 'name',
+    sortDirection: params.sortDirection || 'ASC'
+  }).toString();
+  return api.get(`/products?${queryParams}`)
+}
+
+export const getProductsByCategory = (categoryId, params = {}) => {
+  const queryParams = new URLSearchParams({
+    page: params.page || 0,
+    size: params.size || 10
+  }).toString();
+  return api.get(`/products/category/${categoryId}?${queryParams}`)
+}
+
+export const getLowStockProducts = () => api.get('/products/low-stock')
+
+export const getExpiringProducts = (daysAhead = 30) => api.get(`/products/expiring?daysAhead=${daysAhead}`)
+
+export const getProductById = (id) => api.get(`/products/${id}`)
+
+export const getProductByCode = (code) => api.get(`/products/code/${code}`)
+
+export const searchProducts = (query) => api.get(`/products/search?query=${query}`)
+
+export const createProduct = (data) => api.post('/products', data)
+
+export const updateProduct = (id, data) => api.put(`/products/${id}`, data)
+
+export const deleteProduct = (id) => api.delete(`/products/${id}`)
+
+// Category endpoints
+export const getCategories = () => api.get('/categories')
+
+export const getCategoryById = (id) => api.get(`/categories/${id}`)
+
+export const createCategory = (data) => api.post('/categories', data)
+
+export const updateCategory = (id, data) => api.put(`/categories/${id}`, data)
+
+export const deleteCategory = (id) => api.delete(`/categories/${id}`)
+
+// Stock endpoints
+export const adjustStock = (data) => api.post('/stock/adjust', data)
+
+export const getStockTransactions = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    ...(params.productId && { productId: params.productId }),
+    page: params.page || 0,
+    size: params.size || 10
+  }).toString();
+  return api.get(`/stock/transactions?${queryParams}`)
+}
+
+export const getProductStockHistory = (productId) => api.get(`/stock/history/${productId}`)
+
 // Test endpoints
 export const testConnection = () => api.get('/test/hello')
 export const healthCheck = () => api.get('/test/health')

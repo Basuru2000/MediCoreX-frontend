@@ -1,0 +1,437 @@
+import { useState, useEffect } from 'react'
+import {
+  Box,
+  Button,
+  Paper,
+  Typography,
+  IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Alert,
+  Snackbar,
+  InputAdornment,
+  Tab,
+  Tabs,
+  Grid,
+  Card,
+  CardContent,
+  Tooltip
+} from '@mui/material'
+import { DataGrid } from '@mui/x-data-grid'
+import {
+  Add,
+  Edit,
+  Delete,
+  Search,
+  Warning,
+  Inventory,
+  LocalOffer,
+  CalendarMonth,
+  TrendingDown
+} from '@mui/icons-material'
+import { useAuth } from '../context/AuthContext'
+import { 
+  getProducts, 
+  getLowStockProducts,
+  getExpiringProducts,
+  createProduct, 
+  updateProduct, 
+  deleteProduct,
+  getCategories,
+  searchProducts
+} from '../services/api'
+import ProductForm from '../components/products/ProductForm'
+import StockAdjustment from './StockAdjustment'
+
+function Products() {
+  const { isManager, isStaff } = useAuth()
+  const [products, setProducts] = useState([])
+  const [lowStockProducts, setLowStockProducts] = useState([])
+  const [expiringProducts, setExpiringProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [openDialog, setOpenDialog] = useState(false)
+  const [openStockDialog, setOpenStockDialog] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [tabValue, setTabValue] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalElements, setTotalElements] = useState(0)
+
+  useEffect(() => {
+    fetchProducts()
+    fetchCategories()
+    fetchLowStockProducts()
+    fetchExpiringProducts()
+  }, [page, pageSize])
+
+  const fetchProducts = async () => {
+    try {
+      const response = await getProducts({ page, size: pageSize })
+      setProducts(response.data.content)
+      setTotalElements(response.data.totalElements)
+    } catch (error) {
+      showSnackbar('Failed to fetch products', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchLowStockProducts = async () => {
+    try {
+      const response = await getLowStockProducts()
+      setLowStockProducts(response.data)
+    } catch (error) {
+      console.error('Failed to fetch low stock products', error)
+    }
+  }
+
+  const fetchExpiringProducts = async () => {
+    try {
+      const response = await getExpiringProducts(30)
+      setExpiringProducts(response.data)
+    } catch (error) {
+      console.error('Failed to fetch expiring products', error)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getCategories()
+      setCategories(response.data)
+    } catch (error) {
+      showSnackbar('Failed to fetch categories', 'error')
+    }
+  }
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      fetchProducts()
+      return
+    }
+    
+    try {
+      setLoading(true)
+      const response = await searchProducts(searchQuery)
+      setProducts(response.data)
+    } catch (error) {
+      showSnackbar('Failed to search products', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOpenDialog = (product = null) => {
+    setEditingProduct(product)
+    setOpenDialog(true)
+  }
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false)
+    setEditingProduct(null)
+  }
+
+  const handleSubmit = async (formData) => {
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, formData)
+        showSnackbar('Product updated successfully', 'success')
+      } else {
+        await createProduct(formData)
+        showSnackbar('Product created successfully', 'success')
+      }
+      handleCloseDialog()
+      fetchProducts()
+      fetchLowStockProducts()
+      fetchExpiringProducts()
+    } catch (error) {
+      showSnackbar(error.response?.data?.message || 'Operation failed', 'error')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        await deleteProduct(id)
+        showSnackbar('Product deleted successfully', 'success')
+        fetchProducts()
+      } catch (error) {
+        showSnackbar('Failed to delete product', 'error')
+      }
+    }
+  }
+
+  const handleStockAdjustment = (product) => {
+    setSelectedProduct(product)
+    setOpenStockDialog(true)
+  }
+
+  const showSnackbar = (message, severity) => {
+    setSnackbar({ open: true, message, severity })
+  }
+
+  const getStockStatusChip = (status) => {
+    const statusConfig = {
+      'NORMAL': { color: 'success', label: 'In Stock' },
+      'LOW': { color: 'warning', label: 'Low Stock' },
+      'OUT_OF_STOCK': { color: 'error', label: 'Out of Stock' }
+    }
+    const config = statusConfig[status] || statusConfig['NORMAL']
+    return <Chip label={config.label} color={config.color} size="small" />
+  }
+
+  const columns = [
+    { field: 'id', headerName: 'ID', width: 70 },
+    { field: 'code', headerName: 'Code', width: 100 },
+    { field: 'name', headerName: 'Product Name', width: 200 },
+    { field: 'categoryName', headerName: 'Category', width: 130 },
+    { 
+      field: 'quantity', 
+      headerName: 'Stock', 
+      width: 100,
+      renderCell: (params) => (
+        <Box display="flex" alignItems="center">
+          {params.value}
+          {params.row.quantity <= params.row.minStockLevel && (
+            <Warning color="warning" fontSize="small" sx={{ ml: 1 }} />
+          )}
+        </Box>
+      )
+    },
+    { field: 'minStockLevel', headerName: 'Min Stock', width: 100 },
+    { field: 'unit', headerName: 'Unit', width: 80 },
+    { 
+      field: 'unitPrice', 
+      headerName: 'Price', 
+      width: 100,
+      valueFormatter: (params) => `$${params.value}`
+    },
+    {
+      field: 'stockStatus',
+      headerName: 'Status',
+      width: 120,
+      renderCell: (params) => getStockStatusChip(params.value)
+    },
+    {
+      field: 'expiryDate',
+      headerName: 'Expiry Date',
+      width: 120,
+      valueFormatter: (params) => params.value ? new Date(params.value).toLocaleDateString() : '-'
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 200,
+      sortable: false,
+      renderCell: (params) => (
+        <>
+          <Tooltip title="Adjust Stock">
+            <IconButton
+              size="small"
+              onClick={() => handleStockAdjustment(params.row)}
+              color="primary"
+            >
+              <Inventory />
+            </IconButton>
+          </Tooltip>
+          <IconButton
+            size="small"
+            onClick={() => handleOpenDialog(params.row)}
+            color="primary"
+          >
+            <Edit />
+          </IconButton>
+          {isManager && (
+            <IconButton
+              size="small"
+              onClick={() => handleDelete(params.row.id)}
+              color="error"
+            >
+              <Delete />
+            </IconButton>
+          )}
+        </>
+      )
+    }
+  ]
+
+  const renderSummaryCards = () => (
+    <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card>
+          <CardContent>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography color="text.secondary" gutterBottom>
+                  Total Products
+                </Typography>
+                <Typography variant="h4">
+                  {totalElements}
+                </Typography>
+              </Box>
+              <Inventory color="primary" sx={{ fontSize: 40 }} />
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card>
+          <CardContent>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography color="text.secondary" gutterBottom>
+                  Low Stock Items
+                </Typography>
+                <Typography variant="h4" color="warning.main">
+                  {lowStockProducts.length}
+                </Typography>
+              </Box>
+              <TrendingDown color="warning" sx={{ fontSize: 40 }} />
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card>
+          <CardContent>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography color="text.secondary" gutterBottom>
+                  Expiring Soon
+                </Typography>
+                <Typography variant="h4" color="error.main">
+                  {expiringProducts.length}
+                </Typography>
+              </Box>
+              <CalendarMonth color="error" sx={{ fontSize: 40 }} />
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={3}>
+        <Card>
+          <CardContent>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography color="text.secondary" gutterBottom>
+                  Categories
+                </Typography>
+                <Typography variant="h4">
+                  {categories.length}
+                </Typography>
+              </Box>
+              <LocalOffer color="secondary" sx={{ fontSize: 40 }} />
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  )
+
+  return (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4">Product Management</Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => handleOpenDialog()}
+        >
+          Add Product
+        </Button>
+      </Box>
+
+      {renderSummaryCards()}
+
+      <Paper sx={{ mb: 2 }}>
+        <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
+          <Tab label="All Products" />
+          <Tab label="Low Stock" />
+          <Tab label="Expiring Soon" />
+        </Tabs>
+      </Paper>
+
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <TextField
+          fullWidth
+          placeholder="Search by name, code, or manufacturer..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={handleSearch}>
+                  <Search />
+                </IconButton>
+              </InputAdornment>
+            )
+          }}
+        />
+      </Paper>
+
+      <Paper sx={{ height: 600, width: '100%' }}>
+        <DataGrid
+          rows={tabValue === 0 ? products : tabValue === 1 ? lowStockProducts : expiringProducts}
+          columns={columns}
+          pageSize={pageSize}
+          rowsPerPageOptions={[10, 25, 50]}
+          loading={loading}
+          pagination
+          paginationMode="server"
+          rowCount={tabValue === 0 ? totalElements : tabValue === 1 ? lowStockProducts.length : expiringProducts.length}
+          page={page}
+          onPageChange={(newPage) => setPage(newPage)}
+          onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
+          disableSelectionOnClick
+        />
+      </Paper>
+
+      {openDialog && (
+        <ProductForm
+          open={openDialog}
+          onClose={handleCloseDialog}
+          onSubmit={handleSubmit}
+          product={editingProduct}
+          categories={categories}
+        />
+      )}
+
+      {openStockDialog && (
+        <StockAdjustment
+          open={openStockDialog}
+          onClose={() => {
+            setOpenStockDialog(false)
+            setSelectedProduct(null)
+            fetchProducts()
+          }}
+          product={selectedProduct}
+        />
+      )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  )
+}
+
+export default Products
