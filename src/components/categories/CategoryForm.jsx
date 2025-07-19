@@ -10,7 +10,7 @@ import {
   MenuItem,
   Chip
 } from '@mui/material'
-import { getRootCategories } from '../../services/api'
+import { getCategories, getCategoryTree } from '../../services/api'
 
 function CategoryForm({ open, onClose, onSubmit, category }) {
   const [formData, setFormData] = useState({
@@ -45,14 +45,73 @@ function CategoryForm({ open, onClose, onSubmit, category }) {
   
   const fetchParentCategories = async () => {
     try {
-      const response = await getRootCategories()
-      // If editing, filter out the current category and its descendants
-      const filtered = category 
-        ? response.data.filter(c => c.id !== category.id)
-        : response.data
+      // Get ALL categories, not just root ones
+      const response = await getCategories()
+      
+      // If editing, filter out:
+      // 1. The current category itself
+      // 2. Any descendants of the current category (to prevent circular references)
+      let filtered = response.data
+      
+      if (category) {
+        // Get IDs of current category and its descendants
+        const descendantIds = await getDescendantIds(category.id)
+        filtered = response.data.filter(c => 
+          c.id !== category.id && !descendantIds.includes(c.id)
+        )
+      }
+      
+      // Sort by level and name for better display
+      filtered.sort((a, b) => {
+        if (a.level !== b.level) return a.level - b.level
+        return a.name.localeCompare(b.name)
+      })
+      
       setParentCategories(filtered)
     } catch (error) {
       console.error('Failed to fetch parent categories', error)
+    }
+  }
+  
+  // Helper function to get descendant IDs
+  const getDescendantIds = async (categoryId) => {
+    try {
+      const response = await getCategoryTree()
+      const descendants = []
+      
+      const findDescendants = (categories) => {
+        for (const cat of categories) {
+          if (cat.parentId === categoryId) {
+            descendants.push(cat.id)
+            if (cat.children) {
+              findDescendants(cat.children)
+            }
+          }
+        }
+      }
+      
+      // Find the category in the tree and get all its descendants
+      const findInTree = (categories) => {
+        for (const cat of categories) {
+          if (cat.id === categoryId && cat.children) {
+            cat.children.forEach(child => {
+              descendants.push(child.id)
+              if (child.children) {
+                findDescendants(child.children)
+              }
+            })
+          }
+          if (cat.children) {
+            findInTree(cat.children)
+          }
+        }
+      }
+      
+      findInTree(response.data)
+      return descendants
+    } catch (error) {
+      console.error('Failed to get descendant IDs', error)
+      return []
     }
   }
 
@@ -125,7 +184,17 @@ function CategoryForm({ open, onClose, onSubmit, category }) {
             </MenuItem>
             {parentCategories.map(cat => (
               <MenuItem key={cat.id} value={cat.id}>
-                {cat.fullPath || cat.name}
+                <Box component="span" sx={{ pl: cat.level * 2 }}>
+                  {cat.level > 0 && '└─ '}
+                  {cat.name}
+                  {cat.productCount > 0 && (
+                    <Chip 
+                      label={cat.productCount} 
+                      size="small" 
+                      sx={{ ml: 1, height: 20 }} 
+                    />
+                  )}
+                </Box>
               </MenuItem>
             ))}
           </TextField>

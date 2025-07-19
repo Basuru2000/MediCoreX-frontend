@@ -17,7 +17,8 @@ import {
   Grid,
   Chip,
   ToggleButton,
-  ToggleButtonGroup
+  ToggleButtonGroup,
+  Tooltip
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import {
@@ -48,6 +49,7 @@ function Categories() {
   const [openDialog, setOpenDialog] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  const [categoryChildrenCount, setCategoryChildrenCount] = useState({})
 
   useEffect(() => {
     fetchCategories()
@@ -61,6 +63,14 @@ function Categories() {
       ])
       setCategories(flatResponse.data)
       setCategoryTree(treeResponse.data)
+      
+      // Calculate children count for each category
+      const childrenCount = {}
+      flatResponse.data.forEach(category => {
+        const childCount = flatResponse.data.filter(c => c.parentId === category.id).length
+        childrenCount[category.id] = childCount
+      })
+      setCategoryChildrenCount(childrenCount)
     } catch (error) {
       showSnackbar('Failed to fetch categories', 'error')
     } finally {
@@ -123,7 +133,7 @@ function Categories() {
         </Box>
       )
     },
-    { field: 'description', headerName: 'Description', width: 300 },
+    { field: 'description', headerName: 'Description', width: 250 },
     { 
       field: 'parentName', 
       headerName: 'Parent Category', 
@@ -145,7 +155,7 @@ function Categories() {
     { 
       field: 'productCount', 
       headerName: 'Products', 
-      width: 100,
+      width: 90,
       renderCell: (params) => (
         <Chip 
           label={params.value} 
@@ -154,34 +164,66 @@ function Categories() {
         />
       )
     },
+    { 
+      field: 'childrenCount', 
+      headerName: 'Children', 
+      width: 90,
+      renderCell: (params) => {
+        const count = categoryChildrenCount[params.row.id] || 0
+        return (
+          <Chip 
+            label={count} 
+            size="small" 
+            color={count > 0 ? 'secondary' : 'default'}
+          />
+        )
+      }
+    },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 150,
+      width: 180,
       sortable: false,
-      renderCell: (params) => (
-        <>
-          {isManager && (
-            <>
-              <IconButton
-                size="small"
-                onClick={() => handleOpenDialog(params.row)}
-                color="primary"
-              >
-                <Edit />
-              </IconButton>
-              <IconButton
-                size="small"
-                onClick={() => handleDelete(params.row.id)}
-                color="error"
-                disabled={params.row.productCount > 0}
-              >
-                <Delete />
-              </IconButton>
-            </>
-          )}
-        </>
-      )
+      renderCell: (params) => {
+        const childCount = categoryChildrenCount[params.row.id] || 0
+        const canDelete = params.row.productCount === 0 && childCount === 0
+        
+        return (
+          <>
+            {isManager && (
+              <>
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenDialog(params.row)}
+                  color="primary"
+                >
+                  <Edit />
+                </IconButton>
+                <Tooltip 
+                  title={
+                    !canDelete 
+                      ? params.row.productCount > 0 
+                        ? `Cannot delete: ${params.row.productCount} products assigned`
+                        : `Cannot delete: ${childCount} subcategories exist`
+                      : 'Delete category'
+                  }
+                >
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDelete(params.row.id)}
+                      color="error"
+                      disabled={!canDelete}
+                    >
+                      <Delete />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </>
+            )}
+          </>
+        )
+      }
     }
   ]
 
