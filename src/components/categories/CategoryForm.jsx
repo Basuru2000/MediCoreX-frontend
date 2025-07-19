@@ -6,31 +6,55 @@ import {
   DialogActions,
   TextField,
   Button,
-  Box
+  Box,
+  MenuItem,
+  Chip
 } from '@mui/material'
+import { getRootCategories } from '../../services/api'
 
 function CategoryForm({ open, onClose, onSubmit, category }) {
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    parentId: null
   })
 
   const [errors, setErrors] = useState({})
+  const [parentCategories, setParentCategories] = useState([])
 
   useEffect(() => {
+    if (open) {
+      fetchParentCategories()
+    }
+    
     if (category) {
       setFormData({
         name: category.name || '',
-        description: category.description || ''
+        description: category.description || '',
+        parentId: category.parentId || null
       })
     } else {
       setFormData({
         name: '',
-        description: ''
+        description: '',
+        parentId: null
       })
     }
     setErrors({})
   }, [category, open])
+  
+  const fetchParentCategories = async () => {
+    try {
+      const response = await getRootCategories()
+      // If editing, filter out the current category and its descendants
+      const filtered = category 
+        ? response.data.filter(c => c.id !== category.id)
+        : response.data
+      setParentCategories(filtered)
+    } catch (error) {
+      console.error('Failed to fetch parent categories', error)
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -85,6 +109,27 @@ function CategoryForm({ open, onClose, onSubmit, category }) {
             required
             sx={{ mb: 2 }}
           />
+          
+          <TextField
+            fullWidth
+            select
+            label="Parent Category"
+            name="parentId"
+            value={formData.parentId || ''}
+            onChange={handleChange}
+            sx={{ mb: 2 }}
+            helperText="Leave empty for root category"
+          >
+            <MenuItem value="">
+              <em>None (Root Category)</em>
+            </MenuItem>
+            {parentCategories.map(cat => (
+              <MenuItem key={cat.id} value={cat.id}>
+                {cat.fullPath || cat.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          
           <TextField
             fullWidth
             label="Description"

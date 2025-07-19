@@ -97,6 +97,12 @@ export const deleteProduct = (id) => api.delete(`/products/${id}`)
 // Category endpoints
 export const getCategories = () => api.get('/categories')
 
+export const getCategoryTree = () => api.get('/categories/tree')
+
+export const getRootCategories = () => api.get('/categories/root')
+
+export const getChildCategories = (parentId) => api.get(`/categories/${parentId}/children`)
+
 export const getCategoryById = (id) => api.get(`/categories/${id}`)
 
 export const createCategory = (data) => api.post('/categories', data)
@@ -118,6 +124,18 @@ export const getStockTransactions = (params = {}) => {
 }
 
 export const getProductStockHistory = (productId) => api.get(`/stock/history/${productId}`)
+
+// File upload endpoints
+export const uploadProductImage = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return api.post('/files/upload/product-image', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
 
 // Test endpoints
 export const testConnection = () => api.get('/test/hello')

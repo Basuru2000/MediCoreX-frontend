@@ -15,28 +15,36 @@ import {
   Card,
   CardContent,
   Grid,
-  Chip
+  Chip,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import {
   Add,
   Edit,
   Delete,
-  Category as CategoryIcon
+  Category as CategoryIcon,
+  List as ListIcon,
+  AccountTree
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
   getCategories,
+  getCategoryTree,
   createCategory, 
   updateCategory, 
   deleteCategory
 } from '../services/api'
 import CategoryForm from '../components/categories/CategoryForm'
+import CategoryTreeView from '../components/categories/CategoryTreeView'
 
 function Categories() {
   const { isManager } = useAuth()
   const [categories, setCategories] = useState([])
+  const [categoryTree, setCategoryTree] = useState([])
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState('tree') // 'tree' or 'grid'
   const [openDialog, setOpenDialog] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
@@ -47,8 +55,12 @@ function Categories() {
 
   const fetchCategories = async () => {
     try {
-      const response = await getCategories()
-      setCategories(response.data)
+      const [flatResponse, treeResponse] = await Promise.all([
+        getCategories(),
+        getCategoryTree()
+      ])
+      setCategories(flatResponse.data)
+      setCategoryTree(treeResponse.data)
     } catch (error) {
       showSnackbar('Failed to fetch categories', 'error')
     } finally {
@@ -111,11 +123,29 @@ function Categories() {
         </Box>
       )
     },
-    { field: 'description', headerName: 'Description', width: 350 },
+    { field: 'description', headerName: 'Description', width: 300 },
+    { 
+      field: 'parentName', 
+      headerName: 'Parent Category', 
+      width: 150,
+      renderCell: (params) => params.value || '-'
+    },
+    { 
+      field: 'level', 
+      headerName: 'Level', 
+      width: 80,
+      renderCell: (params) => (
+        <Chip 
+          label={params.value} 
+          size="small" 
+          variant="outlined"
+        />
+      )
+    },
     { 
       field: 'productCount', 
       headerName: 'Products', 
-      width: 120,
+      width: 100,
       renderCell: (params) => (
         <Chip 
           label={params.value} 
@@ -163,15 +193,33 @@ function Categories() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Category Management</Typography>
-        {isManager && (
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
+        <Box display="flex" gap={2} alignItems="center">
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, newMode) => newMode && setViewMode(newMode)}
+            size="small"
           >
-            Add Category
-          </Button>
-        )}
+            <ToggleButton value="tree">
+              <AccountTree sx={{ mr: 1 }} />
+              Tree View
+            </ToggleButton>
+            <ToggleButton value="grid">
+              <ListIcon sx={{ mr: 1 }} />
+              List View
+            </ToggleButton>
+          </ToggleButtonGroup>
+          
+          {isManager && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog()}
+            >
+              Add Category
+            </Button>
+          )}
+        </Box>
       </Box>
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -218,22 +266,37 @@ function Categories() {
       )}
 
       <Paper sx={{ height: 400, width: '100%' }}>
-        <DataGrid
-          rows={categories}
-          columns={columns}
-          pageSize={10}
-          rowsPerPageOptions={[10, 25, 50]}
-          loading={loading}
-          disableSelectionOnClick
-          getRowClassName={(params) => 
-            params.row.productCount === 0 ? 'empty-category' : ''
-          }
-          sx={{
-            '& .empty-category': {
-              backgroundColor: 'action.hover',
+        {viewMode === 'grid' ? (
+          <DataGrid
+            rows={categories}
+            columns={columns}
+            pageSize={10}
+            rowsPerPageOptions={[10, 25, 50]}
+            loading={loading}
+            disableSelectionOnClick
+            getRowClassName={(params) => 
+              params.row.productCount === 0 ? 'empty-category' : ''
             }
-          }}
-        />
+            sx={{
+              '& .empty-category': {
+                backgroundColor: 'action.hover',
+              }
+            }}
+          />
+        ) : (
+          <Box sx={{ height: '100%', overflow: 'auto', p: 2 }}>
+            {loading ? (
+              <Typography>Loading...</Typography>
+            ) : (
+              <CategoryTreeView
+                categories={categoryTree}
+                onEdit={handleOpenDialog}
+                onDelete={handleDelete}
+                isManager={isManager}
+              />
+            )}
+          </Box>
+        )}
       </Paper>
 
       {openDialog && (
