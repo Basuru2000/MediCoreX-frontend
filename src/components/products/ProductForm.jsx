@@ -8,8 +8,15 @@ import {
   MenuItem,
   Button,
   Grid,
-  InputAdornment
+  InputAdornment,
+  Box,
+  Typography,
+  IconButton,
+  Avatar,
+  CircularProgress
 } from '@mui/material'
+import { Upload, Close } from '@mui/icons-material'
+import { uploadProductImage } from '../../services/api'
 
 function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const [formData, setFormData] = useState({
@@ -23,10 +30,13 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
     unitPrice: 0,
     expiryDate: '',
     batchNumber: '',
-    manufacturer: ''
+    manufacturer: '',
+    imageUrl: ''
   })
 
   const [errors, setErrors] = useState({})
+  const [imagePreview, setImagePreview] = useState(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   useEffect(() => {
     if (product) {
@@ -41,8 +51,10 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
         unitPrice: product.unitPrice || 0,
         expiryDate: product.expiryDate || '',
         batchNumber: product.batchNumber || '',
-        manufacturer: product.manufacturer || ''
+        manufacturer: product.manufacturer || '',
+        imageUrl: product.imageUrl || ''
       })
+      setImagePreview(product.imageUrl ? `http://localhost:8080${product.imageUrl}` : null)
     } else {
       setFormData({
         name: '',
@@ -55,8 +67,10 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
         unitPrice: 0,
         expiryDate: '',
         batchNumber: '',
-        manufacturer: ''
+        manufacturer: '',
+        imageUrl: ''
       })
+      setImagePreview(null)
     }
     setErrors({})
   }, [product, open])
@@ -71,6 +85,44 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
+  }
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      setErrors({ ...errors, image: 'Please upload a valid image file (JPEG, PNG, GIF, or WebP)' })
+      return
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors({ ...errors, image: 'Image size must be less than 5MB' })
+      return
+    }
+
+    setUploadingImage(true)
+    setErrors({ ...errors, image: '' })
+
+    try {
+      const response = await uploadProductImage(file)
+      const imageUrl = response.data.imageUrl
+      
+      setFormData(prev => ({ ...prev, imageUrl }))
+      setImagePreview(`http://localhost:8080${imageUrl}`)
+    } catch (error) {
+      setErrors({ ...errors, image: 'Failed to upload image' })
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setFormData(prev => ({ ...prev, imageUrl: '' }))
+    setImagePreview(null)
   }
 
   const validate = () => {
@@ -284,6 +336,61 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
               value={formData.batchNumber}
               onChange={handleChange}
             />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <Box sx={{ border: '1px dashed #ccc', borderRadius: 1, p: 2, textAlign: 'center' }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Product Image
+              </Typography>
+              
+              {imagePreview ? (
+                <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                  <Avatar
+                    src={imagePreview}
+                    variant="rounded"
+                    sx={{ width: 150, height: 150, mb: 1 }}
+                  />
+                  <IconButton
+                    size="small"
+                    sx={{ position: 'absolute', top: -8, right: -8 }}
+                    onClick={handleRemoveImage}
+                  >
+                    <Close />
+                  </IconButton>
+                </Box>
+              ) : (
+                <Box>
+                  <input
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    id="image-upload"
+                    type="file"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImage}
+                  />
+                  <label htmlFor="image-upload">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      startIcon={uploadingImage ? <CircularProgress size={20} /> : <Upload />}
+                      disabled={uploadingImage}
+                    >
+                      {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                    </Button>
+                  </label>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Max size: 5MB. Formats: JPEG, PNG, GIF, WebP
+                  </Typography>
+                </Box>
+              )}
+              
+              {errors.image && (
+                <Typography color="error" variant="caption" display="block" sx={{ mt: 1 }}>
+                  {errors.image}
+                </Typography>
+              )}
+            </Box>
           </Grid>
         </Grid>
       </DialogContent>

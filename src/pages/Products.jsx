@@ -20,7 +20,8 @@ import {
   Grid,
   Card,
   CardContent,
-  Tooltip
+  Tooltip,
+  Avatar
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import {
@@ -163,8 +164,13 @@ function Products() {
         await deleteProduct(id)
         showSnackbar('Product deleted successfully', 'success')
         fetchProducts()
+        fetchLowStockProducts()
+        fetchExpiringProducts()
       } catch (error) {
-        showSnackbar('Failed to delete product', 'error')
+        const errorMessage = error.response?.data?.message || 
+                           error.response?.data?.error || 
+                           'Failed to delete product'
+        showSnackbar(errorMessage, 'error')
       }
     }
   }
@@ -190,6 +196,20 @@ function Products() {
 
   const columns = [
     { field: 'id', headerName: 'ID', width: 70 },
+    {
+      field: 'imageUrl',
+      headerName: 'Image',
+      width: 80,
+      renderCell: (params) => (
+        <Avatar
+          src={params.value ? `http://localhost:8080${params.value}` : null}
+          variant="rounded"
+          sx={{ width: 40, height: 40 }}
+        >
+          {!params.value && params.row.name?.[0]}
+        </Avatar>
+      )
+    },
     { field: 'code', headerName: 'Code', width: 100 },
     { field: 'name', headerName: 'Product Name', width: 200 },
     { field: 'categoryName', headerName: 'Category', width: 130 },
