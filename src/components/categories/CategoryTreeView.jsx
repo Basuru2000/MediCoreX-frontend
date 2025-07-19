@@ -8,7 +8,8 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  Tooltip
 } from '@mui/material'
 import {
   ExpandMore,
@@ -73,14 +74,26 @@ function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager }) 
               >
                 <Edit />
               </IconButton>
-              <IconButton
-                edge="end"
-                size="small"
-                onClick={() => onDelete(category.id)}
-                disabled={category.productCount > 0 || hasChildren}
+              <Tooltip 
+                title={
+                  (category.productCount > 0 || hasChildren)
+                    ? category.productCount > 0 
+                      ? `Cannot delete: ${category.productCount} products assigned`
+                      : `Cannot delete: Has subcategories`
+                    : 'Delete category'
+                }
               >
-                <Delete />
-              </IconButton>
+                <span>
+                  <IconButton
+                    edge="end"
+                    size="small"
+                    onClick={() => onDelete(category.id)}
+                    disabled={category.productCount > 0 || hasChildren}
+                  >
+                    <Delete />
+                  </IconButton>
+                </span>
+              </Tooltip>
             </>
           )}
         </ListItemSecondaryAction>
