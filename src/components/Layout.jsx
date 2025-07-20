@@ -63,7 +63,7 @@ function Layout() {
     { text: 'Products', icon: <Inventory />, path: '/products', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Categories', icon: <Category />, path: '/categories', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
     { text: 'Procurement', icon: <ShoppingCart />, path: '/procurement', roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'] },
-    { text: 'Reports', icon: <Assessment />, path: '/reports', roles: ['HOSPITAL_MANAGER'] },
+    { text: 'Stock Valuation', icon: <Assessment />, path: '/reports/stock-valuation', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
   ]
 
   const drawer = (
