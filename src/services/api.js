@@ -137,6 +137,33 @@ export const uploadProductImage = (file) => {
   })
 }
 
+// Report endpoints
+export const getStockValuationReport = () => api.get('/reports/stock-valuation')
+
+export const getValuationSummary = () => api.get('/reports/valuation-summary')
+
+export const getProductValuation = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    sortBy: params.sortBy || 'totalValue',
+    sortDirection: params.sortDirection || 'DESC'
+  }).toString();
+  return api.get(`/reports/product-valuation?${queryParams}`)
+}
+
+export const getCategoryValuation = () => api.get('/reports/category-valuation')
+
+export const exportStockValuationCSV = () => {
+  return api.get('/reports/stock-valuation/export/csv', {
+    responseType: 'blob'
+  })
+}
+
+export const exportCategoryValuationCSV = () => {
+  return api.get('/reports/category-valuation/export/csv', {
+    responseType: 'blob'
+  })
+}
+
 // Test endpoints
 export const testConnection = () => api.get('/test/hello')
 export const healthCheck = () => api.get('/test/health')

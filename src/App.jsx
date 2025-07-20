@@ -5,8 +5,9 @@ import Layout from './components/Layout'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Users from './pages/Users'
-import Products from './pages/Products'  // NEW
-import Categories from './pages/Categories'  // NEW
+import Products from './pages/Products'
+import Categories from './pages/Categories'
+import StockValuation from './pages/Reports/StockValuation'
 import Unauthorized from './pages/Unauthorized'
 
 function App() {
@@ -45,6 +46,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER']}>
                 <Categories />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="reports/stock-valuation"
+            element={
+              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
+                <StockValuation />
               </ProtectedRoute>
             }
           />
