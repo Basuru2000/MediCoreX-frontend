@@ -94,6 +94,36 @@ export const updateProduct = (id, data) => api.put(`/products/${id}`, data)
 
 export const deleteProduct = (id) => api.delete(`/products/${id}`)
 
+// Product Import/Export endpoints
+export const exportProductsCSV = () => {
+  return api.get('/products/export/csv', {
+    responseType: 'blob'
+  })
+}
+
+export const exportProductsExcel = () => {
+  return api.get('/products/export/excel', {
+    responseType: 'blob'
+  })
+}
+
+export const downloadImportTemplate = () => {
+  return api.get('/products/import/template', {
+    responseType: 'blob'
+  })
+}
+
+export const importProducts = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return api.post('/products/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
 // Category endpoints
 export const getCategories = () => api.get('/categories')
 

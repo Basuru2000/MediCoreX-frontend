@@ -33,7 +33,8 @@ import {
   Inventory,
   LocalOffer,
   CalendarMonth,
-  TrendingDown
+  TrendingDown,
+  Upload
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
@@ -47,6 +48,7 @@ import {
   searchProducts
 } from '../services/api'
 import ProductForm from '../components/products/ProductForm'
+import ProductImportExport from '../components/products/ProductImportExport'
 import StockAdjustment from './StockAdjustment'
 
 function Products() {
@@ -57,6 +59,7 @@ function Products() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [openDialog, setOpenDialog] = useState(false)
+  const [openImportExport, setOpenImportExport] = useState(false)
   const [openStockDialog, setOpenStockDialog] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
@@ -360,13 +363,22 @@ function Products() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Product Management</Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpenDialog()}
-        >
-          Add Product
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<Upload />}
+            onClick={() => setOpenImportExport(true)}
+          >
+            Import/Export
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog()}
+          >
+            Add Product
+          </Button>
+        </Box>
       </Box>
 
       {renderSummaryCards()}
@@ -422,6 +434,20 @@ function Products() {
           onSubmit={handleSubmit}
           product={editingProduct}
           categories={categories}
+        />
+      )}
+
+      {openImportExport && (
+        <ProductImportExport
+          open={openImportExport}
+          onClose={() => setOpenImportExport(false)}
+          onImportSuccess={() => {
+            setOpenImportExport(false)
+            fetchProducts()
+            fetchLowStockProducts()
+            fetchExpiringProducts()
+            showSnackbar('Products imported successfully', 'success')
+          }}
         />
       )}
 
