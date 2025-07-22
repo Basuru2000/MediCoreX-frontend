@@ -32,7 +32,7 @@ import {
 } from '@mui/icons-material'
 import { exportProductsCSV, exportProductsExcel, downloadImportTemplate, importProducts } from '../../services/api'
 
-function ProductImportExport({ open, onClose, onImportSuccess }) {
+function ProductImportExport({ open, onClose, onImportSuccess, currentFilter = 'all' }) {
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
@@ -40,17 +40,28 @@ function ProductImportExport({ open, onClose, onImportSuccess }) {
   const [error, setError] = useState('')
   const [dragActive, setDragActive] = useState(false)
 
+  const getFilterLabel = () => {
+    switch (currentFilter) {
+      case 'lowstock':
+        return 'Low Stock Products'
+      case 'expiring':
+        return 'Expiring Products'
+      default:
+        return 'All Products'
+    }
+  }
+
   const handleExportCSV = async () => {
     try {
       setExporting(true)
-      const response = await exportProductsCSV()
+      const response = await exportProductsCSV(currentFilter)
       
       // Create blob and download
       const blob = new Blob([response.data], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `products_${new Date().toISOString().split('T')[0]}.csv`
+      a.download = `products_${currentFilter}_${new Date().toISOString().split('T')[0]}.csv`
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (err) {
@@ -63,7 +74,7 @@ function ProductImportExport({ open, onClose, onImportSuccess }) {
   const handleExportExcel = async () => {
     try {
       setExporting(true)
-      const response = await exportProductsExcel()
+      const response = await exportProductsExcel(currentFilter)
       
       // Create blob and download
       const blob = new Blob([response.data], { 
@@ -72,7 +83,7 @@ function ProductImportExport({ open, onClose, onImportSuccess }) {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `products_${new Date().toISOString().split('T')[0]}.xlsx`
+      a.download = `products_${currentFilter}_${new Date().toISOString().split('T')[0]}.xlsx`
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (err) {
@@ -200,8 +211,14 @@ function ProductImportExport({ open, onClose, onImportSuccess }) {
                 Export Products
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Download all products in your preferred format
+                Export <strong>{getFilterLabel()}</strong> in your preferred format
               </Typography>
+              {currentFilter !== 'all' && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  You are currently viewing <strong>{getFilterLabel()}</strong>. 
+                  Only products matching this filter will be exported.
+                </Alert>
+              )}
               <Box display="flex" gap={2}>
                 <Button
                   variant="outlined"
@@ -384,7 +401,8 @@ function ProductImportExport({ open, onClose, onImportSuccess }) {
                 1. Download the template and fill in your product data<br />
                 2. Ensure category names match existing categories in the system<br />
                 3. Product codes will be auto-generated if left empty<br />
-                4. Required fields: Product Name, Category, Quantity, Min Stock, Unit, Unit Price
+                4. Required fields: Product Name, Category, Quantity, Min Stock, Unit, Unit Price<br />
+                5. Remove the row containing field descriptions (e.g., “Required”, “Optional”, etc.) before uploading the file.
               </Typography>
             </Alert>
           </Grid>

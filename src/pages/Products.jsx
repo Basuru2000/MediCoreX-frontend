@@ -441,6 +441,7 @@ function Products() {
         <ProductImportExport
           open={openImportExport}
           onClose={() => setOpenImportExport(false)}
+          currentFilter={tabValue === 0 ? 'all' : tabValue === 1 ? 'lowstock' : 'expiring'}
           onImportSuccess={() => {
             setOpenImportExport(false)
             fetchProducts()
