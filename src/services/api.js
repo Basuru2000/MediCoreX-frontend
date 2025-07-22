@@ -95,14 +95,14 @@ export const updateProduct = (id, data) => api.put(`/products/${id}`, data)
 export const deleteProduct = (id) => api.delete(`/products/${id}`)
 
 // Product Import/Export endpoints
-export const exportProductsCSV = () => {
-  return api.get('/products/export/csv', {
+export const exportProductsCSV = (filter = 'all') => {
+  return api.get(`/products/export/csv?filter=${filter}`, {
     responseType: 'blob'
   })
 }
 
-export const exportProductsExcel = () => {
-  return api.get('/products/export/excel', {
+export const exportProductsExcel = (filter = 'all') => {
+  return api.get(`/products/export/excel?filter=${filter}`, {
     responseType: 'blob'
   })
 }
