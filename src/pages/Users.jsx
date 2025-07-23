@@ -6,18 +6,15 @@ import {
   Typography,
   IconButton,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
   Alert,
-  Snackbar
+  Snackbar,
+  Avatar,
+  Tooltip
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
-import { Add, Edit, Delete, Block, CheckCircle } from '@mui/icons-material'
+import { Add, Edit, Delete, Block, CheckCircle, Person } from '@mui/icons-material'
 import { getUsers, createUser, updateUser, deleteUser, toggleUserStatus } from '../services/api'
+import UserForm from '../components/users/UserForm'
 
 function Users() {
   const [users, setUsers] = useState([])
@@ -25,13 +22,6 @@ function Users() {
   const [openDialog, setOpenDialog] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    fullName: '',
-    role: 'PHARMACY_STAFF'
-  })
 
   useEffect(() => {
     fetchUsers()
@@ -49,39 +39,16 @@ function Users() {
   }
 
   const handleOpenDialog = (user = null) => {
-    if (user) {
-      setEditingUser(user)
-      setFormData({
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
-      })
-    } else {
-      setEditingUser(null)
-      setFormData({
-        username: '',
-        password: '',
-        email: '',
-        fullName: '',
-        role: 'PHARMACY_STAFF'
-      })
-    }
+    setEditingUser(user)
     setOpenDialog(true)
   }
 
   const handleCloseDialog = () => {
     setOpenDialog(false)
     setEditingUser(null)
-    setFormData({
-      username: '',
-      password: '',
-      email: '',
-      fullName: '',
-      role: 'PHARMACY_STAFF'
-    })
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (formData) => {
     try {
       if (editingUser) {
         await updateUser(editingUser.id, formData)
@@ -104,7 +71,7 @@ function Users() {
         showSnackbar('User deleted successfully', 'success')
         fetchUsers()
       } catch (error) {
-        showSnackbar('Failed to delete user', 'error')
+        showSnackbar(error.response?.data?.message || 'Failed to delete user', 'error')
       }
     }
   }
@@ -115,7 +82,7 @@ function Users() {
       showSnackbar('User status updated', 'success')
       fetchUsers()
     } catch (error) {
-      showSnackbar('Failed to update user status', 'error')
+      showSnackbar(error.response?.data?.message || 'Failed to update user status', 'error')
     }
   }
 
@@ -123,11 +90,60 @@ function Users() {
     setSnackbar({ open: true, message, severity })
   }
 
+  const getGenderColor = (gender) => {
+    switch (gender) {
+      case 'MALE':
+        return '#ADD8E6' // Light Blue
+      case 'FEMALE':
+        return '#FFB6C1' // Light Pink
+      default:
+        return '#D3D3D3' // Light Gray
+    }
+  }
+
   const columns = [
     { field: 'id', headerName: 'ID', width: 70 },
+    {
+      field: 'profileImage',
+      headerName: 'Profile',
+      width: 80,
+      sortable: false,
+      renderCell: (params) => (
+        <Avatar
+          src={params.row.profileImageUrl ? `http://localhost:8080${params.row.profileImageUrl}` : null}
+          sx={{
+            width: 40,
+            height: 40,
+            bgcolor: getGenderColor(params.row.gender || 'NOT_SPECIFIED')
+          }}
+        >
+          {!params.row.profileImageUrl && (params.row.fullName ? params.row.fullName[0].toUpperCase() : <Person />)}
+        </Avatar>
+      )
+    },
     { field: 'username', headerName: 'Username', width: 130 },
     { field: 'fullName', headerName: 'Full Name', width: 200 },
     { field: 'email', headerName: 'Email', width: 250 },
+    {
+      field: 'gender',
+      headerName: 'Gender',
+      width: 100,
+      renderCell: (params) => {
+        const gender = params.value || 'NOT_SPECIFIED'
+        const genderDisplay = gender === 'NOT_SPECIFIED' ? 'Not Specified' : 
+                             gender.charAt(0) + gender.slice(1).toLowerCase()
+        return (
+          <Chip
+            label={genderDisplay}
+            size="small"
+            sx={{
+              bgcolor: getGenderColor(gender),
+              color: 'text.primary'
+            }}
+          />
+        )
+      }
+    },
     {
       field: 'role',
       headerName: 'Role',
@@ -166,13 +182,15 @@ function Users() {
           >
             <Edit />
           </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleToggleStatus(params.row.id)}
-            color={params.row.active ? 'warning' : 'success'}
-          >
-            {params.row.active ? <Block /> : <CheckCircle />}
-          </IconButton>
+          <Tooltip title={params.row.active ? 'Deactivate' : 'Activate'}>
+            <IconButton
+              size="small"
+              onClick={() => handleToggleStatus(params.row.id)}
+              color={params.row.active ? 'warning' : 'success'}
+            >
+              {params.row.active ? <Block /> : <CheckCircle />}
+            </IconButton>
+          </Tooltip>
           <IconButton
             size="small"
             onClick={() => handleDelete(params.row.id)}
@@ -209,74 +227,14 @@ function Users() {
         />
       </Paper>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingUser ? 'Edit User' : 'Create New User'}</DialogTitle>
-        <DialogContent>
-          {!editingUser && (
-            <>
-              <TextField
-                autoFocus
-                margin="dense"
-                label="Username"
-                fullWidth
-                variant="outlined"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                required
-              />
-              <TextField
-                margin="dense"
-                label="Password"
-                type="password"
-                fullWidth
-                variant="outlined"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-              />
-            </>
-          )}
-          <TextField
-            margin="dense"
-            label="Email"
-            type="email"
-            fullWidth
-            variant="outlined"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-          />
-          <TextField
-            margin="dense"
-            label="Full Name"
-            fullWidth
-            variant="outlined"
-            value={formData.fullName}
-            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-            required
-          />
-          <TextField
-            margin="dense"
-            label="Role"
-            select
-            fullWidth
-            variant="outlined"
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            required
-          >
-            <MenuItem value="HOSPITAL_MANAGER">Hospital Manager</MenuItem>
-            <MenuItem value="PHARMACY_STAFF">Pharmacy Staff</MenuItem>
-            <MenuItem value="PROCUREMENT_OFFICER">Procurement Officer</MenuItem>
-          </TextField>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {editingUser ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {openDialog && (
+        <UserForm
+          open={openDialog}
+          onClose={handleCloseDialog}
+          onSubmit={handleSubmit}
+          user={editingUser}
+        />
+      )}
 
       <Snackbar
         open={snackbar.open}
