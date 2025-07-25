@@ -13,15 +13,21 @@ import {
   Typography,
   IconButton,
   Avatar,
-  CircularProgress
+  CircularProgress,
+  Tab,
+  Tabs
 } from '@mui/material'
-import { Upload, Close } from '@mui/icons-material'
+import { Upload, Close, QrCodeScanner, Refresh } from '@mui/icons-material'
 import { uploadProductImage } from '../../services/api'
+import BarcodeDisplay from './BarcodeDisplay'
+import BarcodeScanner from './BarcodeScanner'
 
 function ProductForm({ open, onClose, onSubmit, product, categories }) {
+  const [activeTab, setActiveTab] = useState(0)
   const [formData, setFormData] = useState({
     name: '',
     code: '',
+    barcode: '',
     description: '',
     categoryId: '',
     quantity: 0,
@@ -37,12 +43,14 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const [errors, setErrors] = useState({})
   const [imagePreview, setImagePreview] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   useEffect(() => {
     if (product) {
       setFormData({
         name: product.name || '',
         code: product.code || '',
+        barcode: product.barcode || '',
         description: product.description || '',
         categoryId: product.categoryId || '',
         quantity: product.quantity || 0,
@@ -59,6 +67,7 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
       setFormData({
         name: '',
         code: '',
+        barcode: '',
         description: '',
         categoryId: '',
         quantity: 0,
@@ -73,6 +82,7 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
       setImagePreview(null)
     }
     setErrors({})
+    setActiveTab(0)
   }, [product, open])
 
   const handleChange = (e) => {
@@ -125,6 +135,19 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
     setImagePreview(null)
   }
 
+  const handleBarcodeScan = (barcode) => {
+    setFormData(prev => ({ ...prev, barcode }))
+    setScannerOpen(false)
+  }
+
+  const generateRandomBarcode = () => {
+    const prefix = 'MED'
+    const timestamp = Date.now().toString().slice(-6)
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+    const barcode = `${prefix}${timestamp}${random}`
+    setFormData(prev => ({ ...prev, barcode }))
+  }
+
   const validate = () => {
     const newErrors = {}
     
@@ -155,6 +178,10 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
     if (formData.expiryDate && new Date(formData.expiryDate) <= new Date()) {
       newErrors.expiryDate = 'Expiry date must be in the future'
     }
+
+    if (formData.barcode && !/^[A-Za-z0-9]{8,}$/.test(formData.barcode)) {
+      newErrors.barcode = 'Barcode must be alphanumeric and at least 8 characters'
+    }
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -173,6 +200,7 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
       
       // Remove empty optional fields
       if (!submitData.code) delete submitData.code
+      if (!submitData.barcode) delete submitData.barcode
       if (!submitData.description) delete submitData.description
       if (!submitData.expiryDate) delete submitData.expiryDate
       if (!submitData.batchNumber) delete submitData.batchNumber
@@ -185,222 +213,288 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const commonUnits = ['Tablets', 'Bottles', 'Boxes', 'Packs', 'Vials', 'Tubes', 'Strips', 'Pieces', 'Liters', 'Kilograms']
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-      <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Product Name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              error={!!errors.name}
-              helperText={errors.name}
-              required
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Product Code"
-              name="code"
-              value={formData.code}
-              onChange={handleChange}
-              placeholder="SKU or Barcode"
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              multiline
-              rows={2}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              select
-              label="Category"
-              name="categoryId"
-              value={formData.categoryId}
-              onChange={handleChange}
-              error={!!errors.categoryId}
-              helperText={errors.categoryId}
-              required
-            >
-              {categories.map(category => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Manufacturer"
-              name="manufacturer"
-              value={formData.manufacturer}
-              onChange={handleChange}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Current Stock"
-              name="quantity"
-              type="number"
-              value={formData.quantity}
-              onChange={handleChange}
-              error={!!errors.quantity}
-              helperText={errors.quantity}
-              required
-              InputProps={{ inputProps: { min: 0 } }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Minimum Stock Level"
-              name="minStockLevel"
-              type="number"
-              value={formData.minStockLevel}
-              onChange={handleChange}
-              error={!!errors.minStockLevel}
-              helperText={errors.minStockLevel}
-              required
-              InputProps={{ inputProps: { min: 0 } }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              select
-              label="Unit"
-              name="unit"
-              value={formData.unit}
-              onChange={handleChange}
-              error={!!errors.unit}
-              helperText={errors.unit}
-              required
-            >
-              {commonUnits.map(unit => (
-                <MenuItem key={unit} value={unit}>
-                  {unit}
-                </MenuItem>
-              ))}
-              <MenuItem value="Other">Other</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Unit Price"
-              name="unitPrice"
-              type="number"
-              value={formData.unitPrice}
-              onChange={handleChange}
-              error={!!errors.unitPrice}
-              helperText={errors.unitPrice}
-              required
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                inputProps: { min: 0, step: 0.01 }
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Expiry Date"
-              name="expiryDate"
-              type="date"
-              value={formData.expiryDate}
-              onChange={handleChange}
-              error={!!errors.expiryDate}
-              helperText={errors.expiryDate}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Batch Number"
-              name="batchNumber"
-              value={formData.batchNumber}
-              onChange={handleChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <Box sx={{ border: '1px dashed #ccc', borderRadius: 1, p: 2, textAlign: 'center' }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Product Image
-              </Typography>
-              
-              {imagePreview ? (
-                <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                  <Avatar
-                    src={imagePreview}
-                    variant="rounded"
-                    sx={{ width: 150, height: 150, mb: 1 }}
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+        <DialogContent>
+          <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} sx={{ mb: 2 }}>
+            <Tab label="Basic Info" />
+            <Tab label="Codes & Tracking" />
+            <Tab label="Images" />
+          </Tabs>
+
+          {activeTab === 0 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Product Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  error={!!errors.name}
+                  helperText={errors.name}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Category"
+                  name="categoryId"
+                  value={formData.categoryId}
+                  onChange={handleChange}
+                  error={!!errors.categoryId}
+                  helperText={errors.categoryId}
+                  required
+                >
+                  {categories.map(category => (
+                    <MenuItem key={category.id} value={category.id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Current Stock"
+                  name="quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={handleChange}
+                  error={!!errors.quantity}
+                  helperText={errors.quantity}
+                  required
+                  InputProps={{ inputProps: { min: 0 } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Minimum Stock Level"
+                  name="minStockLevel"
+                  type="number"
+                  value={formData.minStockLevel}
+                  onChange={handleChange}
+                  error={!!errors.minStockLevel}
+                  helperText={errors.minStockLevel}
+                  required
+                  InputProps={{ inputProps: { min: 0 } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Unit"
+                  name="unit"
+                  value={formData.unit}
+                  onChange={handleChange}
+                  error={!!errors.unit}
+                  helperText={errors.unit}
+                  required
+                >
+                  {commonUnits.map(unit => (
+                    <MenuItem key={unit} value={unit}>
+                      {unit}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value="Other">Other</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Unit Price"
+                  name="unitPrice"
+                  type="number"
+                  value={formData.unitPrice}
+                  onChange={handleChange}
+                  error={!!errors.unitPrice}
+                  helperText={errors.unitPrice}
+                  required
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                    inputProps: { min: 0, step: 0.01 }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Manufacturer"
+                  name="manufacturer"
+                  value={formData.manufacturer}
+                  onChange={handleChange}
+                />
+              </Grid>
+            </Grid>
+          )}
+
+          {activeTab === 1 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Product Code"
+                  name="code"
+                  value={formData.code}
+                  onChange={handleChange}
+                  placeholder="SKU or Internal Code"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Box display="flex" gap={1}>
+                  <TextField
+                    fullWidth
+                    label="Barcode"
+                    name="barcode"
+                    value={formData.barcode}
+                    onChange={handleChange}
+                    error={!!errors.barcode}
+                    helperText={errors.barcode || "Leave empty to auto-generate"}
+                    placeholder="Alphanumeric, min 8 chars"
                   />
-                  <IconButton
-                    size="small"
-                    sx={{ position: 'absolute', top: -8, right: -8 }}
-                    onClick={handleRemoveImage}
+                  <IconButton 
+                    onClick={() => setScannerOpen(true)}
+                    color="primary"
+                    sx={{ mt: 0.5 }}
                   >
-                    <Close />
+                    <QrCodeScanner />
+                  </IconButton>
+                  <IconButton 
+                    onClick={generateRandomBarcode}
+                    color="secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    <Refresh />
                   </IconButton>
                 </Box>
-              ) : (
-                <Box>
-                  <input
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    id="image-upload"
-                    type="file"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImage}
-                  />
-                  <label htmlFor="image-upload">
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      startIcon={uploadingImage ? <CircularProgress size={20} /> : <Upload />}
-                      disabled={uploadingImage}
-                    >
-                      {uploadingImage ? 'Uploading...' : 'Upload Image'}
-                    </Button>
-                  </label>
-                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                    Max size: 5MB. Formats: JPEG, PNG, GIF, WebP
-                  </Typography>
-                </Box>
-              )}
+              </Grid>
               
-              {errors.image && (
-                <Typography color="error" variant="caption" display="block" sx={{ mt: 1 }}>
-                  {errors.image}
-                </Typography>
+              {formData.barcode && (
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <BarcodeDisplay 
+                      barcode={formData.barcode} 
+                      productName={formData.name}
+                      showActions={false}
+                    />
+                  </Box>
+                </Grid>
               )}
-            </Box>
-          </Grid>
-        </Grid>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          {product ? 'Update' : 'Create'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Expiry Date"
+                  name="expiryDate"
+                  type="date"
+                  value={formData.expiryDate}
+                  onChange={handleChange}
+                  error={!!errors.expiryDate}
+                  helperText={errors.expiryDate}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Batch Number"
+                  name="batchNumber"
+                  value={formData.batchNumber}
+                  onChange={handleChange}
+                />
+              </Grid>
+            </Grid>
+          )}
+
+          {activeTab === 2 && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <Box sx={{ border: '1px dashed #ccc', borderRadius: 1, p: 2, textAlign: 'center' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Product Image
+                  </Typography>
+                  
+                  {imagePreview ? (
+                    <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                      <Avatar
+                        src={imagePreview}
+                        variant="rounded"
+                        sx={{ width: 150, height: 150, mb: 1 }}
+                      />
+                      <IconButton
+                        size="small"
+                        sx={{ position: 'absolute', top: -8, right: -8 }}
+                        onClick={handleRemoveImage}
+                      >
+                        <Close />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    <Box>
+                      <input
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id="image-upload"
+                        type="file"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                      />
+                      <label htmlFor="image-upload">
+                        <Button
+                          variant="outlined"
+                          component="span"
+                          startIcon={uploadingImage ? <CircularProgress size={20} /> : <Upload />}
+                          disabled={uploadingImage}
+                        >
+                          {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                        </Button>
+                      </label>
+                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        Max size: 5MB. Formats: JPEG, PNG, GIF, WebP
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {errors.image && (
+                    <Typography color="error" variant="caption" display="block" sx={{ mt: 1 }}>
+                      {errors.image}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained">
+            {product ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleBarcodeScan}
+      />
+    </>
   )
 }
 

@@ -34,7 +34,10 @@ import {
   LocalOffer,
   CalendarMonth,
   TrendingDown,
-  Upload
+  Upload,
+  QrCode,
+  Print,
+  QrCodeScanner
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
@@ -45,11 +48,16 @@ import {
   updateProduct, 
   deleteProduct,
   getCategories,
-  searchProducts
+  searchProducts,
+  getProductByBarcode
 } from '../services/api'
 import ProductForm from '../components/products/ProductForm'
 import ProductImportExport from '../components/products/ProductImportExport'
 import StockAdjustment from './StockAdjustment'
+import BarcodeDisplay from '../components/products/BarcodeDisplay'
+import QRCodeDisplay from '../components/products/QRCodeDisplay'
+import BarcodeScanner from '../components/products/BarcodeScanner'
+import BarcodePrintDialog from '../components/products/BarcodePrintDialog'
 
 function Products() {
   const { isManager, isStaff } = useAuth()
@@ -61,8 +69,12 @@ function Products() {
   const [openDialog, setOpenDialog] = useState(false)
   const [openImportExport, setOpenImportExport] = useState(false)
   const [openStockDialog, setOpenStockDialog] = useState(false)
+  const [openBarcodeDialog, setOpenBarcodeDialog] = useState(false)
+  const [openPrintDialog, setOpenPrintDialog] = useState(false)
+  const [openScanner, setOpenScanner] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
+  const [selectedProducts, setSelectedProducts] = useState([])
   const [tabValue, setTabValue] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
@@ -133,6 +145,18 @@ function Products() {
     }
   }
 
+  const handleBarcodeScan = async (barcode) => {
+    try {
+      const response = await getProductByBarcode(barcode)
+      // Navigate to the product or show product details
+      showSnackbar(`Found product: ${response.data.name}`, 'success')
+      setSearchQuery(barcode)
+      handleSearch()
+    } catch (error) {
+      showSnackbar('Product not found with this barcode', 'error')
+    }
+  }
+
   const handleOpenDialog = (product = null) => {
     setEditingProduct(product)
     setOpenDialog(true)
@@ -183,6 +207,21 @@ function Products() {
     setOpenStockDialog(true)
   }
 
+  const handleViewBarcode = (product) => {
+    setSelectedProduct(product)
+    setOpenBarcodeDialog(true)
+  }
+
+  const handlePrintBarcodes = () => {
+    const productsWithBarcodes = products.filter(p => p.barcode)
+    if (productsWithBarcodes.length === 0) {
+      showSnackbar('No products with barcodes to print', 'warning')
+      return
+    }
+    setSelectedProducts(productsWithBarcodes)
+    setOpenPrintDialog(true)
+  }
+
   const showSnackbar = (message, severity) => {
     setSnackbar({ open: true, message, severity })
   }
@@ -214,6 +253,24 @@ function Products() {
       )
     },
     { field: 'code', headerName: 'Code', width: 100 },
+    { 
+      field: 'barcode', 
+      headerName: 'Barcode', 
+      width: 130,
+      renderCell: (params) => (
+        <Box display="flex" alignItems="center" gap={1}>
+          <Typography variant="body2">{params.value || '-'}</Typography>
+          {params.value && (
+            <IconButton 
+              size="small" 
+              onClick={() => handleViewBarcode(params.row)}
+            >
+              <QrCode fontSize="small" />
+            </IconButton>
+          )}
+        </Box>
+      )
+    },
     { field: 'name', headerName: 'Product Name', width: 200 },
     { field: 'categoryName', headerName: 'Category', width: 130 },
     { 
@@ -366,6 +423,20 @@ function Products() {
         <Box display="flex" gap={2}>
           <Button
             variant="outlined"
+            startIcon={<QrCodeScanner />}
+            onClick={() => setOpenScanner(true)}
+          >
+            Scan Barcode
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Print />}
+            onClick={handlePrintBarcodes}
+          >
+            Print Barcodes
+          </Button>
+          <Button
+            variant="outlined"
             startIcon={<Upload />}
             onClick={() => setOpenImportExport(true)}
           >
@@ -394,7 +465,7 @@ function Products() {
       <Paper sx={{ p: 2, mb: 2 }}>
         <TextField
           fullWidth
-          placeholder="Search by name, code, or manufacturer..."
+          placeholder="Search by name, code, barcode or manufacturer..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -463,6 +534,62 @@ function Products() {
           product={selectedProduct}
         />
       )}
+
+      {/* Barcode Display Dialog */}
+      <Dialog 
+        open={openBarcodeDialog} 
+        onClose={() => setOpenBarcodeDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Product Codes - {selectedProduct?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Barcode
+              </Typography>
+              <BarcodeDisplay
+                barcode={selectedProduct?.barcode}
+                productName={selectedProduct?.name}
+                showActions={true}
+                onPrint={() => {
+                  setSelectedProducts([selectedProduct])
+                  setOpenPrintDialog(true)
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                QR Code
+              </Typography>
+              <QRCodeDisplay
+                qrCode={selectedProduct?.qrCode}
+                productName={selectedProduct?.name}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenBarcodeDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        open={openScanner}
+        onClose={() => setOpenScanner(false)}
+        onScan={handleBarcodeScan}
+      />
+
+      {/* Print Dialog */}
+      <BarcodePrintDialog
+        open={openPrintDialog}
+        onClose={() => setOpenPrintDialog(false)}
+        products={selectedProducts}
+      />
 
       <Snackbar
         open={snackbar.open}
