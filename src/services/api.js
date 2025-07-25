@@ -86,6 +86,8 @@ export const getProductById = (id) => api.get(`/products/${id}`)
 
 export const getProductByCode = (code) => api.get(`/products/code/${code}`)
 
+export const getProductByBarcode = (barcode) => api.get(`/products/barcode/${barcode}`)
+
 export const searchProducts = (query) => api.get(`/products/search?query=${query}`)
 
 export const createProduct = (data) => api.post('/products', data)
@@ -93,6 +95,10 @@ export const createProduct = (data) => api.post('/products', data)
 export const updateProduct = (id, data) => api.put(`/products/${id}`, data)
 
 export const deleteProduct = (id) => api.delete(`/products/${id}`)
+
+export const scanBarcode = (data) => api.post('/products/barcode/scan', data)
+
+export const generateBarcodeImage = (barcode) => api.get(`/products/barcode/generate/${barcode}`)
 
 // Product Import/Export endpoints
 export const exportProductsCSV = (filter = 'all') => {
