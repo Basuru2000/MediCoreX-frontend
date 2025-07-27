@@ -49,7 +49,8 @@ import {
   deleteProduct,
   getCategories,
   searchProducts,
-  getProductByBarcode
+  getProductByBarcode,
+  scanBarcode
 } from '../services/api'
 import ProductForm from '../components/products/ProductForm'
 import ProductImportExport from '../components/products/ProductImportExport'
@@ -58,6 +59,7 @@ import BarcodeDisplay from '../components/products/BarcodeDisplay'
 import QRCodeDisplay from '../components/products/QRCodeDisplay'
 import BarcodeScanner from '../components/products/BarcodeScanner'
 import BarcodePrintDialog from '../components/products/BarcodePrintDialog'
+import BarcodeScanOptions from '../components/products/BarcodeScanOptions'
 
 function Products() {
   const { isManager, isStaff } = useAuth()
@@ -72,6 +74,7 @@ function Products() {
   const [openBarcodeDialog, setOpenBarcodeDialog] = useState(false)
   const [openPrintDialog, setOpenPrintDialog] = useState(false)
   const [openScanner, setOpenScanner] = useState(false)
+  const [openScanOptions, setOpenScanOptions] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [selectedProducts, setSelectedProducts] = useState([])
@@ -154,6 +157,46 @@ function Products() {
       handleSearch()
     } catch (error) {
       showSnackbar('Product not found with this barcode', 'error')
+    }
+  }
+
+  const handleCameraSelect = () => {
+    setOpenScanner(true)
+  }
+
+  const handleImageUpload = async (file) => {
+    try {
+      // Convert file to base64
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        const base64 = reader.result
+        
+        try {
+          // Send to backend for decoding
+          const response = await scanBarcode({
+            barcodeImage: base64
+          })
+          
+          if (response.data) {
+            // Navigate to the product or show product details
+            showSnackbar(`Found product: ${response.data.name}`, 'success')
+            setSearchQuery(response.data.barcode || response.data.code || response.data.name)
+            handleSearch()
+          }
+        } catch (error) {
+          if (error.response?.status === 404) {
+            showSnackbar('No product found with this barcode', 'warning')
+          } else {
+            showSnackbar('Failed to decode barcode from image. Please ensure the image is clear and contains a valid barcode.', 'error')
+          }
+        }
+      }
+      reader.onerror = () => {
+        throw new Error('Failed to read file')
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      throw error
     }
   }
 
@@ -424,7 +467,7 @@ function Products() {
           <Button
             variant="outlined"
             startIcon={<QrCodeScanner />}
-            onClick={() => setOpenScanner(true)}
+            onClick={() => setOpenScanOptions(true)}
           >
             Scan Barcode
           </Button>
@@ -576,6 +619,14 @@ function Products() {
           <Button onClick={() => setOpenBarcodeDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Barcode Scan Options Dialog */}
+      <BarcodeScanOptions
+        open={openScanOptions}
+        onClose={() => setOpenScanOptions(false)}
+        onCameraSelect={handleCameraSelect}
+        onImageUpload={handleImageUpload}
+      />
 
       {/* Barcode Scanner */}
       <BarcodeScanner
