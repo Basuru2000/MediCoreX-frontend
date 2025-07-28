@@ -9,11 +9,12 @@ import {
   Box,
   Alert,
   Typography,
-  LinearProgress
+  LinearProgress,
+  IconButton
 } from '@mui/material'
-import { CameraAlt, Close } from '@mui/icons-material'
+import { CameraAlt, Close, ArrowBack } from '@mui/icons-material'
 
-function BarcodeScanner({ open, onClose, onScan }) {
+function BarcodeScanner({ open, onClose, onScan, onBack }) {
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState('')
   const [isInitialized, setIsInitialized] = useState(false)
@@ -104,6 +105,16 @@ function BarcodeScanner({ open, onClose, onScan }) {
     onClose()
   }
 
+  const handleBack = () => {
+    stopScanner()
+    setError('')
+    if (onBack) {
+      onBack()
+    } else {
+      onClose()
+    }
+  }
+
   // Handle dialog enter/exit transitions
   const handleEntered = () => {
     // Dialog has fully entered, safe to initialize scanner
@@ -131,12 +142,17 @@ function BarcodeScanner({ open, onClose, onScan }) {
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box display="flex" alignItems="center" gap={1}>
+            {onBack && (
+              <IconButton onClick={handleBack} size="small">
+                <ArrowBack />
+              </IconButton>
+            )}
             <CameraAlt />
             <Typography>Scan Barcode/QR Code</Typography>
           </Box>
-          <Button onClick={handleClose} size="small" color="inherit">
+          <IconButton onClick={handleClose} size="small">
             <Close />
-          </Button>
+          </IconButton>
         </Box>
       </DialogTitle>
       
@@ -184,6 +200,11 @@ function BarcodeScanner({ open, onClose, onScan }) {
       </DialogContent>
 
       <DialogActions>
+        {onBack && (
+          <Button onClick={handleBack} variant="outlined">
+            Back
+          </Button>
+        )}
         <Button onClick={handleClose} variant="outlined">
           Cancel
         </Button>

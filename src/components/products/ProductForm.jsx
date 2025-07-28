@@ -21,6 +21,7 @@ import { Upload, Close, QrCodeScanner, Refresh } from '@mui/icons-material'
 import { uploadProductImage } from '../../services/api'
 import BarcodeDisplay from './BarcodeDisplay'
 import BarcodeScanner from './BarcodeScanner'
+import BarcodeScanOptions from './BarcodeScanOptions'
 
 function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const [activeTab, setActiveTab] = useState(0)
@@ -44,6 +45,7 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const [imagePreview, setImagePreview] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [scanOptionsOpen, setScanOptionsOpen] = useState(false)
 
   useEffect(() => {
     if (product) {
@@ -138,6 +140,41 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const handleBarcodeScan = (barcode) => {
     setFormData(prev => ({ ...prev, barcode }))
     setScannerOpen(false)
+    setScanOptionsOpen(false)
+  }
+
+  const handleCameraSelect = () => {
+    setScanOptionsOpen(false)
+    setScannerOpen(true)
+  }
+
+  const handleImageUploadScan = async (file) => {
+    // Convert file to base64 and send to backend
+    const reader = new FileReader()
+    reader.onloadend = async () => {
+      const base64 = reader.result
+      
+      try {
+        const response = await fetch('http://localhost:8080/api/products/barcode/scan', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ barcodeImage: base64 })
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          handleBarcodeScan(data.barcode || data.code || data.name)
+        } else {
+          throw new Error('Failed to decode barcode')
+        }
+      } catch (error) {
+        throw error
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
   const generateRandomBarcode = () => {
@@ -369,7 +406,7 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
                     placeholder="Alphanumeric, min 8 chars"
                   />
                   <IconButton 
-                    onClick={() => setScannerOpen(true)}
+                    onClick={() => setScanOptionsOpen(true)}
                     color="primary"
                     sx={{ mt: 0.5 }}
                   >
@@ -489,10 +526,21 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
         </DialogActions>
       </Dialog>
 
+      <BarcodeScanOptions
+        open={scanOptionsOpen}
+        onClose={() => setScanOptionsOpen(false)}
+        onCameraSelect={handleCameraSelect}
+        onImageUpload={handleImageUploadScan}
+      />
+
       <BarcodeScanner
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={handleBarcodeScan}
+        onBack={() => {
+          setScannerOpen(false)
+          setScanOptionsOpen(true)
+        }}
       />
     </>
   )

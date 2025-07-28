@@ -161,6 +161,7 @@ function Products() {
   }
 
   const handleCameraSelect = () => {
+    setOpenScanOptions(false)
     setOpenScanner(true)
   }
 
@@ -178,10 +179,25 @@ function Products() {
           })
           
           if (response.data) {
-            // Navigate to the product or show product details
-            showSnackbar(`Found product: ${response.data.name}`, 'success')
-            setSearchQuery(response.data.barcode || response.data.code || response.data.name)
-            handleSearch()
+            // Check if it's a barcode string or a product object
+            if (typeof response.data === 'string') {
+              // It's just a barcode, search for the product
+              try {
+                const productResponse = await getProductByBarcode(response.data)
+                showSnackbar(`Found product: ${productResponse.data.name}`, 'success')
+                setSearchQuery(response.data)
+                handleSearch()
+              } catch (error) {
+                showSnackbar(`Barcode detected: ${response.data}, but no matching product found`, 'warning')
+                setSearchQuery(response.data)
+                handleSearch()
+              }
+            } else {
+              // It's a product object
+              showSnackbar(`Found product: ${response.data.name}`, 'success')
+              setSearchQuery(response.data.barcode || response.data.code || response.data.name)
+              handleSearch()
+            }
           }
         } catch (error) {
           if (error.response?.status === 404) {
@@ -633,6 +649,10 @@ function Products() {
         open={openScanner}
         onClose={() => setOpenScanner(false)}
         onScan={handleBarcodeScan}
+        onBack={() => {
+          setOpenScanner(false)
+          setOpenScanOptions(true)
+        }}
       />
 
       {/* Print Dialog */}
