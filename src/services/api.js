@@ -211,6 +211,18 @@ export const exportCategoryValuationCSV = () => {
   })
 }
 
+// Expiry Alert Configuration endpoints
+export const getExpiryAlertConfigs = () => api.get('/expiry/configs')
+export const getActiveExpiryAlertConfigs = () => api.get('/expiry/configs/active')
+export const getExpiryAlertConfigById = (id) => api.get(`/expiry/configs/${id}`)
+export const getExpiryAlertConfigsForRole = (role) => api.get(`/expiry/configs/role/${role}`)
+export const createExpiryAlertConfig = (data) => api.post('/expiry/configs', data)
+export const updateExpiryAlertConfig = (id, data) => api.put(`/expiry/configs/${id}`, data)
+export const deleteExpiryAlertConfig = (id) => api.delete(`/expiry/configs/${id}`)
+export const toggleExpiryAlertConfigStatus = (id) => api.put(`/expiry/configs/${id}/toggle`)
+export const updateExpiryAlertConfigSortOrder = (configIds) => api.put('/expiry/configs/sort-order', configIds)
+export const getAffectedProductCount = (id) => api.get(`/expiry/configs/${id}/affected-products`)
+
 // Test endpoints
 export const testConnection = () => api.get('/test/hello')
 export const healthCheck = () => api.get('/test/health')
