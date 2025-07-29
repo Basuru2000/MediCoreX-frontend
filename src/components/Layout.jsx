@@ -66,6 +66,7 @@ function Layout() {
     { text: 'Procurement', icon: <ShoppingCart />, path: '/procurement', roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'] },
     { text: 'Stock Valuation', icon: <Assessment />, path: '/reports/stock-valuation', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Expiry Alerts', icon: <Schedule />, path: '/expiry-config', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
+    { text: 'Expiry Monitoring', icon: <Schedule />, path: '/expiry-monitoring', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
   ]
 
   const drawer = (
