@@ -8,6 +8,7 @@ import Users from './pages/Users'
 import Products from './pages/Products'
 import Categories from './pages/Categories'
 import StockValuation from './pages/Reports/StockValuation'
+import ExpiryAlertConfig from './pages/ExpiryAlertConfig'
 import Unauthorized from './pages/Unauthorized'
 
 function App() {
@@ -54,6 +55,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
                 <StockValuation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="expiry-config"
+            element={
+              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
+                <ExpiryAlertConfig />
               </ProtectedRoute>
             }
           />
