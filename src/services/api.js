@@ -223,6 +223,24 @@ export const toggleExpiryAlertConfigStatus = (id) => api.put(`/expiry/configs/${
 export const updateExpiryAlertConfigSortOrder = (configIds) => api.put('/expiry/configs/sort-order', configIds)
 export const getAffectedProductCount = (id) => api.get(`/expiry/configs/${id}/affected-products`)
 
+// Expiry Monitoring endpoints
+export const triggerExpiryCheck = () => api.post('/expiry/monitoring/check')
+export const getExpiryCheckHistory = () => api.get('/expiry/monitoring/history')
+export const getExpiryCheckStatus = (date) => api.get(`/expiry/monitoring/status/${date}`)
+export const getExpiryMonitoringDashboard = () => api.get('/expiry/monitoring/dashboard')
+
+// Expiry Alerts endpoints
+export const getExpiryAlerts = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    status: params.status || 'PENDING',
+    page: params.page || 0,
+    size: params.size || 20
+  }).toString();
+  return api.get(`/expiry/alerts?${queryParams}`)
+}
+export const acknowledgeExpiryAlert = (id, notes) => api.put(`/expiry/alerts/${id}/acknowledge`, { notes })
+export const resolveExpiryAlert = (id, notes) => api.put(`/expiry/alerts/${id}/resolve`, { notes })
+
 // Test endpoints
 export const testConnection = () => api.get('/test/hello')
 export const healthCheck = () => api.get('/test/health')
