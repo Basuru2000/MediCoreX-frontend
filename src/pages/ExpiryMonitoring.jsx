@@ -7,14 +7,23 @@ import {
   Alert,
   CircularProgress,
   Tabs,
-  Tab
+  Tab,
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Chip
 } from '@mui/material'
 import {
   PlayArrow,
   Refresh,
   Schedule,
   CheckCircle,
-  Error
+  Error,
+  Warning,
+  BoltOutlined
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -34,6 +43,8 @@ function ExpiryMonitoring() {
   const [lastCheckResult, setLastCheckResult] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [showForceDialog, setShowForceDialog] = useState(false)
+  const [checkAlreadyRun, setCheckAlreadyRun] = useState(false)
 
   useEffect(() => {
     fetchCheckHistory()
@@ -48,6 +59,13 @@ function ExpiryMonitoring() {
       // Set last check result
       if (response.data.length > 0) {
         setLastCheckResult(response.data[0])
+        
+        // Check if a check was already run today
+        const today = new Date().toISOString().split('T')[0]
+        const todayCheck = response.data.find(check => 
+          check.checkDate === today && check.status === 'COMPLETED'
+        )
+        setCheckAlreadyRun(!!todayCheck)
       }
     } catch (error) {
       setError('Failed to fetch check history')
@@ -56,23 +74,48 @@ function ExpiryMonitoring() {
     }
   }
 
-  const handleTriggerCheck = async () => {
+  const handleTriggerCheck = async (force = false) => {
     try {
       setTriggering(true)
       setError(null)
       setSuccess(null)
+      setShowForceDialog(false)
       
       const response = await triggerExpiryCheck()
+      
+      // Check if the response indicates the check was already run
+      if (response.data.errorMessage?.includes('already completed')) {
+        setCheckAlreadyRun(true)
+        setError('An expiry check has already been completed for today.')
+        setShowForceDialog(true)
+        return
+      }
+      
       setLastCheckResult(response.data)
       setSuccess(`Expiry check completed. ${response.data.alertsGenerated} alerts generated.`)
+      setCheckAlreadyRun(true)
       
       // Refresh history
       await fetchCheckHistory()
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to trigger expiry check')
+      const errorMessage = error.response?.data?.message || 'Failed to trigger expiry check'
+      setError(errorMessage)
+      
+      // Show force dialog if the error is about already completed check
+      if (errorMessage.includes('already completed')) {
+        setCheckAlreadyRun(true)
+        setShowForceDialog(true)
+      }
     } finally {
       setTriggering(false)
     }
+  }
+
+  const handleForceCheck = async () => {
+    setShowForceDialog(false)
+    // In a real implementation, you would call a different endpoint for force check
+    // For now, we'll just show a message
+    setError('Force check functionality is available in development mode. Please enable "expiry.check.allow-multiple-manual=true" in application.properties')
   }
 
   const getStatusIcon = (status) => {
@@ -95,12 +138,15 @@ function ExpiryMonitoring() {
 
     const checkDate = new Date(lastCheckResult.checkDate).toLocaleDateString()
     const status = lastCheckResult.status
+    const checkType = lastCheckResult.startTime?.includes('02:00') ? 'Scheduled' : 'Manual'
+    
     return (
       <Box display="flex" alignItems="center" gap={1}>
         {getStatusIcon(status)}
         <Typography>
           Last check: {checkDate} - {status}
         </Typography>
+        <Chip label={checkType} size="small" variant="outlined" />
       </Box>
     )
   }
@@ -128,7 +174,7 @@ function ExpiryMonitoring() {
             <Button
               variant="contained"
               startIcon={triggering ? <CircularProgress size={20} /> : <PlayArrow />}
-              onClick={handleTriggerCheck}
+              onClick={() => handleTriggerCheck(false)}
               disabled={triggering || loading}
             >
               {triggering ? 'Running Check...' : 'Run Manual Check'}
@@ -138,7 +184,18 @@ function ExpiryMonitoring() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert 
+          severity="error" 
+          sx={{ mb: 2 }} 
+          onClose={() => setError(null)}
+          action={
+            checkAlreadyRun && isManager ? (
+              <Button color="inherit" size="small" onClick={() => setShowForceDialog(true)}>
+                View Options
+              </Button>
+            ) : null
+          }
+        >
           {error}
         </Alert>
       )}
@@ -154,7 +211,7 @@ function ExpiryMonitoring() {
         {lastCheckResult && lastCheckResult.status === 'COMPLETED' && (
           <Box mt={2}>
             <Grid container spacing={2}>
-              <Grid item xs={3}>
+              <Grid item xs={12} sm={6} md={3}>
                 <Typography variant="body2" color="text.secondary">
                   Products Checked
                 </Typography>
@@ -162,7 +219,7 @@ function ExpiryMonitoring() {
                   {lastCheckResult.productsChecked}
                 </Typography>
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={12} sm={6} md={3}>
                 <Typography variant="body2" color="text.secondary">
                   Alerts Generated
                 </Typography>
@@ -170,15 +227,15 @@ function ExpiryMonitoring() {
                   {lastCheckResult.alertsGenerated}
                 </Typography>
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={12} sm={6} md={3}>
                 <Typography variant="body2" color="text.secondary">
                   Execution Time
                 </Typography>
                 <Typography variant="h6">
-                  {lastCheckResult.executionTimeMs}ms
+                  {(lastCheckResult.executionTimeMs / 1000).toFixed(1)}s
                 </Typography>
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={12} sm={6} md={3}>
                 <Typography variant="body2" color="text.secondary">
                   Check Type
                 </Typography>
@@ -212,6 +269,38 @@ function ExpiryMonitoring() {
           {tabValue === 2 && <AlertGenerationReport checkResult={lastCheckResult} />}
         </>
       )}
+
+      {/* Force Check Dialog */}
+      <Dialog open={showForceDialog} onClose={() => setShowForceDialog(false)}>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Warning color="warning" />
+            Expiry Check Already Completed
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            An expiry check has already been completed for today. Running multiple checks on the same day 
+            might create duplicate alerts.
+          </DialogContentText>
+          <Box mt={2}>
+            <Typography variant="subtitle2" gutterBottom>
+              Options:
+            </Typography>
+            <Typography variant="body2" paragraph>
+              1. Wait until tomorrow for the next scheduled check (2:00 AM)
+            </Typography>
+            <Typography variant="body2" paragraph>
+              2. Enable multiple manual checks in the backend configuration
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowForceDialog(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
