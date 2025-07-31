@@ -37,7 +37,8 @@ import {
   Upload,
   QrCode,
   Print,
-  QrCodeScanner
+  QrCodeScanner,
+  Layers
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
@@ -60,6 +61,7 @@ import QRCodeDisplay from '../components/products/QRCodeDisplay'
 import BarcodeScanner from '../components/products/BarcodeScanner'
 import BarcodePrintDialog from '../components/products/BarcodePrintDialog'
 import BarcodeScanOptions from '../components/products/BarcodeScanOptions'
+import BatchManagementDialog from '../components/batch/BatchManagementDialog'
 
 function Products() {
   const { isManager, isStaff } = useAuth()
@@ -75,6 +77,8 @@ function Products() {
   const [openPrintDialog, setOpenPrintDialog] = useState(false)
   const [openScanner, setOpenScanner] = useState(false)
   const [openScanOptions, setOpenScanOptions] = useState(false)
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [selectedProductForBatch, setSelectedProductForBatch] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [selectedProducts, setSelectedProducts] = useState([])
@@ -372,6 +376,18 @@ function Products() {
       sortable: false,
       renderCell: (params) => (
         <>
+          <Tooltip title="Manage Batches">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setSelectedProductForBatch(params.row)
+                setBatchDialogOpen(true)
+              }}
+              color="primary"
+            >
+              <Layers />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Adjust Stock">
             <IconButton
               size="small"
@@ -660,6 +676,18 @@ function Products() {
         open={openPrintDialog}
         onClose={() => setOpenPrintDialog(false)}
         products={selectedProducts}
+      />
+
+      <BatchManagementDialog
+        open={batchDialogOpen}
+        onClose={() => {
+          setBatchDialogOpen(false)
+          setSelectedProductForBatch(null)
+        }}
+        product={selectedProductForBatch}
+        onBatchUpdate={() => {
+          fetchProducts()
+        }}
       />
 
       <Snackbar

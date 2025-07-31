@@ -241,6 +241,17 @@ export const getExpiryAlerts = (params = {}) => {
 export const acknowledgeExpiryAlert = (id, notes) => api.put(`/expiry/alerts/${id}/acknowledge`, { notes })
 export const resolveExpiryAlert = (id, notes) => api.put(`/expiry/alerts/${id}/resolve`, { notes })
 
+// Batch Management endpoints
+export const createBatch = (data) => api.post('/batches', data)
+export const getBatchesByProduct = (productId) => api.get(`/batches/product/${productId}`)
+export const getBatchById = (batchId) => api.get(`/batches/${batchId}`)
+export const consumeStock = (productId, quantity, reason) => 
+  api.post(`/batches/consume?productId=${productId}&quantity=${quantity}&reason=${encodeURIComponent(reason)}`)
+export const adjustBatchStock = (data) => api.post('/batches/adjust', data)
+export const getExpiringBatches = (daysAhead = 30) => api.get(`/batches/expiring?daysAhead=${daysAhead}`)
+export const getBatchExpiryReport = () => api.get('/batches/expiry-report')
+export const markExpiredBatches = () => api.post('/batches/mark-expired')
+
 // Test endpoints
 export const testConnection = () => api.get('/test/hello')
 export const healthCheck = () => api.get('/test/health')

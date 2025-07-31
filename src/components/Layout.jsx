@@ -30,7 +30,8 @@ import {
   AccountCircle,
   Logout,
   Category,
-  Schedule
+  Schedule,
+  Layers
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -63,6 +64,7 @@ function Layout() {
     { text: 'Users', icon: <People />, path: '/users', roles: ['HOSPITAL_MANAGER'] },
     { text: 'Products', icon: <Inventory />, path: '/products', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Categories', icon: <Category />, path: '/categories', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
+    { text: 'Batch Tracking', icon: <Layers />, path: '/batch-tracking', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Procurement', icon: <ShoppingCart />, path: '/procurement', roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'] },
     { text: 'Stock Valuation', icon: <Assessment />, path: '/reports/stock-valuation', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Expiry Alerts', icon: <Schedule />, path: '/expiry-config', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
