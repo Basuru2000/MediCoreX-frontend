@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Users from './pages/Users'
 import Products from './pages/Products'
 import Categories from './pages/Categories'
+import BatchTracking from './pages/BatchTracking'
 import StockValuation from './pages/Reports/StockValuation'
 import ExpiryAlertConfig from './pages/ExpiryAlertConfig'
 import ExpiryMonitoring from './pages/ExpiryMonitoring'
@@ -48,6 +49,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER']}>
                 <Categories />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="batch-tracking"
+            element={
+              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
+                <BatchTracking />
               </ProtectedRoute>
             }
           />
