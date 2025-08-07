@@ -11,6 +11,7 @@ import BatchTracking from './pages/BatchTracking'
 import StockValuation from './pages/Reports/StockValuation'
 import ExpiryAlertConfig from './pages/ExpiryAlertConfig'
 import ExpiryMonitoring from './pages/ExpiryMonitoring'
+import Quarantine from './pages/Quarantine'
 import Unauthorized from './pages/Unauthorized'
 
 function App() {
@@ -81,6 +82,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
                 <ExpiryMonitoring />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="quarantine"
+            element={
+              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
+                <Quarantine />
               </ProtectedRoute>
             }
           />
