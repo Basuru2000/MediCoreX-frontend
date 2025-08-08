@@ -31,7 +31,8 @@ import {
   Logout,
   Category,
   Schedule,
-  Layers
+  Layers,
+  Warning
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -69,6 +70,7 @@ function Layout() {
     { text: 'Stock Valuation', icon: <Assessment />, path: '/reports/stock-valuation', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Expiry Alerts', icon: <Schedule />, path: '/expiry-config', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Expiry Monitoring', icon: <Schedule />, path: '/expiry-monitoring', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
+    { text: 'Quarantine', icon: <Warning />, path: '/quarantine', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
   ]
 
   const drawer = (

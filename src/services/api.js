@@ -256,4 +256,31 @@ export const markExpiredBatches = () => api.post('/batches/mark-expired')
 export const testConnection = () => api.get('/test/hello')
 export const healthCheck = () => api.get('/test/health')
 
+// ============================================
+// QUARANTINE MANAGEMENT ENDPOINTS
+// ============================================
+// Quarantine a batch
+export const quarantineBatch = (batchId, reason) => 
+  api.post(`/quarantine/quarantine-batch?batchId=${batchId}&reason=${encodeURIComponent(reason)}`);
+// Get quarantine records with pagination
+export const getQuarantineRecords = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    ...(params.status && { status: params.status }),
+    page: params.page || 0,
+    size: params.size || 10
+  }).toString();
+  return api.get(`/quarantine?${queryParams}`);
+};
+// Get single quarantine record
+export const getQuarantineRecord = (id) => api.get(`/quarantine/${id}`);
+// Process quarantine action (review, approve, dispose, return)
+export const processQuarantineAction = (actionData) => 
+  api.post('/quarantine/action', actionData);
+// Get pending review items
+export const getQuarantinePendingReview = () => api.get('/quarantine/pending-review');
+// Get quarantine summary
+export const getQuarantineSummary = () => api.get('/quarantine/summary');
+// Trigger auto-quarantine for expired batches
+export const triggerAutoQuarantine = () => api.post('/quarantine/auto-quarantine');
+
 export default api

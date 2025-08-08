@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -25,6 +25,16 @@ function BatchStockAdjustment({ open, onClose, onSubmit, batch }) {
   })
 
   const [errors, setErrors] = useState({})
+
+  // ✅ ADD: Auto-set quantity when Quarantine is selected
+  useEffect(() => {
+    if (formData.adjustmentType === 'QUARANTINE') {
+      setFormData(prev => ({
+        ...prev,
+        quantity: batch?.quantity || '' // Auto-fill with full batch quantity
+      }));
+    }
+  }, [formData.adjustmentType, batch?.quantity]);
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -113,7 +123,9 @@ function BatchStockAdjustment({ open, onClose, onSubmit, batch }) {
           <TextField
             fullWidth
             label={
-              formData.adjustmentType === 'ADJUST' 
+              formData.adjustmentType === 'QUARANTINE' 
+                ? 'Quantity to Quarantine'
+                : formData.adjustmentType === 'ADJUST' 
                 ? 'New Quantity' 
                 : 'Quantity to ' + (formData.adjustmentType === 'ADD' ? 'Add' : 'Remove')
             }
@@ -122,12 +134,22 @@ function BatchStockAdjustment({ open, onClose, onSubmit, batch }) {
             value={formData.quantity}
             onChange={handleChange}
             error={!!errors.quantity}
-            helperText={errors.quantity}
+            helperText={
+              formData.adjustmentType === 'QUARANTINE' 
+                ? 'Full batch will be quarantined' 
+                : errors.quantity
+            }
             required
             sx={{ mb: 2 }}
             InputProps={{ inputProps: { min: 1 } }}
             disabled={formData.adjustmentType === 'QUARANTINE'}
           />
+
+          {formData.adjustmentType === 'QUARANTINE' && (
+            <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>
+              This will quarantine the entire batch ({batch.quantity} units) and move it to the quarantine workflow.
+            </Alert>
+          )}
 
           <TextField
             fullWidth
@@ -136,7 +158,11 @@ function BatchStockAdjustment({ open, onClose, onSubmit, batch }) {
             value={formData.reason}
             onChange={handleChange}
             error={!!errors.reason}
-            helperText={errors.reason}
+            helperText={
+              formData.adjustmentType === 'QUARANTINE' 
+                ? 'Please provide a reason for quarantine (e.g., Quality issue, Recall, Damage)' 
+                : errors.reason
+            }
             required
             multiline
             rows={2}
@@ -163,7 +189,7 @@ function BatchStockAdjustment({ open, onClose, onSubmit, batch }) {
           variant="contained"
           color={formData.adjustmentType === 'QUARANTINE' ? 'warning' : 'primary'}
         >
-          Confirm Adjustment
+          {formData.adjustmentType === 'QUARANTINE' ? 'Quarantine Batch' : 'Confirm Adjustment'}
         </Button>
       </DialogActions>
     </Dialog>
