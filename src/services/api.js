@@ -283,4 +283,40 @@ export const getQuarantineSummary = () => api.get('/quarantine/summary');
 // Trigger auto-quarantine for expired batches
 export const triggerAutoQuarantine = () => api.post('/quarantine/auto-quarantine');
 
+// ============================================
+// NOTIFICATION ENDPOINTS
+// ============================================
+// Get user notifications
+export const getNotifications = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    ...(params.status && { status: params.status }),
+    ...(params.category && { category: params.category }),
+    page: params.page || 0,
+    size: params.size || 10
+  }).toString();
+  return api.get(`/notifications?${queryParams}`);
+};
+// Get notification by ID
+export const getNotification = (id) => api.get(`/notifications/${id}`);
+// Get unread count
+export const getUnreadNotificationCount = () => api.get('/notifications/unread-count');
+// Get notification summary
+export const getNotificationSummary = () => api.get('/notifications/summary');
+// Get critical notifications
+export const getCriticalNotifications = () => api.get('/notifications/critical');
+// Mark notification as read
+export const markNotificationAsRead = (id) => api.put(`/notifications/${id}/read`);
+// Mark all notifications as read
+export const markAllNotificationsAsRead = () => api.put('/notifications/mark-all-read');
+// Archive notification
+export const archiveNotification = (id) => api.put(`/notifications/${id}/archive`);
+// Delete notification
+export const deleteNotification = (id) => api.delete(`/notifications/${id}`);
+// Create custom notification (admin only)
+export const createNotification = (data) => api.post('/notifications', data);
+// Send batch notifications (admin only)
+export const sendBatchNotifications = (data) => api.post('/notifications/batch', data);
+// Test notification
+export const sendTestNotification = () => api.post('/notifications/test');
+
 export default api

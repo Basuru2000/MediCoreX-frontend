@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import NotificationBell from './notifications/NotificationBell'
 import {
   AppBar,
   Box,
@@ -32,7 +33,8 @@ import {
   Category,
   Schedule,
   Layers,
-  Warning
+  Warning,
+  Notifications
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -71,6 +73,7 @@ function Layout() {
     { text: 'Expiry Alerts', icon: <Schedule />, path: '/expiry-config', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Expiry Monitoring', icon: <Schedule />, path: '/expiry-monitoring', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Quarantine', icon: <Warning />, path: '/quarantine', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
+    { text: 'Notifications', icon: <Notifications />, path: '/notifications', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
   ]
 
   const drawer = (
@@ -117,15 +120,18 @@ function Layout() {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Healthcare Inventory Management
+            MediCoreX
           </Typography>
-          <div>
+          
+          <NotificationBell />
+          
+          <Box sx={{ ml: 2 }}>
             <Button
               color="inherit"
               onClick={handleMenu}
               startIcon={<AccountCircle />}
             >
-              {user?.fullName}
+              {user?.fullName || user?.username}
             </Button>
             <Menu
               id="menu-appbar"
@@ -148,6 +154,7 @@ function Layout() {
                 </Typography>
               </MenuItem>
               <Divider />
+              <MenuItem onClick={handleClose}>Profile</MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
                   <Logout fontSize="small" />
@@ -155,7 +162,7 @@ function Layout() {
                 Logout
               </MenuItem>
             </Menu>
-          </div>
+          </Box>
         </Toolbar>
       </AppBar>
       <Box

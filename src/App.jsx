@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
@@ -8,95 +8,37 @@ import Users from './pages/Users'
 import Products from './pages/Products'
 import Categories from './pages/Categories'
 import BatchTracking from './pages/BatchTracking'
+import QuarantineManagement from './pages/Quarantine'
+import NotificationsPage from './pages/NotificationsPage'
 import StockValuation from './pages/Reports/StockValuation'
-import ExpiryAlertConfig from './pages/ExpiryAlertConfig'
-import ExpiryMonitoring from './pages/ExpiryMonitoring'
-import Quarantine from './pages/Quarantine'
-import Unauthorized from './pages/Unauthorized'
+import CategoryValuation from './pages/Reports/CategoryValuation'
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/unauthorized" element={<Unauthorized />} />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Home />} />
-          <Route
-            path="users"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER']}>
-                <Users />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="products"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
-                <Products />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="categories"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER']}>
-                <Categories />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="batch-tracking"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
-                <BatchTracking />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="reports/stock-valuation"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
-                <StockValuation />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="expiry-config"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
-                <ExpiryAlertConfig />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="expiry-monitoring"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
-                <ExpiryMonitoring />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="quarantine"
-            element={
-              <ProtectedRoute allowedRoles={['HOSPITAL_MANAGER', 'PHARMACY_STAFF']}>
-                <Quarantine />
-              </ProtectedRoute>
-            }
-          />
-        </Route>
-      </Routes>
-    </AuthProvider>
-  )
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/batch-tracking" element={<BatchTracking />} />
+              <Route path="/quarantine" element={<QuarantineManagement />} />
+              
+              {/* ADD THIS ROUTE */}
+              <Route path="/notifications" element={<NotificationsPage />} />
+              
+              <Route path="/reports/stock-valuation" element={<StockValuation />} />
+              <Route path="/reports/category-valuation" element={<CategoryValuation />} />
+            </Route>
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
