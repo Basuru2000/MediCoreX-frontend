@@ -288,14 +288,17 @@ export const triggerAutoQuarantine = () => api.post('/quarantine/auto-quarantine
 // ============================================
 // Get user notifications
 export const getNotifications = (params = {}) => {
-  const queryParams = new URLSearchParams({
-    ...(params.status && { status: params.status }),
-    ...(params.category && { category: params.category }),
-    page: params.page || 0,
-    size: params.size || 10
-  }).toString();
-  return api.get(`/notifications?${queryParams}`);
-};
+  const queryParams = new URLSearchParams()
+  
+  if (params.status) queryParams.append('status', params.status)
+  if (params.category) queryParams.append('category', params.category)
+  if (params.priority) queryParams.append('priority', params.priority)
+  if (params.page !== undefined) queryParams.append('page', params.page)
+  if (params.size !== undefined) queryParams.append('size', params.size)
+  
+  const queryString = queryParams.toString()
+  return api.get(`/notifications${queryString ? '?' + queryString : ''}`)
+}
 // Get notification by ID
 export const getNotification = (id) => api.get(`/notifications/${id}`);
 // Get unread count
