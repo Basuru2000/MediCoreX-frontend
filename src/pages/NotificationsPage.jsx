@@ -67,7 +67,7 @@ const NotificationsPage = () => {
   const [summary, setSummary] = useState(null);
   const [selectedNotifications, setSelectedNotifications] = useState([]);
 
-  const statuses = ['UNREAD', 'READ', 'ARCHIVED'];
+  const statuses = ['UNREAD', 'read', 'ARCHIVED'];
   const categories = [
     'QUARANTINE', 'STOCK', 'EXPIRY', 'BATCH', 
     'USER', 'SYSTEM', 'APPROVAL', 'REPORT'
@@ -80,25 +80,32 @@ const NotificationsPage = () => {
   }, [tabValue, selectedCategory, selectedPriority, page]);
 
   const fetchNotifications = async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
     try {
       const params = {
         status: statuses[tabValue],
-        ...(selectedCategory && { category: selectedCategory }),
-        ...(selectedPriority && { priority: selectedPriority }),
         page: page - 1,
         size: 10
-      };
+      }
       
-      const response = await getNotifications(params);
-      setNotifications(response.data.content || []);
-      setTotalPages(response.data.totalPages || 1);
+      // Only add filters if they have values
+      if (selectedCategory) {
+        params.category = selectedCategory
+      }
+      
+      if (selectedPriority) {
+        params.priority = selectedPriority
+      }
+      
+      const response = await getNotifications(params)
+      setNotifications(response.data.content || [])
+      setTotalPages(response.data.totalPages || 1)
     } catch (err) {
-      setError('Failed to load notifications');
-      console.error(err);
+      setError('Failed to load notifications')
+      console.error(err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   };
 
@@ -122,7 +129,7 @@ const NotificationsPage = () => {
       await markNotificationAsRead(notificationId);
       setNotifications(prev =>
         prev.map(n => n.id === notificationId 
-          ? { ...n, status: 'READ' } 
+          ? { ...n, status: 'read' } 
           : n
         )
       );

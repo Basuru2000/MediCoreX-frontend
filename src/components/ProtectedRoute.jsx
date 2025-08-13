@@ -1,8 +1,8 @@
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { CircularProgress, Box } from '@mui/material'
 
-function ProtectedRoute({ children, allowedRoles = [] }) {
+function ProtectedRoute({ allowedRoles = [] }) {
   const { isAuthenticated, loading, user } = useAuth()
   const location = useLocation()
 
@@ -22,7 +22,7 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
     return <Navigate to="/unauthorized" replace />
   }
 
-  return children
+  return <Outlet />
 }
 
 export default ProtectedRoute
