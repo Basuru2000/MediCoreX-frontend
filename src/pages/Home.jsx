@@ -315,6 +315,30 @@ function Home() {
           >
             View Categories
           </Button>
+          {isManager && (
+            <Button 
+              variant="contained"
+              color="secondary"
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/test/notifications/test-all', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  });
+                  const result = await response.json();
+                  console.log('Test Results:', result);
+                  alert('Check notifications - should have 6 new ones!');
+                } catch (error) {
+                  console.error('Error testing notifications:', error);
+                  alert('Error testing notifications: ' + error.message);
+                }
+              }}
+            >
+              Test All Notifications
+            </Button>
+          )}
         </Box>
       </Paper>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   IconButton,
   Badge,
@@ -14,7 +14,8 @@ import {
   ListItemIcon,
   Chip,
   CircularProgress,
-  Alert
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
@@ -25,7 +26,17 @@ import {
   CheckCircle as CheckCircleIcon,
   MarkEmailRead as MarkReadIcon,
   Delete as DeleteIcon,
-  Archive as ArchiveIcon
+  Archive as ArchiveIcon,
+  // Category Icons
+  Block as QuarantineIcon,
+  Inventory as StockIcon,
+  Schedule as ExpiryIcon,
+  Category as BatchIcon,
+  Person as UserIcon,
+  Settings as SystemIcon,
+  CheckCircleOutline as ApprovalIcon,
+  Assessment as ReportIcon,
+  LocalShipping as ProcurementIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -44,15 +55,39 @@ const NotificationBell = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [newNotification, setNewNotification] = useState(null);
+  const [showToast, setShowToast] = useState(false);
+  const previousCountRef = useRef(0);
+  const audioRef = useRef(null);
   
   const open = Boolean(anchorEl);
 
   useEffect(() => {
+    // Create audio element for notification sound
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXyJQMASQMAUM==');
+    
+    // Initial load
     fetchUnreadCount();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
+    
+    // Set up polling - reduced frequency to 60 seconds
+    const interval = setInterval(() => {
+      fetchUnreadCount();
+    }, 60000);
+    
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    // Check for new notifications and play sound if count increased
+    if (unreadCount > previousCountRef.current && previousCountRef.current > 0) {
+      playNotificationSound();
+      // Find the newest notification
+      if (notifications.length > 0 && notifications[0].status === 'UNREAD') {
+        showNotificationToast(notifications[0]);
+      }
+    }
+    previousCountRef.current = unreadCount;
+  }, [unreadCount]);
 
   const fetchUnreadCount = async () => {
     try {
@@ -70,7 +105,7 @@ const NotificationBell = () => {
       const response = await getNotifications({ 
         status: 'UNREAD', 
         page: 0, 
-        size: 5 
+        size: 10 
       });
       setNotifications(response.data.content || []);
     } catch (err) {
@@ -79,6 +114,17 @@ const NotificationBell = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const playNotificationSound = () => {
+    if (audioRef.current) {
+      audioRef.current.play().catch(e => console.log('Could not play sound:', e));
+    }
+  };
+
+  const showNotificationToast = (notification) => {
+    setNewNotification(notification);
+    setShowToast(true);
   };
 
   const handleClick = async (event) => {
@@ -152,6 +198,31 @@ const NotificationBell = () => {
     }
   };
 
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'QUARANTINE':
+        return <QuarantineIcon fontSize="small" />;
+      case 'STOCK':
+        return <StockIcon fontSize="small" />;
+      case 'EXPIRY':
+        return <ExpiryIcon fontSize="small" />;
+      case 'BATCH':
+        return <BatchIcon fontSize="small" />;
+      case 'USER':
+        return <UserIcon fontSize="small" />;
+      case 'SYSTEM':
+        return <SystemIcon fontSize="small" />;
+      case 'APPROVAL':
+        return <ApprovalIcon fontSize="small" />;
+      case 'REPORT':
+        return <ReportIcon fontSize="small" />;
+      case 'PROCUREMENT':
+        return <ProcurementIcon fontSize="small" />;
+      default:
+        return <NotificationsIcon fontSize="small" />;
+    }
+  };
+
   const getCategoryColor = (category) => {
     const colors = {
       QUARANTINE: 'error',
@@ -161,7 +232,8 @@ const NotificationBell = () => {
       USER: 'primary',
       SYSTEM: 'default',
       APPROVAL: 'secondary',
-      REPORT: 'success'
+      REPORT: 'success',
+      PROCUREMENT: 'info'
     };
     return colors[category] || 'default';
   };
@@ -200,7 +272,7 @@ const NotificationBell = () => {
         onClose={handleClose}
         PaperProps={{
           sx: {
-            width: 400,
+            width: 420,
             maxHeight: 500
           }
         }}
@@ -227,10 +299,13 @@ const NotificationBell = () => {
             <Alert severity="error">{error}</Alert>
           </Box>
         ) : notifications.length === 0 ? (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
+          <Box sx={{ p: 4, textAlign: 'center' }}>
             <NotificationsNoneIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
             <Typography color="text.secondary">
               No new notifications
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              You're all caught up!
             </Typography>
           </Box>
         ) : (
@@ -250,7 +325,10 @@ const NotificationBell = () => {
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
-                  {getPriorityIcon(notification.priority)}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                    {getCategoryIcon(notification.category)}
+                    {getPriorityIcon(notification.priority)}
+                  </Box>
                 </ListItemIcon>
                 <ListItemText
                   primary={
@@ -303,6 +381,29 @@ const NotificationBell = () => {
           </Button>
         </Box>
       </Menu>
+
+      {/* Toast notification for new critical/high priority notifications */}
+      <Snackbar
+        open={showToast}
+        autoHideDuration={6000}
+        onClose={() => setShowToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        {newNotification && (
+          <Alert
+            onClose={() => setShowToast(false)}
+            severity={
+              newNotification.priority === 'CRITICAL' ? 'error' :
+              newNotification.priority === 'HIGH' ? 'warning' :
+              'info'
+            }
+            sx={{ width: '100%' }}
+          >
+            <Typography variant="subtitle2">{newNotification.title}</Typography>
+            <Typography variant="caption">{newNotification.message}</Typography>
+          </Alert>
+        )}
+      </Snackbar>
     </>
   );
 };
