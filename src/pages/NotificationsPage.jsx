@@ -42,10 +42,20 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon,
   DeleteSweep as DeleteAllIcon,
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+  DoneAll as MarkAllReadIcon
+=======
+>>>>>>> Stashed changes
   DoneAll as MarkAllReadIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   FolderOpen as EmptyIcon,
+<<<<<<< Updated upstream
+=======
+  BugReport as BugReportIcon,
+>>>>>>> Stashed changes
   // Category icons
   Block as QuarantineIcon,
   Inventory as StockIcon,
@@ -56,6 +66,10 @@ import {
   CheckCircleOutline as ApprovalIcon,
   Assessment as ReportIcon,
   LocalShipping as ProcurementIcon
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
@@ -69,6 +83,7 @@ import {
   deleteNotification,
   sendTestNotification
 } from '../services/api.js';
+import api from '../services/api.js';
 
 const NotificationsPage = () => {
   const { user } = useAuth();
@@ -231,6 +246,47 @@ const NotificationsPage = () => {
     }
   };
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+=======
+  const handleEnhancedTest = async () => {
+    try {
+      // First, check the system
+      const systemCheck = await api.get('/notifications/debug/check-system');
+      console.log('System Check:', systemCheck.data);
+      
+      // Then run the regular test
+      const testResult = await sendTestNotification();
+      console.log('Test Result:', testResult.data);
+      
+      // Show results
+      const message = `
+        System Status:
+        - Templates: ${systemCheck.data.totalTemplates}
+        - BATCH_CREATED: ${systemCheck.data.requiredTemplates.BATCH_CREATED ? '✓' : '✗'}
+        - QUARANTINE_CREATED: ${systemCheck.data.requiredTemplates.QUARANTINE_CREATED ? '✓' : '✗'}
+        - USER_REGISTERED: ${systemCheck.data.requiredTemplates.USER_REGISTERED ? '✓' : '✗'}
+        
+        Test Results:
+        - ${testResult.data.SUMMARY}
+      `;
+      
+      alert(message);
+      
+      // Refresh notifications after test
+      setTimeout(() => {
+        fetchNotifications();
+        fetchSummary();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Enhanced test failed:', error);
+      alert('Test failed. Check console for details.');
+    }
+  };
+
+>>>>>>> Stashed changes
   const toggleGroupExpansion = (groupKey) => {
     setExpandedGroups(prev => ({
       ...prev,
@@ -238,6 +294,10 @@ const NotificationsPage = () => {
     }));
   };
 
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
   const getPriorityIcon = (priority) => {
     switch (priority) {
       case 'CRITICAL':
@@ -281,6 +341,7 @@ const NotificationsPage = () => {
     return colors[category] || 'default';
   };
 
+<<<<<<< Updated upstream
   const EmptyState = () => (
     <Box sx={{ p: 6, textAlign: 'center' }}>
       <EmptyIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
@@ -303,6 +364,114 @@ const NotificationsPage = () => {
         >
           Send Test Notification
         </Button>
+=======
+  return (
+<<<<<<< Updated upstream
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4">
+          Notifications
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {user?.role === 'HOSPITAL_MANAGER' && (
+            <Button
+              variant="outlined"
+              startIcon={<NotificationsIcon />}
+              onClick={handleTestNotification}
+=======
+    <ErrorBoundary>
+      <Box>
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h4">
+            Notifications
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {user?.role === 'HOSPITAL_MANAGER' && (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<NotificationsIcon />}
+                  onClick={handleTestNotification}
+                >
+                  Test Notification
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={handleEnhancedTest}
+                  startIcon={<BugReportIcon />}
+                >
+                  Debug Test
+                </Button>
+              </>
+            )}
+            <IconButton 
+              onClick={() => fetchNotifications()}
+              disabled={loading || refreshing}
+>>>>>>> Stashed changes
+            >
+              Test Notification
+            </Button>
+          )}
+          <IconButton onClick={fetchNotifications}>
+            <RefreshIcon />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {/* Summary Cards */}
+      {summary && (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  Total
+                </Typography>
+                <Typography variant="h4">
+                  {summary.totalCount}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  Unread
+                </Typography>
+                <Typography variant="h4" color="primary">
+                  {summary.unreadCount}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  Critical
+                </Typography>
+                <Typography variant="h4" color="error">
+                  {summary.criticalCount}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  High Priority
+                </Typography>
+                <Typography variant="h4" color="warning.main">
+                  {summary.highPriorityCount || 0}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+>>>>>>> Stashed changes
       )}
     </Box>
   );
