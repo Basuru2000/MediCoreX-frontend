@@ -42,29 +42,11 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon,
   DeleteSweep as DeleteAllIcon,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-  DoneAll as MarkAllReadIcon
-=======
->>>>>>> Stashed changes
-=======
-  DoneAll as MarkAllReadIcon
-=======
->>>>>>> Stashed changes
   DoneAll as MarkAllReadIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   FolderOpen as EmptyIcon,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
   BugReport as BugReportIcon,
->>>>>>> Stashed changes
-=======
-  BugReport as BugReportIcon,
->>>>>>> Stashed changes
   // Category icons
   Block as QuarantineIcon,
   Inventory as StockIcon,
@@ -75,13 +57,6 @@ import {
   CheckCircleOutline as ApprovalIcon,
   Assessment as ReportIcon,
   LocalShipping as ProcurementIcon
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
@@ -113,7 +88,7 @@ const NotificationsPage = () => {
   const [selectedNotifications, setSelectedNotifications] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const statuses = ['UNREAD', 'READ', 'ARCHIVED'];
+  const statuses = ['UNREAD', 'read', 'ARCHIVED'];
   const categories = [
     'QUARANTINE', 'STOCK', 'EXPIRY', 'BATCH', 
     'USER', 'SYSTEM', 'APPROVAL', 'REPORT', 'PROCUREMENT'
@@ -209,7 +184,7 @@ const NotificationsPage = () => {
       await markNotificationAsRead(notificationId);
       setNotifications(prev =>
         prev.map(n => n.id === notificationId 
-          ? { ...n, status: 'READ' } 
+          ? { ...n, status: 'read' } 
           : n
         )
       );
@@ -258,13 +233,6 @@ const NotificationsPage = () => {
     }
   };
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
   const handleEnhancedTest = async () => {
     try {
       // First, check the system
@@ -301,10 +269,6 @@ const NotificationsPage = () => {
     }
   };
 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
   const toggleGroupExpansion = (groupKey) => {
     setExpandedGroups(prev => ({
       ...prev,
@@ -312,13 +276,6 @@ const NotificationsPage = () => {
     }));
   };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
   const getPriorityIcon = (priority) => {
     switch (priority) {
       case 'CRITICAL':
@@ -362,7 +319,6 @@ const NotificationsPage = () => {
     return colors[category] || 'default';
   };
 
-<<<<<<< Updated upstream
   const EmptyState = () => (
     <Box sx={{ p: 6, textAlign: 'center' }}>
       <EmptyIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
@@ -385,114 +341,6 @@ const NotificationsPage = () => {
         >
           Send Test Notification
         </Button>
-=======
-  return (
-<<<<<<< Updated upstream
-    <Box>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4">
-          Notifications
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {user?.role === 'HOSPITAL_MANAGER' && (
-            <Button
-              variant="outlined"
-              startIcon={<NotificationsIcon />}
-              onClick={handleTestNotification}
-=======
-    <ErrorBoundary>
-      <Box>
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h4">
-            Notifications
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {user?.role === 'HOSPITAL_MANAGER' && (
-              <>
-                <Button
-                  variant="outlined"
-                  startIcon={<NotificationsIcon />}
-                  onClick={handleTestNotification}
-                >
-                  Test Notification
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={handleEnhancedTest}
-                  startIcon={<BugReportIcon />}
-                >
-                  Debug Test
-                </Button>
-              </>
-            )}
-            <IconButton 
-              onClick={() => fetchNotifications()}
-              disabled={loading || refreshing}
->>>>>>> Stashed changes
-            >
-              Test Notification
-            </Button>
-          )}
-          <IconButton onClick={fetchNotifications}>
-            <RefreshIcon />
-          </IconButton>
-        </Box>
-      </Box>
-
-      {/* Summary Cards */}
-      {summary && (
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  Total
-                </Typography>
-                <Typography variant="h4">
-                  {summary.totalCount}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  Unread
-                </Typography>
-                <Typography variant="h4" color="primary">
-                  {summary.unreadCount}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  Critical
-                </Typography>
-                <Typography variant="h4" color="error">
-                  {summary.criticalCount}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  High Priority
-                </Typography>
-                <Typography variant="h4" color="warning.main">
-                  {summary.highPriorityCount || 0}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
->>>>>>> Stashed changes
       )}
     </Box>
   );
@@ -581,13 +429,23 @@ const NotificationsPage = () => {
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             {user?.role === 'HOSPITAL_MANAGER' && (
-              <Button
-                variant="outlined"
-                startIcon={<NotificationsIcon />}
-                onClick={handleTestNotification}
-              >
-                Test Notification
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<NotificationsIcon />}
+                  onClick={handleTestNotification}
+                >
+                  Test Notification
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={handleEnhancedTest}
+                  startIcon={<BugReportIcon />}
+                >
+                  Debug Test
+                </Button>
+              </>
             )}
             <IconButton 
               onClick={() => fetchNotifications()}
