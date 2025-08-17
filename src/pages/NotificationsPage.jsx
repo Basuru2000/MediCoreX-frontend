@@ -43,8 +43,13 @@ import {
   Info as InfoIcon,
   DeleteSweep as DeleteAllIcon,
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
 <<<<<<< Updated upstream
+  DoneAll as MarkAllReadIcon
+=======
+>>>>>>> Stashed changes
+=======
   DoneAll as MarkAllReadIcon
 =======
 >>>>>>> Stashed changes
@@ -53,6 +58,10 @@ import {
   ExpandLess as ExpandLessIcon,
   FolderOpen as EmptyIcon,
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+  BugReport as BugReportIcon,
+>>>>>>> Stashed changes
 =======
   BugReport as BugReportIcon,
 >>>>>>> Stashed changes
@@ -67,6 +76,9 @@ import {
   Assessment as ReportIcon,
   LocalShipping as ProcurementIcon
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 >>>>>>> Stashed changes
@@ -249,7 +261,10 @@ const NotificationsPage = () => {
 <<<<<<< Updated upstream
 =======
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
   const handleEnhancedTest = async () => {
     try {
       // First, check the system
@@ -286,6 +301,9 @@ const NotificationsPage = () => {
     }
   };
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   const toggleGroupExpansion = (groupKey) => {
     setExpandedGroups(prev => ({
@@ -295,6 +313,9 @@ const NotificationsPage = () => {
   };
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 >>>>>>> Stashed changes
