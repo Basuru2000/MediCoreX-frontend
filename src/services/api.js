@@ -322,4 +322,13 @@ export const sendBatchNotifications = (data) => api.post('/notifications/batch',
 // Test notification
 export const sendTestNotification = () => api.post('/notifications/test');
 
+// Notification Preferences endpoints
+export const getNotificationPreferences = () => api.get('/notification-preferences')
+export const updateNotificationPreferences = (data) => api.put('/notification-preferences', data)
+export const getNotificationCategoryStatus = () => api.get('/notification-preferences/categories')
+export const updateCategoryPreference = (category, data) => api.patch(`/notification-preferences/categories/${category}`, data)
+export const resetNotificationPreferences = () => api.post('/notification-preferences/reset')
+export const testNotificationPreferences = (params) => api.post('/notification-preferences/test', params)
+export const getUserNotificationPreferences = (userId) => api.get(`/notification-preferences/user/${userId}`)
+
 export default api

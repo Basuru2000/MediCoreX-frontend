@@ -34,7 +34,9 @@ import {
   Schedule,
   Layers,
   Warning,
-  Notifications
+  Notifications,
+  Settings as SettingsIcon,
+  NotificationsActive as NotificationPrefIcon
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -74,6 +76,7 @@ function Layout() {
     { text: 'Expiry Monitoring', icon: <Schedule />, path: '/expiry-monitoring', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Quarantine', icon: <Warning />, path: '/quarantine', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Notifications', icon: <Notifications />, path: '/notifications', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
+    { text: 'Notification Settings', icon: <NotificationPrefIcon />, path: '/notification-preferences', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
   ]
 
   const drawer = (
