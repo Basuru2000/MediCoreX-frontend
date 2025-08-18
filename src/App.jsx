@@ -10,6 +10,7 @@ import Categories from './pages/Categories'
 import BatchTracking from './pages/BatchTracking'
 import QuarantineManagement from './pages/Quarantine'
 import NotificationsPage from './pages/NotificationsPage'
+import NotificationPreferencesPage from './pages/NotificationPreferencesPage'
 import StockValuation from './pages/Reports/StockValuation'
 import CategoryValuation from './pages/Reports/CategoryValuation'
 import ExpiryAlertConfig from './pages/ExpiryAlertConfig'
@@ -29,6 +30,7 @@ function App() {
             <Route path="/batch-tracking" element={<BatchTracking />} />
             <Route path="/quarantine" element={<QuarantineManagement />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/notification-preferences" element={<NotificationPreferencesPage />} />
             
             {/* Expiry Management Routes */}
             <Route path="/expiry-config" element={<ExpiryAlertConfig />} />

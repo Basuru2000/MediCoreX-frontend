@@ -47,6 +47,7 @@ import {
   ExpandLess as ExpandLessIcon,
   FolderOpen as EmptyIcon,
   BugReport as BugReportIcon,
+  Settings as SettingsIcon,
   // Category icons
   Block as QuarantineIcon,
   Inventory as StockIcon,
@@ -60,6 +61,7 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import ErrorBoundary from '../components/ErrorBoundary';
 import {
   getNotifications,
@@ -74,6 +76,7 @@ import api from '../services/api.js';
 
 const NotificationsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [groupedNotifications, setGroupedNotifications] = useState({});
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -447,6 +450,13 @@ const NotificationsPage = () => {
                 </Button>
               </>
             )}
+            <IconButton 
+              onClick={() => navigate('/notification-preferences')} 
+              color="primary" 
+              title="Notification Settings" 
+            > 
+              <SettingsIcon /> 
+            </IconButton>
             <IconButton 
               onClick={() => fetchNotifications()}
               disabled={loading || refreshing}

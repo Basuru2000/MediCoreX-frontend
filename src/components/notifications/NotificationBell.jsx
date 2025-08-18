@@ -45,7 +45,8 @@ import {
   getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  deleteNotification
+  deleteNotification,
+  getNotificationPreferences
 } from '../../services/api';
 
 const NotificationBell = () => {
@@ -66,15 +67,28 @@ const NotificationBell = () => {
     // Create audio element for notification sound
     audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXyJQMASQMAUM==');
     
-    // Initial load
-    fetchUnreadCount();
-    
-    // Set up polling - reduced frequency to 60 seconds
-    const interval = setInterval(() => {
-      fetchUnreadCount();
-    }, 60000);
-    
-    return () => clearInterval(interval);
+    const checkPreferences = async () => { 
+      try { 
+        const response = await getNotificationPreferences(); 
+        const prefs = response.data; 
+         
+        // Only poll if in-app notifications are enabled 
+        if (prefs.inAppEnabled) { 
+          fetchUnreadCount(); 
+          // Start polling 
+          const interval = setInterval(fetchUnreadCount, 30000); 
+          return () => clearInterval(interval); 
+        } 
+      } catch (error) { 
+        console.error('Failed to check preferences:', error); 
+        // Default to showing notifications if preference check fails 
+        fetchUnreadCount(); 
+        const interval = setInterval(fetchUnreadCount, 60000); 
+        return () => clearInterval(interval); 
+      } 
+    }; 
+     
+    checkPreferences(); 
   }, []);
 
   useEffect(() => {
