@@ -229,6 +229,19 @@ export const getExpiryCheckHistory = () => api.get('/expiry/monitoring/history')
 export const getExpiryCheckStatus = (date) => api.get(`/expiry/monitoring/status/${date}`)
 export const getExpiryMonitoringDashboard = () => api.get('/expiry/monitoring/dashboard')
 
+// ============================================
+// EXPIRY SUMMARY ENDPOINTS (Phase 3.1)
+// ============================================
+// Get comprehensive expiry summary for dashboard
+export const getExpirySummary = () => api.get('/expiry/summary')
+// Get critical alerts only
+export const getExpiryCriticalAlerts = (limit = 10) => 
+  api.get(`/expiry/summary/critical?limit=${limit}`)
+// Get summary counts only (lightweight)
+export const getExpirySummaryCounts = () => api.get('/expiry/summary/counts')
+// Get financial impact summary (managers only)
+export const getExpiryFinancialImpact = () => api.get('/expiry/summary/financial-impact')
+
 // Expiry Alerts endpoints
 export const getExpiryAlerts = (params = {}) => {
   const queryParams = new URLSearchParams({
