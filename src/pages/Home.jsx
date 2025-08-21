@@ -10,7 +10,8 @@ import {
   CardActions,
   Button,
   CircularProgress,
-  Alert
+  Alert,
+  Container
 } from '@mui/material'
 import {
   People,
@@ -28,6 +29,8 @@ import {
   getExpiringProducts,
   getCategories
 } from '../services/api'
+// Import the Critical Alerts Widget
+import CriticalAlertsWidget from '../components/expiry/CriticalAlertsWidget'
 
 function Home() {
   const { user, isManager, isStaff, isProcurement } = useAuth()
@@ -44,6 +47,9 @@ function Home() {
     pendingOrders: 0,
     totalCategories: 0
   })
+
+  // Control visibility of Critical Alerts Widget
+  const canViewCriticalAlerts = ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'].includes(user?.role)
 
   useEffect(() => {
     fetchDashboardData()
@@ -160,6 +166,7 @@ function Home() {
 
   return (
     <Box>
+      {/* Welcome Section */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" gutterBottom>
@@ -184,7 +191,15 @@ function Home() {
         </Alert>
       )}
 
-      <Grid container spacing={3} sx={{ mt: 2 }}>
+      {/* Critical Alerts Widget - Full Width at Top */}
+      {canViewCriticalAlerts && (
+        <Box sx={{ mb: 4 }}>
+          <CriticalAlertsWidget refreshInterval={60000} />
+        </Box>
+      )}
+
+      {/* Dashboard Cards Grid */}
+      <Grid container spacing={3}>
         {visibleCards.map((card, index) => (
           <Grid item xs={12} sm={6} md={4} key={index}>
             <Card
@@ -260,6 +275,7 @@ function Home() {
         ))}
       </Grid>
 
+      {/* Quick Actions Section */}
       <Paper sx={{ p: 3, mt: 4 }}>
         <Typography variant="h6" gutterBottom>
           Quick Actions
@@ -280,6 +296,18 @@ function Home() {
                 onClick={() => navigate('/products')}
               >
                 View Products
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/batch-tracking')}
+              >
+                Batch Tracking
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/quarantine')}
+              >
+                Quarantine Management
               </Button>
               {dashboardData.lowStockCount > 0 && (
                 <Button
@@ -305,59 +333,30 @@ function Home() {
             <Button
               variant="outlined"
               onClick={() => navigate('/procurement')}
+              disabled
             >
-              Procurement
+              Procurement (Coming Soon)
             </Button>
           )}
           <Button
             variant="outlined"
-            onClick={() => navigate('/categories')}
+            onClick={() => navigate('/reports/stock-valuation')}
           >
-            View Categories
+            Stock Valuation Report
           </Button>
-          {isManager && (
-            <Button 
-              variant="contained"
-              color="secondary"
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/test/notifications/test-all', {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  });
-                  const result = await response.json();
-                  console.log('Test Results:', result);
-                  alert('Check notifications - should have 6 new ones!');
-                } catch (error) {
-                  console.error('Error testing notifications:', error);
-                  alert('Error testing notifications: ' + error.message);
-                }
-              }}
-            >
-              Test All Notifications
-            </Button>
-          )}
+          <Button
+            variant="outlined"
+            onClick={() => navigate('/reports/category-valuation')}
+          >
+            Category Report
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => navigate('/expiry-monitoring')}
+          >
+            Expiry Monitoring
+          </Button>
         </Box>
-      </Paper>
-
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          System Status
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" color="text.secondary">
-              Last Updated: {new Date().toLocaleString()}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" color="text.secondary">
-              System Version: 1.0.0 (Week 3)
-            </Typography>
-          </Grid>
-        </Grid>
       </Paper>
     </Box>
   )
