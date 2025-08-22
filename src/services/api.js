@@ -242,6 +242,49 @@ export const getExpirySummaryCounts = () => api.get('/expiry/summary/counts')
 // Get financial impact summary (managers only)
 export const getExpiryFinancialImpact = () => api.get('/expiry/summary/financial-impact')
 
+// ============================================
+// EXPIRY TRENDS ANALYSIS ENDPOINTS (Phase 3.2)
+// ============================================
+// Get trend analysis for date range
+export const getExpiryTrendAnalysis = (startDate, endDate, granularity = 'DAILY') => {
+  const params = new URLSearchParams({
+    startDate,
+    endDate,
+    granularity
+  }).toString();
+  return api.get(`/expiry/trends/analysis?${params}`);
+};
+// Get current trend metrics
+export const getExpiryTrendMetrics = () => api.get('/expiry/trends/metrics');
+// Get historical trend data
+export const getExpiryTrendHistory = (daysBack = 30) => 
+  api.get(`/expiry/trends/history?daysBack=${daysBack}`);
+// Get predictive analysis
+export const getExpiryPredictions = (daysAhead = 30) => 
+  api.get(`/expiry/trends/predictions?daysAhead=${daysAhead}`);
+// Get category-wise trends
+export const getExpiryTrendsByCategory = (daysBack = 30) => 
+  api.get(`/expiry/trends/by-category?daysBack=${daysBack}`);
+// Export trend report
+export const exportExpiryTrendReport = (startDate, endDate) => {
+  const params = new URLSearchParams({ startDate, endDate }).toString();
+  return api.get(`/expiry/trends/export?${params}`, {
+    responseType: 'blob'
+  });
+};
+// Create manual trend snapshot
+export const createTrendSnapshot = () => api.post('/expiry/trends/snapshot');
+// Compare two periods
+export const compareTrendPeriods = (period1Start, period1End, period2Start, period2End) => {
+  const params = new URLSearchParams({
+    period1Start,
+    period1End,
+    period2Start,
+    period2End
+  }).toString();
+  return api.get(`/expiry/trends/compare?${params}`);
+};
+
 // Expiry Alerts endpoints
 export const getExpiryAlerts = (params = {}) => {
   const queryParams = new URLSearchParams({

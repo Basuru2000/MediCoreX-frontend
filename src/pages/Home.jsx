@@ -31,6 +31,8 @@ import {
 } from '../services/api'
 // Import the Critical Alerts Widget
 import CriticalAlertsWidget from '../components/expiry/CriticalAlertsWidget'
+// Add to imports
+import ExpiryTrendsAnalysis from '../components/expiry/ExpiryTrendsAnalysis'
 
 function Home() {
   const { user, isManager, isStaff, isProcurement } = useAuth()
@@ -50,6 +52,9 @@ function Home() {
 
   // Control visibility of Critical Alerts Widget
   const canViewCriticalAlerts = ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'].includes(user?.role)
+
+  // Add state for trends analysis visibility
+  const [showTrendsAnalysis, setShowTrendsAnalysis] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -195,6 +200,30 @@ function Home() {
       {canViewCriticalAlerts && (
         <Box sx={{ mb: 4 }}>
           <CriticalAlertsWidget refreshInterval={60000} />
+        </Box>
+      )}
+
+      {/* NEW: Expiry Trends Analysis Section */}
+      {canViewCriticalAlerts && (
+        <Box sx={{ mb: 4 }}>
+          <Paper sx={{ p: 2 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Typography variant="h6">
+                Expiry Trends Analysis
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={() => setShowTrendsAnalysis(!showTrendsAnalysis)}
+              >
+                {showTrendsAnalysis ? 'Hide' : 'Show'} Trends
+              </Button>
+            </Box>
+            {showTrendsAnalysis && (
+              <Box mt={2}>
+                <ExpiryTrendsAnalysis />
+              </Box>
+            )}
+          </Paper>
         </Box>
       )}
 

@@ -16,6 +16,7 @@
     "@mui/lab": "^5.0.0-alpha.170",
     "@mui/material": "^5.14.20",
     "@mui/x-data-grid": "^6.20.4",
+    "@mui/x-date-pickers": "^8.10.2",
     "axios": "^1.6.2",
     "date-fns": "^4.1.0",
     "html5-qrcode": "^2.3.8",
