@@ -36,7 +36,8 @@ import {
   Warning,
   Notifications,
   Settings as SettingsIcon,
-  NotificationsActive as NotificationPrefIcon
+  NotificationsActive as NotificationPrefIcon,
+  CalendarMonth
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -74,6 +75,12 @@ function Layout() {
     { text: 'Stock Valuation', icon: <Assessment />, path: '/reports/stock-valuation', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Expiry Alerts', icon: <Schedule />, path: '/expiry-config', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Expiry Monitoring', icon: <Schedule />, path: '/expiry-monitoring', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
+    { 
+      text: 'Expiry Calendar', 
+      icon: <CalendarMonth />, 
+      path: '/expiry-calendar', 
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] 
+    },
     { text: 'Quarantine', icon: <Warning />, path: '/quarantine', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
     { text: 'Notifications', icon: <Notifications />, path: '/notifications', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
     { text: 'Notification Settings', icon: <NotificationPrefIcon />, path: '/notification-preferences', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },

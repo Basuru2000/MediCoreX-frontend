@@ -33,6 +33,7 @@ import {
 import CriticalAlertsWidget from '../components/expiry/CriticalAlertsWidget'
 // Add to imports
 import ExpiryTrendsAnalysis from '../components/expiry/ExpiryTrendsAnalysis'
+import ExpiryCalendarWidget from '../components/expiry/ExpiryCalendarWidget'
 
 function Home() {
   const { user, isManager, isStaff, isProcurement } = useAuth()
@@ -55,6 +56,9 @@ function Home() {
 
   // Add state for trends analysis visibility
   const [showTrendsAnalysis, setShowTrendsAnalysis] = useState(false)
+
+  // Add state for calendar visibility
+  const [showCalendar, setShowCalendar] = useState(true)
 
   useEffect(() => {
     fetchDashboardData()
@@ -226,6 +230,25 @@ function Home() {
           </Paper>
         </Box>
       )}
+
+      {/* Grid container for calendar */}
+      <Grid container spacing={3}>
+        {/* Add after the ExpiryTrendsAnalysis component */}
+        {canViewCriticalAlerts && showCalendar && (
+          <Grid item xs={12}>
+            <ExpiryCalendarWidget 
+              compact={false}
+              onEventClick={(event, date) => {
+                console.log('Calendar event clicked:', event, date);
+                // Navigate to detail view or show modal
+                if (event.actionUrl) {
+                  navigate(event.actionUrl);
+                }
+              }}
+            />
+          </Grid>
+        )}
+      </Grid>
 
       {/* Dashboard Cards Grid */}
       <Grid container spacing={3}>
