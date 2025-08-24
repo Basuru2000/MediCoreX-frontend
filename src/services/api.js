@@ -297,6 +297,24 @@ export const getExpiryAlerts = (params = {}) => {
 export const acknowledgeExpiryAlert = (id, notes) => api.put(`/expiry/alerts/${id}/acknowledge`, { notes })
 export const resolveExpiryAlert = (id, notes) => api.put(`/expiry/alerts/${id}/resolve`, { notes })
 
+// ============================================
+// EXPIRY CALENDAR ENDPOINTS
+// ============================================
+// Get expiry calendar for specific month
+export const getExpiryCalendar = (year, month) => 
+  api.get(`/expiry/calendar/month/${year}/${month}`);
+// Get expiry calendar for date range
+export const getExpiryCalendarRange = (startDate, endDate) => {
+  const params = new URLSearchParams({ startDate, endDate }).toString();
+  return api.get(`/expiry/calendar/range?${params}`);
+};
+// Search expiry calendar with filters
+export const searchExpiryCalendar = (filters) => 
+  api.post('/expiry/calendar/search', filters);
+// Refresh calendar cache
+export const refreshCalendarCache = () => 
+  api.post('/expiry/calendar/refresh');
+
 // Batch Management endpoints
 export const createBatch = (data) => api.post('/batches', data)
 export const getBatchesByProduct = (productId) => api.get(`/batches/product/${productId}`)

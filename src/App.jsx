@@ -15,6 +15,7 @@ import StockValuation from './pages/Reports/StockValuation'
 import CategoryValuation from './pages/Reports/CategoryValuation'
 import ExpiryAlertConfig from './pages/ExpiryAlertConfig'
 import ExpiryMonitoring from './pages/ExpiryMonitoring'
+import ExpiryCalendar from './pages/ExpiryCalendar'
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
             {/* Expiry Management Routes */}
             <Route path="/expiry-config" element={<ExpiryAlertConfig />} />
             <Route path="/expiry-monitoring" element={<ExpiryMonitoring />} />
+            <Route path="/expiry-calendar" element={<ExpiryCalendar />} />
             
             {/* Report Routes */}
             <Route path="/reports/stock-valuation" element={<StockValuation />} />

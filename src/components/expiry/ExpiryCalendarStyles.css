@@ -1,0 +1,68 @@
+.expiry-calendar-widget {
+  min-height: 400px;
+}
+
+.expiry-calendar-widget .MuiPaper-root {
+  transition: all 0.3s ease;
+}
+
+.expiry-calendar-day-event {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.expiry-calendar-day-event:hover {
+  transform: translateX(2px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.expiry-calendar-critical {
+  background-color: #ffebee;
+  border-left: 3px solid #d32f2f;
+}
+
+.expiry-calendar-high {
+  background-color: #fff3e0;
+  border-left: 3px solid #ff9800;
+}
+
+.expiry-calendar-medium {
+  background-color: #fffde7;
+  border-left: 3px solid #ffc107;
+}
+
+.expiry-calendar-low {
+  background-color: #e8f5e9;
+  border-left: 3px solid #4caf50;
+}
+
+.expiry-calendar-today {
+  position: relative;
+}
+
+.expiry-calendar-today::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  background-color: #1976d2;
+  border-radius: 50%;
+}
+
+@media (max-width: 600px) {
+  .expiry-calendar-widget {
+    padding: 8px;
+  }
+  
+  .expiry-calendar-day-event {
+    font-size: 0.7rem;
+  }
+}
