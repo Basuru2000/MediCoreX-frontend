@@ -240,10 +240,7 @@ function Home() {
               compact={false}
               onEventClick={(event, date) => {
                 console.log('Calendar event clicked:', event, date);
-                // Navigate to detail view or show modal
-                if (event.actionUrl) {
-                  navigate(event.actionUrl);
-                }
+                // The navigation is now handled inside the widget
               }}
             />
           </Grid>

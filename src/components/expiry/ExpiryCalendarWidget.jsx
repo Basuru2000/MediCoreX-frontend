@@ -13,7 +13,11 @@ import {
   Button,
   Menu,
   MenuItem,
-  Divider
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   ChevronLeft,
@@ -27,16 +31,19 @@ import {
   Refresh,
   ViewModule,
   ViewWeek,
-  ViewDay
+  ViewDay,
+  Close
 } from '@mui/icons-material';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import ExpiryCalendarDay from './ExpiryCalendarDay';
-import ExpiryCalendarLegend from './ExpiryCalendarLegend';
 import ExpiryCalendarEvent from './ExpiryCalendarEvent';
+import ExpiryCalendarLegend from './ExpiryCalendarLegend';
 import { getExpiryCalendar } from '../../services/api';
 import './ExpiryCalendarStyles.css';
 
 const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
+  const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarData, setCalendarData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +53,7 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
   const [selectedSeverity, setSelectedSeverity] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [viewInfoDialog, setViewInfoDialog] = useState(false);
 
   useEffect(() => {
     fetchCalendarData();
@@ -96,6 +104,47 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
   const handleSeverityFilter = (severity) => {
     setSelectedSeverity(severity);
     handleFilterClose();
+  };
+
+  const handleEventClick = (event, date) => {
+    setSelectedEvent({ ...event, date });
+    setEventDialogOpen(true);
+  };
+
+  const handleEventAction = (event) => {
+    setEventDialogOpen(false);
+    
+    // Navigate based on event type
+    switch (event.type) {
+      case 'BATCH_EXPIRY':
+        navigate('/batch-tracking', { 
+          state: { 
+            highlightBatchId: event.id,
+            batchNumber: event.details?.[0]?.batchNumber 
+          } 
+        });
+        break;
+      case 'ALERT':
+        navigate('/expiry-monitoring', { 
+          state: { 
+            highlightAlertId: event.id 
+          } 
+        });
+        break;
+      case 'QUARANTINE':
+        navigate('/quarantine', { 
+          state: { 
+            highlightRecordId: event.id 
+          } 
+        });
+        break;
+      default:
+        console.log('Unknown event type:', event.type);
+    }
+  };
+
+  const handleFullCalendarView = () => {
+    navigate('/expiry-calendar');
   };
 
   const getEventsForDate = (date) => {
@@ -195,13 +244,7 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
                   isCurrentMonth={isSameMonth(day, currentMonth)}
                   isToday={isToday(day)}
                   compact={compact}
-                  onClick={(event) => {
-                    setSelectedEvent(event);
-                    setEventDialogOpen(true);
-                    if (onEventClick) {
-                      onEventClick(event, day);
-                    }
-                  }}
+                  onClick={(event) => handleEventClick(event, day)}
                 />
               </Grid>
             ))}
@@ -289,7 +332,7 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
           <Button
             variant="outlined"
             startIcon={<CalendarMonth />}
-            href="/expiry-calendar"
+            onClick={handleFullCalendarView}
           >
             Full View
           </Button>
@@ -328,7 +371,8 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
           Low Priority
         </MenuItem>
       </Menu>
-      
+
+      {/* Event Dialog */}
       <ExpiryCalendarEvent
         open={eventDialogOpen}
         onClose={() => {
@@ -337,11 +381,40 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
         }}
         event={selectedEvent}
         date={selectedEvent?.date}
-        onActionClick={(event) => {
-          console.log('Action clicked for event:', event);
-          // Handle specific actions based on event type
-        }}
+        onActionClick={handleEventAction}
       />
+
+      {/* Info Dialog */}
+      <Dialog open={viewInfoDialog} onClose={() => setViewInfoDialog(false)}>
+        <DialogTitle>
+          About Expiry Calendar
+        </DialogTitle>
+        <DialogContent>
+          <Typography paragraph>
+            The Expiry Calendar helps you track important dates related to product expiry and inventory management.
+          </Typography>
+          <Typography variant="subtitle2" gutterBottom>
+            Event Types:
+          </Typography>
+          <ul>
+            <li><strong>Batch Expiry:</strong> When a batch of products expires</li>
+            <li><strong>Alerts:</strong> System-generated warnings</li>
+            <li><strong>Quarantine:</strong> Items moved to quarantine</li>
+          </ul>
+          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+            Severity Levels:
+          </Typography>
+          <ul>
+            <li><strong>Critical (Red):</strong> Expires in ≤7 days</li>
+            <li><strong>High (Orange):</strong> Expires in 8-30 days</li>
+            <li><strong>Medium (Yellow):</strong> Expires in 31-60 days</li>
+            <li><strong>Low (Green):</strong> Expires in 61+ days</li>
+          </ul>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewInfoDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
