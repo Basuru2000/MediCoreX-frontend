@@ -1,98 +1,135 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  IconButton,
-  Badge,
-  Menu,
-  MenuItem,
-  Typography,
+import { 
+  IconButton, 
+  Badge, 
+  Menu, 
+  MenuItem, 
+  Typography, 
   Box,
   Divider,
   Button,
+  Chip,
   List,
   ListItem,
   ListItemText,
   ListItemIcon,
-  Chip,
-  CircularProgress,
+  IconButton as DeleteIcon,
+  Snackbar,
   Alert,
-  Snackbar
+  Tooltip
 } from '@mui/material';
-import {
+import { 
   Notifications as NotificationsIcon,
-  NotificationsNone as NotificationsNoneIcon,
-  Warning as WarningIcon,
-  Error as ErrorIcon,
-  Info as InfoIcon,
-  CheckCircle as CheckCircleIcon,
-  MarkEmailRead as MarkReadIcon,
-  Delete as DeleteIcon,
-  Archive as ArchiveIcon,
-  // Category Icons
-  Block as QuarantineIcon,
-  Inventory as StockIcon,
-  Schedule as ExpiryIcon,
-  Category as BatchIcon,
-  Person as UserIcon,
-  Settings as SystemIcon,
-  CheckCircleOutline as ApprovalIcon,
-  Assessment as ReportIcon,
-  LocalShipping as ProcurementIcon
+  Delete as DeleteIconMui,
+  CheckCircle,
+  Warning,
+  Error,
+  Info,
+  MarkEmailRead
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { useWebSocketContext } from '../../context/WebSocketContext';
 import {
   getNotifications,
   getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
-  getNotificationPreferences
+  archiveNotification,
+  // getPreferences,  // COMMENTED OUT - function doesn't exist
+  getNotificationPreferences,  // USE THIS INSTEAD
+  sendTestNotification
 } from '../../services/api';
 
 const NotificationBell = () => {
   const navigate = useNavigate();
+  const webSocket = useWebSocketContext();
+  
   const [anchorEl, setAnchorEl] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [newNotification, setNewNotification] = useState(null);
   const [showToast, setShowToast] = useState(false);
-  const previousCountRef = useRef(0);
-  const audioRef = useRef(null);
+  const [newNotification, setNewNotification] = useState(null);
   
   const open = Boolean(anchorEl);
+  const audioRef = useRef(null);
+  const previousCountRef = useRef(0);
 
+  // Initialize audio - FIX: Don't create Audio in useRef directly
   useEffect(() => {
-    // Create audio element for notification sound
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXytWYcBjiS1/LNei8FI3fH8N+RQAoUXrTp66hVFApGnt/yvmwhBCZywfDkkkkMGly+7OScTgwOUKzl8bllGAYyfNn1unMZCC5+z+/Zj0kMF1y57OegWBELW7Tq7aVZEQxVru3+unMeCTl62vLCei4FIHrM8NaOPwgVZL3u7JdPDAhUpOXyJQMASQMAUM==');
-    
-    const checkPreferences = async () => { 
-      try { 
-        const response = await getNotificationPreferences(); 
-        const prefs = response.data; 
-         
-        // Only poll if in-app notifications are enabled 
-        if (prefs.inAppEnabled) { 
-          fetchUnreadCount(); 
-          // Start polling 
-          const interval = setInterval(fetchUnreadCount, 30000); 
-          return () => clearInterval(interval); 
-        } 
-      } catch (error) { 
-        console.error('Failed to check preferences:', error); 
-        // Default to showing notifications if preference check fails 
-        fetchUnreadCount(); 
-        const interval = setInterval(fetchUnreadCount, 60000); 
-        return () => clearInterval(interval); 
-      } 
-    }; 
-     
-    checkPreferences(); 
+    try {
+      audioRef.current = new Audio('/notification-sound.mp3');
+    } catch (err) {
+      console.log('Could not load notification sound');
+    }
   }, []);
 
+  /*
+  // Check preferences - COMMENT OUT OR REMOVE THIS ENTIRE USEEFFECT
   useEffect(() => {
-    // Check for new notifications and play sound if count increased
+    const checkPreferences = async () => {
+      try {
+        const response = await getPreferences();
+        // Handle preferences
+      } catch (err) {
+        console.error('Failed to load preferences:', err);
+      }
+    };
+    
+    checkPreferences();
+  }, []);
+  */
+
+  // Replace with corrected version if preferences are needed:
+  useEffect(() => {
+    const checkPreferences = async () => {
+      try {
+        const response = await getNotificationPreferences();  // CORRECTED FUNCTION NAME
+        // Handle preferences
+      } catch (err) {
+        console.error('Failed to load preferences:', err);
+      }
+    };
+    
+    checkPreferences();
+  }, []);
+
+  // Use WebSocket notifications when connected
+  useEffect(() => {
+    if (webSocket && webSocket.connected) {
+      // Use WebSocket data
+      if (webSocket.notifications) {
+        setNotifications(webSocket.notifications);
+      }
+      if (webSocket.unreadCount !== undefined) {
+        setUnreadCount(webSocket.unreadCount);
+      }
+    }
+  }, [webSocket?.connected, webSocket?.notifications, webSocket?.unreadCount]);
+
+  // Polling fallback when WebSocket is not connected
+  useEffect(() => {
+    if (!webSocket?.connected) {
+      fetchUnreadCount();
+      
+      const interval = setInterval(() => {
+        fetchUnreadCount();
+        if (open) {
+          fetchNotifications();
+        }
+      }, 30000);
+      
+      // FIX: Return cleanup function properly
+      return () => clearInterval(interval);
+    }
+    // No cleanup needed when WebSocket is connected
+    return undefined;
+  }, [webSocket?.connected, open]);
+
+  // Watch for notification count changes and play sound
+  useEffect(() => {
     if (unreadCount > previousCountRef.current && previousCountRef.current > 0) {
       playNotificationSound();
       // Find the newest notification
@@ -101,7 +138,7 @@ const NotificationBell = () => {
       }
     }
     previousCountRef.current = unreadCount;
-  }, [unreadCount]);
+  }, [unreadCount, notifications]);
 
   const fetchUnreadCount = async () => {
     try {
@@ -154,8 +191,13 @@ const NotificationBell = () => {
 
   const handleNotificationClick = async (notification) => {
     try {
-      // Mark as read
-      await markNotificationAsRead(notification.id);
+      if (webSocket?.connected && webSocket?.markAsRead) {
+        // Use WebSocket to mark as read
+        webSocket.markAsRead(notification.id);
+      } else {
+        // Fallback to API call
+        await markNotificationAsRead(notification.id);
+      }
       
       // Update local state
       setNotifications(prev => 
@@ -202,70 +244,31 @@ const NotificationBell = () => {
   const getPriorityIcon = (priority) => {
     switch (priority) {
       case 'CRITICAL':
-        return <ErrorIcon color="error" fontSize="small" />;
+        return <Error color="error" fontSize="small" />;
       case 'HIGH':
-        return <WarningIcon color="warning" fontSize="small" />;
+        return <Warning color="warning" fontSize="small" />;
       case 'MEDIUM':
-        return <InfoIcon color="info" fontSize="small" />;
+        return <Info color="info" fontSize="small" />;
+      case 'LOW':
       default:
-        return <CheckCircleIcon color="success" fontSize="small" />;
+        return <CheckCircle color="success" fontSize="small" />;
     }
   };
 
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'QUARANTINE':
-        return <QuarantineIcon fontSize="small" />;
-      case 'STOCK':
-        return <StockIcon fontSize="small" />;
-      case 'EXPIRY':
-        return <ExpiryIcon fontSize="small" />;
-      case 'BATCH':
-        return <BatchIcon fontSize="small" />;
-      case 'USER':
-        return <UserIcon fontSize="small" />;
-      case 'SYSTEM':
-        return <SystemIcon fontSize="small" />;
-      case 'APPROVAL':
-        return <ApprovalIcon fontSize="small" />;
-      case 'REPORT':
-        return <ReportIcon fontSize="small" />;
-      case 'PROCUREMENT':
-        return <ProcurementIcon fontSize="small" />;
-      default:
-        return <NotificationsIcon fontSize="small" />;
+  const renderConnectionStatus = () => {
+    if (!webSocket?.connected) {
+      return (
+        <Tooltip title="Real-time updates offline - using polling">
+          <Chip 
+            size="small" 
+            label="Offline" 
+            color="warning" 
+            sx={{ ml: 1 }}
+          />
+        </Tooltip>
+      );
     }
-  };
-
-  const getCategoryColor = (category) => {
-    const colors = {
-      QUARANTINE: 'error',
-      STOCK: 'warning',
-      EXPIRY: 'error',
-      BATCH: 'info',
-      USER: 'primary',
-      SYSTEM: 'default',
-      APPROVAL: 'secondary',
-      REPORT: 'success',
-      PROCUREMENT: 'info'
-    };
-    return colors[category] || 'default';
-  };
-
-  const formatTime = (date) => {
-    const now = new Date();
-    const notificationDate = new Date(date);
-    const diffInHours = Math.abs(now - notificationDate) / 36e5;
-    
-    if (diffInHours < 1) {
-      return 'Just now';
-    } else if (diffInHours < 24) {
-      return format(notificationDate, 'h:mm a');
-    } else if (diffInHours < 48) {
-      return 'Yesterday';
-    } else {
-      return format(notificationDate, 'MMM dd');
-    }
+    return null;
   };
 
   return (
@@ -273,98 +276,86 @@ const NotificationBell = () => {
       <IconButton
         color="inherit"
         onClick={handleClick}
-        aria-label={`${unreadCount} unread notifications`}
+        aria-label={`${unreadCount} notifications`}
       >
         <Badge badgeContent={unreadCount} color="error">
-          {unreadCount > 0 ? <NotificationsIcon /> : <NotificationsNoneIcon />}
+          <NotificationsIcon />
         </Badge>
       </IconButton>
-
+      
+      {renderConnectionStatus()}
+      
       <Menu
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
         PaperProps={{
+          elevation: 3,
           sx: {
-            width: 420,
-            maxHeight: 500
+            width: 360,
+            maxHeight: 480,
+            overflow: 'visible',
+            mt: 1.5
           }
         }}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Notifications</Typography>
-          {unreadCount > 0 && (
-            <Button size="small" onClick={handleMarkAllRead}>
-              Mark all read
-            </Button>
-          )}
+        <Box px={2} py={1.5}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Notifications</Typography>
+            {unreadCount > 0 && (
+              <Button 
+                size="small" 
+                onClick={handleMarkAllRead}
+                startIcon={<MarkEmailRead />}
+              >
+                Mark all read
+              </Button>
+            )}
+          </Box>
         </Box>
         
         <Divider />
-
-        {loading ? (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <CircularProgress size={24} />
+        
+        {loading && (
+          <Box p={3} textAlign="center">
+            <Typography>Loading...</Typography>
           </Box>
-        ) : error ? (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="error">{error}</Alert>
-          </Box>
-        ) : notifications.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <NotificationsNoneIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-            <Typography color="text.secondary">
+        )}
+        
+        {!loading && notifications.length === 0 && (
+          <Box p={3} textAlign="center">
+            <Typography color="textSecondary">
               No new notifications
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              You're all caught up!
-            </Typography>
           </Box>
-        ) : (
-          <List sx={{ p: 0 }}>
+        )}
+        
+        {!loading && notifications.length > 0 && (
+          <List sx={{ p: 0, maxHeight: 350, overflow: 'auto' }}>
             {notifications.map((notification) => (
               <ListItem
                 key={notification.id}
-                button
                 onClick={() => handleNotificationClick(notification)}
                 sx={{
-                  borderLeft: notification.status === 'UNREAD' ? 4 : 0,
-                  borderColor: 'primary.main',
-                  bgcolor: notification.status === 'UNREAD' ? 'action.hover' : 'transparent',
-                  '&:hover': {
-                    bgcolor: 'action.selected'
-                  }
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'action.hover' },
+                  bgcolor: notification.status === 'UNREAD' ? 'action.selected' : 'transparent'
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-                    {getCategoryIcon(notification.category)}
-                    {getPriorityIcon(notification.priority)}
-                  </Box>
+                <ListItemIcon>
+                  {getPriorityIcon(notification.priority)}
                 </ListItemIcon>
                 <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
-                        {notification.title}
-                      </Typography>
-                      <Chip
-                        label={notification.category}
-                        size="small"
-                        color={getCategoryColor(notification.category)}
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
-                    </Box>
-                  }
+                  primary={notification.title}
                   secondary={
                     <>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      <Typography variant="body2" component="span">
                         {notification.message}
                       </Typography>
-                      <Typography variant="caption" color="text.disabled">
-                        {formatTime(notification.createdAt)}
+                      <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                        {new Date(notification.createdAt).toLocaleString()}
                       </Typography>
                     </>
                   }
@@ -372,20 +363,20 @@ const NotificationBell = () => {
                 <IconButton
                   size="small"
                   onClick={(e) => handleDelete(e, notification.id)}
-                  sx={{ ml: 1 }}
+                  edge="end"
                 >
-                  <DeleteIcon fontSize="small" />
+                  <DeleteIconMui fontSize="small" />
                 </IconButton>
               </ListItem>
             ))}
           </List>
         )}
-
+        
         <Divider />
         
-        <Box sx={{ p: 1 }}>
-          <Button
-            fullWidth
+        <Box p={1}>
+          <Button 
+            fullWidth 
             onClick={() => {
               navigate('/notifications');
               handleClose();
@@ -395,28 +386,20 @@ const NotificationBell = () => {
           </Button>
         </Box>
       </Menu>
-
-      {/* Toast notification for new critical/high priority notifications */}
+      
       <Snackbar
         open={showToast}
         autoHideDuration={6000}
         onClose={() => setShowToast(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        {newNotification && (
-          <Alert
-            onClose={() => setShowToast(false)}
-            severity={
-              newNotification.priority === 'CRITICAL' ? 'error' :
-              newNotification.priority === 'HIGH' ? 'warning' :
-              'info'
-            }
-            sx={{ width: '100%' }}
-          >
-            <Typography variant="subtitle2">{newNotification.title}</Typography>
-            <Typography variant="caption">{newNotification.message}</Typography>
-          </Alert>
-        )}
+        <Alert 
+          onClose={() => setShowToast(false)}
+          severity="info"
+          sx={{ width: '100%' }}
+        >
+          {newNotification?.title}
+        </Alert>
       </Snackbar>
     </>
   );

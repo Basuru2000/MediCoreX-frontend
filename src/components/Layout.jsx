@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import NotificationBell from './notifications/NotificationBell'
+import WebSocketStatus from './notifications/WebSocketStatus'
 import {
   AppBar,
   Box,
@@ -132,6 +133,11 @@ function Layout() {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             MediCoreX
           </Typography>
+          
+          {/* WebSocket Status Indicator */}
+          <Box sx={{ mr: 2 }}>
+            <WebSocketStatus compact={false} />
+          </Box>
           
           <NotificationBell />
           
