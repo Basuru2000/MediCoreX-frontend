@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -12,7 +13,11 @@ import {
   Tabs,
   Tab,
   IconButton,
-  Tooltip
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material'
 import {
   Refresh,
@@ -20,7 +25,8 @@ import {
   Schedule,
   Block,
   TrendingUp,
-  CalendarMonth
+  CalendarMonth,
+  Close
 } from '@mui/icons-material'
 import { getBatchExpiryReport, markExpiredBatches } from '../services/api'
 import { useAuth } from '../context/AuthContext'
@@ -28,15 +34,32 @@ import BatchExpiryCalendar from '../components/batch/BatchExpiryCalendar'
 
 function BatchTracking() {
   const { isManager } = useAuth()
+  const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [report, setReport] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [tabValue, setTabValue] = useState(0)
+  const [selectedBatch, setSelectedBatch] = useState(null)
+  const [openBatchDialog, setOpenBatchDialog] = useState(false)
 
   useEffect(() => {
     fetchBatchReport()
   }, [])
+
+  // Add this effect to handle navigation from Critical Alerts
+  useEffect(() => {
+    // Check if we navigated here with a specific batch ID
+    if (location.state?.selectedBatchId && report) {
+      const batchId = location.state.selectedBatchId
+      
+      // Handle batch selection
+      handleSelectBatch(batchId)
+      
+      // Clear the location state after handling it
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state, report])
 
   const fetchBatchReport = async () => {
     try {
@@ -57,6 +80,29 @@ function BatchTracking() {
       fetchBatchReport()
     } catch (err) {
       setError('Failed to mark expired batches')
+    }
+  }
+
+  // Function to handle batch selection
+  const handleSelectBatch = (batchId) => {
+    // Find the batch in critical batches first
+    let batch = report?.criticalBatches?.find(b => b.id === batchId)
+    
+    // If not found in critical batches, search in all expiry ranges
+    if (!batch && report?.batchesByExpiryRange) {
+      for (const [range, batches] of Object.entries(report.batchesByExpiryRange)) {
+        batch = batches.find(b => b.batchId === batchId)
+        if (batch) break
+      }
+    }
+    
+    if (batch) {
+      setSelectedBatch(batch)
+      setOpenBatchDialog(true)
+      // Switch to Critical Batches tab if the batch is critical
+      if (report?.criticalBatches?.some(b => b.id === batchId)) {
+        setTabValue(0)
+      }
     }
   }
 
@@ -254,7 +300,23 @@ function BatchTracking() {
             <Box>
               {/* Display critical batches list */}
               {report.criticalBatches.map(batch => (
-                <Box key={batch.id} sx={{ mb: 2, p: 2, border: 1, borderColor: 'error.main', borderRadius: 1 }}>
+                <Box 
+                  key={batch.id} 
+                  sx={{ 
+                    mb: 2, 
+                    p: 2, 
+                    border: 1, 
+                    borderColor: 'error.main', 
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: 'error.light',
+                      opacity: 0.1
+                    },
+                    backgroundColor: selectedBatch?.id === batch.id ? 'error.light' : 'transparent'
+                  }}
+                  onClick={() => handleSelectBatch(batch.id)}
+                >
                   <Typography variant="body1" fontWeight="bold">
                     {batch.productName} - Batch: {batch.batchNumber}
                   </Typography>
@@ -281,7 +343,20 @@ function BatchTracking() {
               {batches.length > 0 && (
                 <Box sx={{ pl: 2 }}>
                   {batches.slice(0, 5).map(batch => (
-                    <Box key={batch.batchId} sx={{ mb: 1 }}>
+                    <Box 
+                      key={batch.batchId} 
+                      sx={{ 
+                        mb: 1,
+                        p: 1,
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'grey.100'
+                        },
+                        backgroundColor: selectedBatch?.batchId === batch.batchId ? 'primary.light' : 'transparent'
+                      }}
+                      onClick={() => handleSelectBatch(batch.batchId)}
+                    >
                       <Typography variant="body2">
                         {batch.productName} - Batch: {batch.batchNumber} 
                         (Qty: {batch.quantity}, Value: {formatCurrency(batch.value)})
@@ -303,6 +378,71 @@ function BatchTracking() {
       {tabValue === 2 && (
         <BatchExpiryCalendar />
       )}
+
+      {/* Batch Detail Dialog */}
+      <Dialog 
+        open={openBatchDialog} 
+        onClose={() => setOpenBatchDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            Batch Details
+            <IconButton onClick={() => setOpenBatchDialog(false)}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedBatch && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                {selectedBatch.productName}
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Batch Number
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedBatch.batchNumber}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Quantity
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedBatch.quantity}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Days Until Expiry
+                  </Typography>
+                  <Typography variant="body1" color={selectedBatch.daysUntilExpiry <= 7 ? 'error.main' : 'text.primary'}>
+                    {selectedBatch.daysUntilExpiry || 'N/A'} days
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Value
+                  </Typography>
+                  <Typography variant="body1">
+                    {formatCurrency(selectedBatch.value)}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenBatchDialog(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
