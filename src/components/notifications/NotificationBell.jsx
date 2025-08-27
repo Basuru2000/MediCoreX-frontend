@@ -98,22 +98,58 @@ const NotificationBell = () => {
 
   // Use WebSocket notifications when connected
   useEffect(() => {
+    // Always fetch initial count regardless of WebSocket status
+    fetchUnreadCount();
+    
     if (webSocket && webSocket.connected) {
-      // Use WebSocket data
-      if (webSocket.notifications) {
+      // When WebSocket connects, still fetch from API to ensure sync
+      fetchUnreadCount();
+      
+      // Listen for WebSocket updates
+      if (webSocket.notifications && webSocket.notifications.length > 0) {
         setNotifications(webSocket.notifications);
       }
-      if (webSocket.unreadCount !== undefined) {
+      
+      // Only update count from WebSocket if it's explicitly provided
+      // Don't clear the count just because WebSocket doesn't have it yet
+      if (webSocket.unreadCount !== undefined && webSocket.unreadCount !== null) {
         setUnreadCount(webSocket.unreadCount);
       }
     }
-  }, [webSocket?.connected, webSocket?.notifications, webSocket?.unreadCount]);
+  }, [webSocket?.connected]);
 
-  // Polling fallback when WebSocket is not connected
+  // Listen for WebSocket messages directly
+  useEffect(() => {
+    if (!webSocket?.service) return;
+    
+    // Add listener for notification updates
+    const handleWebSocketMessage = (message) => {
+      console.log('WebSocket message received:', message);
+      
+      // Handle count updates
+      if (message.type === 'COUNT_UPDATE' || message.unreadCount !== undefined) {
+        setUnreadCount(message.unreadCount);
+      }
+      
+      // Handle new notifications
+      if (message.notification || message.eventType === 'NEW_NOTIFICATION') {
+        fetchUnreadCount(); // Refresh count from API
+        fetchNotifications(); // Refresh notification list
+      }
+    };
+    
+    const unsubscribe = webSocket.service.addEventListener('notification', handleWebSocketMessage);
+    const unsubscribeUpdate = webSocket.service.addEventListener('update', handleWebSocketMessage);
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+      if (unsubscribeUpdate) unsubscribeUpdate();
+    };
+  }, [webSocket?.service]);
+
+  // Separate polling effect - only when NOT connected
   useEffect(() => {
     if (!webSocket?.connected) {
-      fetchUnreadCount();
-      
       const interval = setInterval(() => {
         fetchUnreadCount();
         if (open) {
@@ -121,12 +157,18 @@ const NotificationBell = () => {
         }
       }, 30000);
       
-      // FIX: Return cleanup function properly
       return () => clearInterval(interval);
     }
-    // No cleanup needed when WebSocket is connected
-    return undefined;
   }, [webSocket?.connected, open]);
+
+  // Also add periodic refresh as backup (every 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUnreadCount();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Watch for notification count changes and play sound
   useEffect(() => {
@@ -191,11 +233,10 @@ const NotificationBell = () => {
 
   const handleNotificationClick = async (notification) => {
     try {
+      // Mark as read
       if (webSocket?.connected && webSocket?.markAsRead) {
-        // Use WebSocket to mark as read
         webSocket.markAsRead(notification.id);
       } else {
-        // Fallback to API call
         await markNotificationAsRead(notification.id);
       }
       
@@ -208,11 +249,10 @@ const NotificationBell = () => {
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
       
-      // Navigate if action URL exists
-      if (notification.actionUrl) {
-        navigate(notification.actionUrl);
-        handleClose();
-      }
+      // FIX: Always navigate to notifications page, not the actionUrl
+      handleClose(); // Close the menu first
+      navigate('/notifications'); // Go to main notifications page
+      
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
     }
@@ -222,7 +262,7 @@ const NotificationBell = () => {
     try {
       await markAllNotificationsAsRead();
       setNotifications(prev => 
-        prev.map(n => ({ ...n, status: 'READ' }))
+        prev.map(n => ({ ...n, status: 'read' }))
       );
       setUnreadCount(0);
     } catch (err) {

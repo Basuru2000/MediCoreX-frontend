@@ -29,6 +29,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/users" element={<Users />} />
               <Route path="/products" element={<Products />} />
+              <Route path="/products/:id" element={<Products />} /> {/* Add after the /products route */}
               <Route path="/categories" element={<Categories />} />
               <Route path="/batch-tracking" element={<BatchTracking />} />
               <Route path="/quarantine" element={<QuarantineManagement />} />

@@ -7,7 +7,7 @@ import {
   Wifi as WifiIcon 
 } from '@mui/icons-material';
 import { useWebSocketContext } from '../../context/WebSocketContext';
-import './WebSocketStatus.css'; // Import the CSS file
+import './WebSocketStatus.css';
 
 const WebSocketStatus = ({ compact = false }) => {
   const { connected, connectionStatus, connect, disconnect, error } = useWebSocketContext();
@@ -63,12 +63,13 @@ const WebSocketStatus = ({ compact = false }) => {
     }
   };
 
-  const handleToggleConnection = () => {
-    if (connected) {
-      disconnect();
-    } else {
+  // FIX: Don't toggle connection on click for connected state
+  const handleClick = () => {
+    // Only reconnect if disconnected, don't disconnect if connected
+    if (!connected) {
       connect();
     }
+    // Remove the toggle behavior that was disconnecting
   };
 
   if (compact) {
@@ -93,11 +94,12 @@ const WebSocketStatus = ({ compact = false }) => {
       label={getStatusText()}
       color={getStatusColor()}
       size="small"
-      onClick={handleToggleConnection}
-      onDelete={connectionStatus === 'error' ? handleReconnect : undefined}
+      onClick={handleClick} // Only reconnect, don't disconnect
+      onDelete={connectionStatus === 'error' || connectionStatus === 'disconnected' ? handleReconnect : undefined}
       deleteIcon={<RefreshIcon />}
       variant={connected ? "filled" : "outlined"}
       className={`websocket-status-chip ${connectionStatus === 'connecting' ? 'connecting-pulse' : ''}`}
+      style={{ cursor: connected ? 'default' : 'pointer' }} // No pointer when connected
     />
   );
 };

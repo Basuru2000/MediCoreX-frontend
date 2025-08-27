@@ -94,12 +94,28 @@ const useWebSocket = () => {
     const unsubNotification = webSocketService.addEventListener('notification', (message) => {
       setLastMessage(message);
       
-      if (message.notification) {
+      // Handle different message types
+      if (message.type === 'COUNT_UPDATE') {
+        // FIX: Handle count updates specifically
+        if (message.unreadCount !== undefined) {
+          setUnreadCount(message.unreadCount);
+        }
+      } else if (message.notification) {
+        // Add new notification to list
         setNotifications(prev => [message.notification, ...prev]);
-      }
-      
-      if (message.unreadCount !== undefined) {
-        setUnreadCount(message.unreadCount);
+        
+        // Update count if provided
+        if (message.unreadCount !== undefined) {
+          setUnreadCount(message.unreadCount);
+        }
+      } else if (message.eventType === 'NEW_NOTIFICATION') {
+        // Handle WebSocketNotification type
+        if (message.notification) {
+          setNotifications(prev => [message.notification, ...prev]);
+        }
+        if (message.unreadCount !== undefined) {
+          setUnreadCount(message.unreadCount);
+        }
       }
     });
 
