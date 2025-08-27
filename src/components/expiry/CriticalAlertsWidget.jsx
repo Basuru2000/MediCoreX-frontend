@@ -85,9 +85,15 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
     fetchSummaryData();
   };
 
-  // Navigate to detailed view
+  // Navigate to detailed view with proper routes
   const handleNavigate = (path) => {
     navigate(path);
+  };
+
+  // Navigate to specific batch
+  const handleBatchNavigate = (batchId) => {
+    // Navigate to batch-tracking page with specific batch selected
+    navigate('/batch-tracking', { state: { selectedBatchId: batchId } });
   };
 
   // Get severity color
@@ -107,53 +113,16 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
     }
   };
 
-  // Get trend icon
-  const getTrendIcon = (trend) => {
-    if (!trend) return null;
-    
-    if (trend.direction === 'UP') {
-      return <TrendingUpIcon color={trend.severity === 'GOOD' ? 'success' : 'error'} />;
-    } else if (trend.direction === 'DOWN') {
-      return <TrendingDownIcon color="success" />;
-    }
-    return null;
-  };
-
-  // Format currency
-  const formatCurrency = (value) => {
-    if (!value) return '$0.00';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
-
-  // Format relative time
-  const formatRelativeTime = (date) => {
-    if (!date) return 'Never';
-    const now = new Date();
-    const then = new Date(date);
-    const diff = now - then;
-    
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} minutes ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} hours ago`;
-    return then.toLocaleDateString();
-  };
-
   // Loading state
-  if (loading) {
+  if (loading && !summaryData) {
     return (
-      <Card elevation={3}>
+      <Card>
         <CardContent>
-          <Box display="flex" alignItems="center" mb={2}>
-            <Skeleton variant="circular" width={40} height={40} sx={{ mr: 2 }} />
-            <Skeleton variant="text" width="60%" height={30} />
-          </Box>
-          <Grid container spacing={2}>
+          <Skeleton variant="text" height={40} />
+          <Grid container spacing={2} mt={1}>
             {[1, 2, 3, 4].map((item) => (
               <Grid item xs={6} md={3} key={item}>
-                <Skeleton variant="rectangular" height={80} />
+                <Skeleton variant="rectangular" height={100} />
               </Grid>
             ))}
           </Grid>
@@ -162,46 +131,22 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
     );
   }
 
-  // Error state
-  if (error) {
-    return (
-      <Card elevation={3}>
-        <CardContent>
-          <Alert 
-            severity="error" 
-            action={
-              <Button color="inherit" size="small" onClick={handleRefresh}>
-                Retry
-              </Button>
-            }
-          >
-            {error}
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card elevation={3}>
+    <Card>
       <CardContent>
         {/* Header */}
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
-          <Box display="flex" alignItems="center">
-            <Avatar sx={{ bgcolor: 'error.main', mr: 2 }}>
-              <WarningIcon />
-            </Avatar>
-            <Box>
-              <Typography variant="h5" component="h2">
-                Critical Alerts Summary
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Last updated: {formatRelativeTime(lastRefresh)}
-              </Typography>
-            </Box>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Box>
+            <Typography variant="h5" gutterBottom>
+              Critical Alerts Summary
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Last updated: {refreshing ? 'Refreshing...' : 
+                lastRefresh ? new Date(lastRefresh).toLocaleTimeString() : 'Just now'}
+            </Typography>
           </Box>
           <Box>
-            <Tooltip title="Refresh data">
+            <Tooltip title="Refresh">
               <IconButton onClick={handleRefresh} disabled={refreshing}>
                 <RefreshIcon className={refreshing ? 'rotating' : ''} />
               </IconButton>
@@ -213,6 +158,13 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
             </Tooltip>
           </Box>
         </Box>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         {/* Main Stats Grid */}
         <Grid container spacing={2} mb={3}>
@@ -227,7 +179,7 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                 transition: 'all 0.3s',
                 '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 }
               }}
-              onClick={() => handleNavigate('/batch-tracking?filter=expired')}
+              onClick={() => handleNavigate('/batch-tracking')}
             >
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <ErrorIcon sx={{ color: 'error.dark', fontSize: 30 }} />
@@ -238,14 +190,6 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
               <Typography variant="body2" color="error.dark" fontWeight="bold">
                 Expired
               </Typography>
-              {summaryData?.expiredTrend && (
-                <Box display="flex" alignItems="center" mt={1}>
-                  {getTrendIcon(summaryData.expiredTrend)}
-                  <Typography variant="caption" sx={{ ml: 0.5 }}>
-                    {summaryData.expiredTrend.message}
-                  </Typography>
-                </Box>
-              )}
             </Box>
           </Grid>
 
@@ -260,7 +204,7 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                 transition: 'all 0.3s',
                 '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 }
               }}
-              onClick={() => handleNavigate('/batch-tracking?filter=today')}
+              onClick={() => handleNavigate('/batch-tracking')}
             >
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <CalendarIcon sx={{ color: 'warning.dark', fontSize: 30 }} />
@@ -293,7 +237,7 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                 transition: 'all 0.3s',
                 '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 }
               }}
-              onClick={() => handleNavigate('/batch-tracking?filter=week')}
+              onClick={() => handleNavigate('/batch-tracking')}
             >
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <ScheduleIcon sx={{ color: 'info.dark', fontSize: 30 }} />
@@ -323,7 +267,7 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                 transition: 'all 0.3s',
                 '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 }
               }}
-              onClick={() => handleNavigate('/batch-tracking?filter=month')}
+              onClick={() => handleNavigate('/batch-tracking')}
             >
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <HospitalIcon sx={{ color: 'success.dark', fontSize: 30 }} />
@@ -343,138 +287,143 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
           <Divider sx={{ my: 2 }} />
           
           <Grid container spacing={3}>
-            {/* Critical Items List */}
+            {/* Critical Items */}
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>
-                Critical Items Requiring Action
-              </Typography>
-              <List dense>
-                {summaryData?.criticalItems?.slice(0, 5).map((item, index) => (
-                  <ListItem
-                    key={index}
-                    button
-                    onClick={() => handleNavigate(item.actionUrl)}
-                    sx={{
-                      bgcolor: 'background.paper',
-                      mb: 1,
-                      borderRadius: 1,
-                      border: '1px solid',
-                      borderColor: 'divider'
-                    }}
-                  >
-                    <ListItemIcon>
-                      <Badge
-                        badgeContent={Math.abs(item.daysUntilExpiry)}
-                        color={getSeverityColor(item.severity)}
+              <Box>
+                <Typography variant="h6" gutterBottom display="flex" alignItems="center">
+                  <WarningIcon sx={{ mr: 1, color: 'warning.main' }} />
+                  Critical Items Requiring Action
+                </Typography>
+                <List dense>
+                  {summaryData?.criticalItems?.length > 0 ? (
+                    summaryData.criticalItems.slice(0, 5).map((item) => (
+                      <ListItem 
+                        key={item.id}
+                        sx={{ 
+                          bgcolor: 'background.paper',
+                          mb: 1,
+                          borderRadius: 1,
+                          cursor: 'pointer',
+                          '&:hover': { bgcolor: 'action.hover' }
+                        }}
+                        onClick={() => handleBatchNavigate(item.batchId)}
                       >
-                        <BlockIcon />
-                      </Badge>
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.productName}
-                      secondary={
-                        <Box>
-                          <Typography variant="caption" display="block">
-                            Batch: {item.batchNumber} | Qty: {item.quantity}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.daysUntilExpiry < 0
-                              ? `Expired ${Math.abs(item.daysUntilExpiry)} days ago`
-                              : item.daysUntilExpiry === 0
-                              ? 'Expires today'
-                              : `Expires in ${item.daysUntilExpiry} days`}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <Chip
-                        label={item.severity}
-                        size="small"
-                        color={getSeverityColor(item.severity)}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-              {summaryData?.criticalItems?.length > 5 && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  endIcon={<ArrowIcon />}
-                  onClick={() => handleNavigate('/expiry/alerts')}
-                >
-                  View All Critical Items
-                </Button>
-              )}
+                        <ListItemIcon>
+                          <Avatar sx={{ bgcolor: getSeverityColor(item.severity) + '.main', width: 32, height: 32 }}>
+                            {item.severity === 'EXPIRED' ? 'E' : item.daysUntilExpiry || 'C'}
+                          </Avatar>
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.productName}
+                          secondary={
+                            <>
+                              <Typography component="span" variant="caption" display="block">
+                                Batch: {item.batchNumber} | Qty: {item.quantity}
+                              </Typography>
+                              <Typography component="span" variant="caption" color="text.secondary">
+                                {item.severity === 'EXPIRED' ? 
+                                  `Expired ${Math.abs(item.daysUntilExpiry)} days ago` : 
+                                  `Expires in ${item.daysUntilExpiry} days`}
+                              </Typography>
+                            </>
+                          }
+                        />
+                        <ListItemSecondaryAction>
+                          <Chip
+                            label={item.severity}
+                            size="small"
+                            color={getSeverityColor(item.severity)}
+                          />
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))
+                  ) : (
+                    <Alert severity="success">
+                      No critical items requiring immediate action
+                    </Alert>
+                  )}
+                </List>
+                {summaryData?.criticalItems?.length > 5 && (
+                  <Button
+                    fullWidth
+                    variant="text"
+                    onClick={() => handleNavigate('/expiry-monitoring')}
+                    endIcon={<ArrowIcon />}
+                  >
+                    View All {summaryData.criticalItems.length} Items
+                  </Button>
+                )}
+              </Box>
             </Grid>
 
-            {/* Stats and Actions */}
+            {/* Right Side: Financial Impact and Actions */}
             <Grid item xs={12} md={6}>
               {/* Financial Impact */}
               <Box mb={3}>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" gutterBottom display="flex" alignItems="center">
+                  <MoneyIcon sx={{ mr: 1, color: 'primary.main' }} />
                   Financial Impact
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                      <MoneyIcon color="error" />
-                      <Typography variant="h6" color="error">
-                        {formatCurrency(summaryData?.expiredValue)}
+                    <Box 
+                      sx={{ 
+                        p: 2, 
+                        bgcolor: 'error.lighter', 
+                        borderRadius: 1,
+                        textAlign: 'center'
+                      }}
+                    >
+                      <Typography variant="h5" color="error.dark">
+                        ${(summaryData?.financialImpact?.expiredValue || summaryData?.expiredValue || 0).toLocaleString()}
                       </Typography>
-                      <Typography variant="caption">Expired Value</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Expired Value
+                      </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6}>
-                    <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                      <MoneyIcon color="warning" />
-                      <Typography variant="h6" color="warning.main">
-                        {formatCurrency(summaryData?.totalValueAtRisk)}
+                    <Box 
+                      sx={{ 
+                        p: 2, 
+                        bgcolor: 'warning.lighter', 
+                        borderRadius: 1,
+                        textAlign: 'center'
+                      }}
+                    >
+                      <Typography variant="h5" color="warning.dark">
+                        ${(summaryData?.financialImpact?.valueAtRisk || summaryData?.totalValueAtRisk || 0).toLocaleString()}
                       </Typography>
-                      <Typography variant="caption">Value at Risk</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Value at Risk
+                      </Typography>
                     </Box>
                   </Grid>
                 </Grid>
               </Box>
 
-              {/* Alert Status */}
+              {/* Alert Status - Only show pending count */}
               <Box mb={3}>
                 <Typography variant="h6" gutterBottom>
                   Alert Status
                 </Typography>
-                <Grid container spacing={1}>
-                  <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Badge badgeContent={summaryData?.pendingAlertsCount} color="error">
-                        <PendingIcon color="action" />
-                      </Badge>
-                      <Typography variant="caption" display="block">
-                        Pending
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Badge badgeContent={summaryData?.acknowledgedAlertsCount} color="warning">
-                        <TaskIcon color="action" />
-                      </Badge>
-                      <Typography variant="caption" display="block">
-                        Acknowledged
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Badge badgeContent={summaryData?.resolvedAlertsCount} color="success">
-                        <CheckIcon color="action" />
-                      </Badge>
-                      <Typography variant="caption" display="block">
-                        Resolved
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
+                <Box 
+                  sx={{ 
+                    p: 2, 
+                    bgcolor: 'background.default', 
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Badge badgeContent={summaryData?.pendingAlertsCount || 0} color="error" max={999}>
+                    <PendingIcon sx={{ fontSize: 30 }} />
+                  </Badge>
+                  <Typography variant="body1" sx={{ ml: 2 }}>
+                    Pending Alerts
+                  </Typography>
+                </Box>
               </Box>
 
               {/* Quick Actions */}
@@ -489,7 +438,7 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                       variant="contained"
                       color="primary"
                       size="small"
-                      onClick={() => handleNavigate('/expiry/monitoring')}
+                      onClick={() => handleNavigate('/expiry-monitoring')}
                     >
                       Run Check
                     </Button>
@@ -498,7 +447,7 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                     <Button
                       fullWidth
                       variant="contained"
-                      color="secondary"
+                      color="warning"
                       size="small"
                       onClick={() => handleNavigate('/quarantine')}
                     >
@@ -510,9 +459,9 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                       fullWidth
                       variant="outlined"
                       size="small"
-                      onClick={() => handleNavigate('/expiry/alerts')}
+                      onClick={() => handleNavigate('/expiry-config')}
                     >
-                      View Alerts
+                      Settings
                     </Button>
                   </Grid>
                   <Grid item xs={6}>
@@ -520,9 +469,9 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
                       fullWidth
                       variant="outlined"
                       size="small"
-                      onClick={() => handleNavigate('/reports/expiry')}
+                      onClick={() => handleNavigate('/expiry-calendar')}
                     >
-                      Reports
+                      Calendar
                     </Button>
                   </Grid>
                 </Grid>
@@ -531,21 +480,6 @@ const CriticalAlertsWidget = ({ refreshInterval = 60000 }) => {
           </Grid>
         </Collapse>
       </CardContent>
-
-      <style jsx>{`
-        @keyframes rotate {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        
-        .rotating {
-          animation: rotate 1s linear infinite;
-        }
-      `}</style>
     </Card>
   );
 };

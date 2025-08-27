@@ -40,3 +40,20 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Added CSS styles */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.rotating {
+  animation: rotate 1s linear infinite;
+}
+/* Optional: Add smooth transitions for hover effects */
+.MuiBox-root {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
