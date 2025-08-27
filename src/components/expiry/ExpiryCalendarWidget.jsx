@@ -34,41 +34,66 @@ import {
   ViewDay,
   Close
 } from '@mui/icons-material';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from 'date-fns';
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  isSameMonth, 
+  isToday,
+  startOfWeek,
+  endOfWeek,
+  addWeeks,
+  subWeeks
+} from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import ExpiryCalendarDay from './ExpiryCalendarDay';
 import ExpiryCalendarEvent from './ExpiryCalendarEvent';
 import ExpiryCalendarLegend from './ExpiryCalendarLegend';
-import { getExpiryCalendar } from '../../services/api';
+import { getExpiryCalendar, getExpiryCalendarRange } from '../../services/api';
 import './ExpiryCalendarStyles.css';
 
-const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
+const ExpiryCalendarWidget = ({ 
+  compact = false, 
+  viewMode = 'month', // 'week' or 'month'
+  showSummary = true, // Control summary display
+  onEventClick 
+}) => {
   const navigate = useNavigate();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarData, setCalendarData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewType, setViewType] = useState('month');
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
   const [selectedSeverity, setSelectedSeverity] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
-  const [viewInfoDialog, setViewInfoDialog] = useState(false);
 
   useEffect(() => {
     fetchCalendarData();
-  }, [currentMonth]);
+  }, [currentDate, viewMode]);
 
   const fetchCalendarData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const year = currentMonth.getFullYear();
-      const month = currentMonth.getMonth() + 1;
-      
-      const response = await getExpiryCalendar(year, month);
-      setCalendarData(response.data);
+      if (viewMode === 'week') {
+        // Fetch week data
+        const weekStart = startOfWeek(currentDate);
+        const weekEnd = endOfWeek(currentDate);
+        const response = await getExpiryCalendarRange(
+          format(weekStart, 'yyyy-MM-dd'),
+          format(weekEnd, 'yyyy-MM-dd')
+        );
+        setCalendarData(response.data);
+      } else {
+        // Fetch month data
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        const response = await getExpiryCalendar(year, month);
+        setCalendarData(response.data);
+      }
     } catch (err) {
       console.error('Error fetching calendar data:', err);
       setError('Failed to load calendar data');
@@ -77,16 +102,28 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
     }
   };
 
-  const handlePreviousMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1));
+  const handlePrevious = () => {
+    if (viewMode === 'week') {
+      setCurrentDate(subWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    }
   };
 
-  const handleNextMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1));
+  const handleNext = () => {
+    if (viewMode === 'week') {
+      setCurrentDate(addWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    }
   };
 
   const handleToday = () => {
-    setCurrentMonth(new Date());
+    setCurrentDate(new Date());
+  };
+
+  const handleFullCalendarView = () => {
+    navigate('/expiry-calendar');
   };
 
   const handleRefresh = () => {
@@ -109,46 +146,22 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
   const handleEventClick = (event, date) => {
     setSelectedEvent({ ...event, date });
     setEventDialogOpen(true);
-  };
-
-  const handleEventAction = (event) => {
-    setEventDialogOpen(false);
-    
-    // Navigate based on event type
-    switch (event.type) {
-      case 'BATCH_EXPIRY':
-        navigate('/batch-tracking', { 
-          state: { 
-            highlightBatchId: event.id,
-            batchNumber: event.details?.[0]?.batchNumber 
-          } 
-        });
-        break;
-      case 'ALERT':
-        navigate('/expiry-monitoring', { 
-          state: { 
-            highlightAlertId: event.id 
-          } 
-        });
-        break;
-      case 'QUARANTINE':
-        navigate('/quarantine', { 
-          state: { 
-            highlightRecordId: event.id 
-          } 
-        });
-        break;
-      default:
-        console.log('Unknown event type:', event.type);
+    if (onEventClick) {
+      onEventClick(event, date);
     }
   };
 
-  const handleFullCalendarView = () => {
-    navigate('/expiry-calendar');
+  const handleEventAction = (action) => {
+    if (action === 'view') {
+      navigate(`/products/${selectedEvent.productId}`);
+    } else if (action === 'quarantine') {
+      navigate('/quarantine');
+    }
+    setEventDialogOpen(false);
   };
 
   const getEventsForDate = (date) => {
-    if (!calendarData || !calendarData.events) return [];
+    if (!calendarData?.events) return [];
     
     const dateStr = format(date, 'yyyy-MM-dd');
     const events = calendarData.events[dateStr] || [];
@@ -158,38 +171,69 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
     }
     
     return events.filter(event => 
-      event.severity.toLowerCase() === selectedSeverity.toLowerCase()
+      event.severity?.toLowerCase() === selectedSeverity.toLowerCase()
     );
   };
 
+  const getSeverityColor = (severity) => {
+    switch (severity?.toUpperCase()) {
+      case 'CRITICAL': return 'error';
+      case 'HIGH': return 'warning';
+      case 'MEDIUM': return 'info';
+      case 'LOW': return 'success';
+      default: return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        {error}
+      </Alert>
+    );
+  }
+
   const renderCalendarHeader = () => (
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+    <Box display="flex" alignItems="center" justifyContent="space-between">
       <Box display="flex" alignItems="center" gap={1}>
-        <IconButton size="small" onClick={handlePreviousMonth}>
+        <IconButton size="small" onClick={handlePrevious}>
           <ChevronLeft />
         </IconButton>
+        
         <Typography variant="h6" sx={{ minWidth: 150, textAlign: 'center' }}>
-          {format(currentMonth, 'MMMM yyyy')}
+          {viewMode === 'week' 
+            ? `Week of ${format(startOfWeek(currentDate), 'MMM d, yyyy')}`
+            : format(currentDate, 'MMMM yyyy')
+          }
         </Typography>
-        <IconButton size="small" onClick={handleNextMonth}>
+        
+        <IconButton size="small" onClick={handleNext}>
           <ChevronRight />
         </IconButton>
-        <IconButton size="small" onClick={handleToday} color="primary">
-          <Today />
-        </IconButton>
+        
+        <Button 
+          size="small" 
+          startIcon={<Today />} 
+          onClick={handleToday}
+          sx={{ ml: 1 }}
+        >
+          Today
+        </Button>
       </Box>
       
       <Box display="flex" gap={1}>
-        {calendarData?.metadata?.criticalEvents > 0 && (
-          <Chip
-            icon={<Error />}
-            label={`${calendarData.metadata.criticalEvents} Critical`}
-            color="error"
-            size="small"
-          />
-        )}
-        
-        <IconButton size="small" onClick={handleFilterClick}>
+        <IconButton 
+          size="small" 
+          onClick={handleFilterClick}
+        >
           <Badge 
             badgeContent={selectedSeverity !== 'all' ? '1' : 0} 
             color="primary"
@@ -206,16 +250,58 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
   );
 
   const renderCalendarGrid = () => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const startDate = new Date(monthStart);
-    startDate.setDate(startDate.getDate() - startDate.getDay());
-    const endDate = new Date(monthEnd);
-    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+    let days = [];
     
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    if (viewMode === 'week') {
+      // Week view - show only current week
+      const weekStart = startOfWeek(currentDate);
+      const weekEnd = endOfWeek(currentDate);
+      days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    } else {
+      // Month view - show full month with padding
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      const startDate = startOfWeek(monthStart);
+      const endDate = endOfWeek(monthEnd);
+      days = eachDayOfInterval({ start: startDate, end: endDate });
+    }
+    
+    // For week view, show in a single row
+    if (viewMode === 'week') {
+      return (
+        <Box>
+          {/* Day headers */}
+          <Grid container spacing={0.5} mb={1}>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <Grid item xs key={day} sx={{ textAlign: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {day}
+                </Typography>
+              </Grid>
+            ))}
+          </Grid>
+          
+          {/* Week days in single row */}
+          <Grid container spacing={0.5}>
+            {days.map(day => (
+              <Grid item xs key={day.toString()}>
+                <ExpiryCalendarDay
+                  date={day}
+                  events={getEventsForDate(day)}
+                  isCurrentMonth={true}
+                  isToday={isToday(day)}
+                  compact={compact}
+                  onClick={(event) => handleEventClick(event, day)}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      );
+    }
+    
+    // Month view - show in multiple weeks
     const weeks = [];
-    
     for (let i = 0; i < days.length; i += 7) {
       weeks.push(days.slice(i, i + 7));
     }
@@ -233,7 +319,7 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
           ))}
         </Grid>
         
-        {/* Calendar days */}
+        {/* Calendar weeks */}
         {weeks.map((week, weekIndex) => (
           <Grid container spacing={0.5} key={weekIndex} mb={0.5}>
             {week.map(day => (
@@ -241,7 +327,7 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
                 <ExpiryCalendarDay
                   date={day}
                   events={getEventsForDate(day)}
-                  isCurrentMonth={isSameMonth(day, currentMonth)}
+                  isCurrentMonth={isSameMonth(day, currentDate)}
                   isToday={isToday(day)}
                   compact={compact}
                   onClick={(event) => handleEventClick(event, day)}
@@ -254,79 +340,11 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
     );
   };
 
-  const renderSummary = () => {
-    if (!calendarData?.summary) return null;
-    
-    const { summary } = calendarData;
-    
-    return (
-      <Box mt={2} p={2} bgcolor="background.default" borderRadius={1}>
-        <Typography variant="subtitle2" gutterBottom>
-          Month Summary
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={6}>
-            <Typography variant="body2" color="text.secondary">
-              Total Events
-            </Typography>
-            <Typography variant="h6">
-              {summary.totalExpiringItems || 0}
-            </Typography>
-          </Grid>
-          <Grid item xs={6}>
-            <Typography variant="body2" color="text.secondary">
-              Value at Risk
-            </Typography>
-            <Typography variant="h6">
-              ${summary.totalValueAtRisk?.toLocaleString() || '0'}
-            </Typography>
-          </Grid>
-          {summary.thisWeek && (
-            <>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="text.secondary">
-                  This Week
-                </Typography>
-                <Typography variant="body1">
-                  {summary.thisWeek.itemCount} items
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="text.secondary">
-                  Next Week
-                </Typography>
-                <Typography variant="body1">
-                  {summary.nextWeek.itemCount} items
-                </Typography>
-              </Grid>
-            </>
-          )}
-        </Grid>
-      </Box>
-    );
-  };
-
-  if (loading) {
-    return (
-      <Paper sx={{ p: 3, textAlign: 'center' }}>
-        <CircularProgress />
-      </Paper>
-    );
-  }
-
-  if (error) {
-    return (
-      <Paper sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Paper>
-    );
-  }
-
   return (
     <Paper className="expiry-calendar-widget" sx={{ p: compact ? 2 : 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant={compact ? "h6" : "h5"}>
-          Expiry Calendar
+          {viewMode === 'week' ? 'Expiry Calendar - Week View' : 'Expiry Calendar'}
         </Typography>
         {!compact && (
           <Button
@@ -347,7 +365,48 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
       
       {!compact && <ExpiryCalendarLegend />}
       
-      {!compact && renderSummary()}
+      {/* Only show summary if showSummary is true and NOT in week view on dashboard */}
+      {showSummary && viewMode !== 'week' && !compact && calendarData?.summary && (
+        <Box mt={2} p={2} bgcolor="background.default" borderRadius={1}>
+          <Typography variant="subtitle2" gutterBottom>
+            Month Summary
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="text.secondary">
+                Total Events
+              </Typography>
+              <Typography variant="h6">
+                {calendarData.summary.totalExpiringItems || 0}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="text.secondary">
+                Value at Risk
+              </Typography>
+              <Typography variant="h6">
+                ${calendarData.summary.totalValueAtRisk?.toLocaleString() || 0}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="text.secondary">
+                This Week
+              </Typography>
+              <Typography variant="h6">
+                {calendarData.summary.thisWeekCount || 0} items
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" color="text.secondary">
+                Next Week
+              </Typography>
+              <Typography variant="h6">
+                {calendarData.summary.nextWeekCount || 0} items
+              </Typography>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
       
       {/* Filter Menu */}
       <Menu
@@ -383,38 +442,6 @@ const ExpiryCalendarWidget = ({ compact = false, onEventClick }) => {
         date={selectedEvent?.date}
         onActionClick={handleEventAction}
       />
-
-      {/* Info Dialog */}
-      <Dialog open={viewInfoDialog} onClose={() => setViewInfoDialog(false)}>
-        <DialogTitle>
-          About Expiry Calendar
-        </DialogTitle>
-        <DialogContent>
-          <Typography paragraph>
-            The Expiry Calendar helps you track important dates related to product expiry and inventory management.
-          </Typography>
-          <Typography variant="subtitle2" gutterBottom>
-            Event Types:
-          </Typography>
-          <ul>
-            <li><strong>Batch Expiry:</strong> When a batch of products expires</li>
-            <li><strong>Alerts:</strong> System-generated warnings</li>
-            <li><strong>Quarantine:</strong> Items moved to quarantine</li>
-          </ul>
-          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
-            Severity Levels:
-          </Typography>
-          <ul>
-            <li><strong>Critical (Red):</strong> Expires in ≤7 days</li>
-            <li><strong>High (Orange):</strong> Expires in 8-30 days</li>
-            <li><strong>Medium (Yellow):</strong> Expires in 31-60 days</li>
-            <li><strong>Low (Green):</strong> Expires in 61+ days</li>
-          </ul>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setViewInfoDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
     </Paper>
   );
 };

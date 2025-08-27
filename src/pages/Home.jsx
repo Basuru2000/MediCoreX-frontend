@@ -238,9 +238,11 @@ function Home() {
           <Grid item xs={12}>
             <ExpiryCalendarWidget 
               compact={false}
+              viewMode="week"        // Show week view on dashboard
+              showSummary={false}    // Hide summary on dashboard
               onEventClick={(event, date) => {
                 console.log('Calendar event clicked:', event, date);
-                // The navigation is now handled inside the widget
+                // Navigation is handled inside the widget
               }}
             />
           </Grid>
