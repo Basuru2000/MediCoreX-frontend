@@ -232,13 +232,16 @@ function Home() {
         </Box>
       )}
 
-      {/* Grid container for calendar */}
-      <Grid container spacing={3}>
+      {/* Grid container for calendar - ONLY CHANGE: Added viewMode and dashboardView props */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
         {/* Expiry Calendar - Week View for Dashboard */}
         {showCalendar && (
           <Grid item xs={12}>
             <ExpiryCalendarWidget 
+              viewMode="week"
+              dashboardView={true}
               compact={false}
+              showSummary={false}
               onEventClick={(event, date) => {
                 console.log('Calendar event clicked:', event, date);
                 // The navigation is now handled inside the widget
