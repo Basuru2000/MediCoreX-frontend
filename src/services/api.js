@@ -308,6 +308,23 @@ export const getExpiryCalendarRange = (startDate, endDate) => {
   const params = new URLSearchParams({ startDate, endDate }).toString();
   return api.get(`/expiry/calendar/range?${params}`);
 };
+// Get expiry calendar data with flexible parameters
+export const getExpiryCalendarData = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    startDate: params.startDate,
+    endDate: params.endDate,
+    view: params.view || 'week'
+  }).toString();
+  return api.get(`/expiry/calendar/events?${queryParams}`);
+};
+// Get calendar summary
+export const getCalendarSummary = (year, month) => {
+  return api.get(`/expiry/calendar/summary?year=${year}&month=${month}`);
+};
+// Get events for specific date
+export const getEventsForDate = (date) => {
+  return api.get(`/expiry/calendar/events/${date}`);
+};
 // Search expiry calendar with filters
 export const searchExpiryCalendar = (filters) => 
   api.post('/expiry/calendar/search', filters);

@@ -31,8 +31,9 @@ import {
 } from '../services/api'
 // Import the Critical Alerts Widget
 import CriticalAlertsWidget from '../components/expiry/CriticalAlertsWidget'
-// Add to imports
+// Import Expiry Trends Analysis
 import ExpiryTrendsAnalysis from '../components/expiry/ExpiryTrendsAnalysis'
+// Import Expiry Calendar Widget
 import ExpiryCalendarWidget from '../components/expiry/ExpiryCalendarWidget'
 
 function Home() {
@@ -231,18 +232,19 @@ function Home() {
         </Box>
       )}
 
-      {/* Grid container for calendar */}
-      <Grid container spacing={3}>
-        {/* Add after the ExpiryTrendsAnalysis component */}
-        {canViewCriticalAlerts && showCalendar && (
+      {/* Grid container for calendar - ONLY CHANGE: Added viewMode and dashboardView props */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {/* Expiry Calendar - Week View for Dashboard */}
+        {showCalendar && (
           <Grid item xs={12}>
             <ExpiryCalendarWidget 
+              viewMode="week"
+              dashboardView={true}
               compact={false}
-              viewMode="week"        // Show week view on dashboard
-              showSummary={false}    // Hide summary on dashboard
+              showSummary={false}
               onEventClick={(event, date) => {
                 console.log('Calendar event clicked:', event, date);
-                // Navigation is handled inside the widget
+                // The navigation is now handled inside the widget
               }}
             />
           </Grid>
