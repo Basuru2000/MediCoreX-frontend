@@ -15,15 +15,41 @@ import {
   Avatar,
   CircularProgress,
   Tab,
-  Tabs
+  Tabs,
+  Stack,
+  Divider,
+  Chip,
+  useTheme,
+  alpha,
+  Paper,
+  Fade
 } from '@mui/material'
-import { Upload, Close, QrCodeScanner, Refresh } from '@mui/icons-material'
+import { 
+  Upload, 
+  Close, 
+  QrCodeScanner, 
+  Refresh,
+  Image,
+  Info,
+  Inventory,
+  AttachMoney,
+  Category,
+  CalendarMonth
+} from '@mui/icons-material'
 import { uploadProductImage } from '../../services/api'
 import BarcodeDisplay from './BarcodeDisplay'
 import BarcodeScanner from './BarcodeScanner'
 import BarcodeScanOptions from './BarcodeScanOptions'
 
+// Move TabPanel outside component to prevent re-renders
+const TabPanel = ({ children, value, index }) => (
+  <Box hidden={value !== index} sx={{ pt: 3 }}>
+    {value === index && children}
+  </Box>
+)
+
 function ProductForm({ open, onClose, onSubmit, product, categories }) {
+  const theme = useTheme()
   const [activeTab, setActiveTab] = useState(0)
   const [formData, setFormData] = useState({
     name: '',
@@ -47,6 +73,8 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scanOptionsOpen, setScanOptionsOpen] = useState(false)
 
+  const units = ['tablets', 'bottles', 'boxes', 'pieces', 'packets', 'vials', 'strips']
+
   useEffect(() => {
     if (product) {
       setFormData({
@@ -64,28 +92,9 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
         manufacturer: product.manufacturer || '',
         imageUrl: product.imageUrl || ''
       })
-      setImagePreview(product.imageUrl ? `http://localhost:8080${product.imageUrl}` : null)
-    } else {
-      setFormData({
-        name: '',
-        code: '',
-        barcode: '',
-        description: '',
-        categoryId: '',
-        quantity: 0,
-        minStockLevel: 0,
-        unit: '',
-        unitPrice: 0,
-        expiryDate: '',
-        batchNumber: '',
-        manufacturer: '',
-        imageUrl: ''
-      })
-      setImagePreview(null)
+      setImagePreview(product.imageUrl || null)
     }
-    setErrors({})
-    setActiveTab(0)
-  }, [product, open])
+  }, [product])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -93,9 +102,12 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
       ...prev,
       [name]: value
     }))
-    // Clear error for this field
+    
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
     }
   }
 
@@ -103,446 +115,538 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
     const file = event.target.files[0]
     if (!file) return
 
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if (!validTypes.includes(file.type)) {
-      setErrors({ ...errors, image: 'Please upload a valid image file (JPEG, PNG, GIF, or WebP)' })
-      return
-    }
-
-    // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setErrors({ ...errors, image: 'Image size must be less than 5MB' })
+      setErrors({ ...errors, image: 'Image size should be less than 5MB' })
       return
     }
 
     setUploadingImage(true)
-    setErrors({ ...errors, image: '' })
-
+    
     try {
+      // Pass the file directly to uploadProductImage
+      // The api.js function will create the FormData
       const response = await uploadProductImage(file)
       const imageUrl = response.data.imageUrl
       
       setFormData(prev => ({ ...prev, imageUrl }))
-      setImagePreview(`http://localhost:8080${imageUrl}`)
+      setImagePreview(URL.createObjectURL(file))
+      setErrors({ ...errors, image: '' })
     } catch (error) {
+      console.error('Image upload error:', error)
       setErrors({ ...errors, image: 'Failed to upload image' })
     } finally {
       setUploadingImage(false)
     }
   }
 
-  const handleRemoveImage = () => {
-    setFormData(prev => ({ ...prev, imageUrl: '' }))
-    setImagePreview(null)
-  }
-
-  const handleBarcodeScan = (barcode) => {
-    setFormData(prev => ({ ...prev, barcode }))
-    setScannerOpen(false)
-    setScanOptionsOpen(false)
-  }
-
-  const handleCameraSelect = () => {
-    setScanOptionsOpen(false)
-    setScannerOpen(true)
-  }
-
-  const handleImageUploadScan = async (file) => {
-    // Convert file to base64 and send to backend
-    const reader = new FileReader()
-    reader.onloadend = async () => {
-      const base64 = reader.result
-      
-      try {
-        const response = await fetch('http://localhost:8080/api/products/barcode/scan', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ barcodeImage: base64 })
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          handleBarcodeScan(data.barcode || data.code || data.name)
-        } else {
-          throw new Error('Failed to decode barcode')
-        }
-      } catch (error) {
-        throw error
-      }
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const generateRandomBarcode = () => {
-    const prefix = 'MED'
-    const timestamp = Date.now().toString().slice(-6)
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-    const barcode = `${prefix}${timestamp}${random}`
-    setFormData(prev => ({ ...prev, barcode }))
-  }
-
-  const validate = () => {
+  const validateForm = () => {
     const newErrors = {}
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'Product name is required'
-    }
-    
-    if (!formData.categoryId) {
-      newErrors.categoryId = 'Category is required'
-    }
-    
-    if (formData.quantity < 0) {
-      newErrors.quantity = 'Quantity cannot be negative'
-    }
-    
-    if (formData.minStockLevel < 0) {
-      newErrors.minStockLevel = 'Minimum stock level cannot be negative'
-    }
-    
-    if (!formData.unit.trim()) {
-      newErrors.unit = 'Unit is required'
-    }
-    
-    if (formData.unitPrice < 0) {
-      newErrors.unitPrice = 'Unit price cannot be negative'
-    }
-    
-    if (formData.expiryDate && new Date(formData.expiryDate) <= new Date()) {
-      newErrors.expiryDate = 'Expiry date must be in the future'
-    }
 
-    if (formData.barcode && !/^[A-Za-z0-9]{8,}$/.test(formData.barcode)) {
-      newErrors.barcode = 'Barcode must be alphanumeric and at least 8 characters'
-    }
-    
+    if (!formData.name) newErrors.name = 'Product name is required'
+    if (!formData.categoryId) newErrors.categoryId = 'Category is required'
+    if (formData.quantity < 0) newErrors.quantity = 'Quantity cannot be negative'
+    if (formData.minStockLevel < 0) newErrors.minStockLevel = 'Minimum stock cannot be negative'
+    if (!formData.unit) newErrors.unit = 'Unit is required'
+    if (formData.unitPrice < 0) newErrors.unitPrice = 'Price cannot be negative'
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = () => {
-    if (validate()) {
-      // Convert numeric fields
-      const submitData = {
-        ...formData,
-        categoryId: parseInt(formData.categoryId),
-        quantity: parseInt(formData.quantity),
-        minStockLevel: parseInt(formData.minStockLevel),
-        unitPrice: parseFloat(formData.unitPrice)
-      }
-      
-      // Remove empty optional fields
-      if (!submitData.code) delete submitData.code
-      if (!submitData.barcode) delete submitData.barcode
-      if (!submitData.description) delete submitData.description
-      if (!submitData.expiryDate) delete submitData.expiryDate
-      if (!submitData.batchNumber) delete submitData.batchNumber
-      if (!submitData.manufacturer) delete submitData.manufacturer
-      
-      onSubmit(submitData)
+    if (validateForm()) {
+      onSubmit(formData)
     }
   }
 
-  const commonUnits = ['Tablets', 'Bottles', 'Boxes', 'Packs', 'Vials', 'Tubes', 'Strips', 'Pieces', 'Liters', 'Kilograms']
+  const generateBarcode = () => {
+    const randomBarcode = 'PRD' + Date.now().toString().slice(-10)
+    setFormData(prev => ({ ...prev, barcode: randomBarcode }))
+  }
 
   return (
-    <>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-        <DialogContent>
-          <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} sx={{ mb: 2 }}>
-            <Tab label="Basic Info" />
-            <Tab label="Codes & Tracking" />
-            <Tab label="Images" />
-          </Tabs>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="md" 
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '16px',
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{ p: 0 }}>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            p: 3,
+            bgcolor: theme.palette.grey[50],
+            borderBottom: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Box>
+            <Typography variant="h5" fontWeight={600}>
+              {product ? 'Edit Product' : 'Add New Product'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {product ? 'Update product information' : 'Fill in the product details below'}
+            </Typography>
+          </Box>
+          <IconButton 
+            onClick={onClose}
+            sx={{ 
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                bgcolor: alpha(theme.palette.text.secondary, 0.1)
+              }
+            }}
+          >
+            <Close />
+          </IconButton>
+        </Box>
+        <Tabs 
+          value={activeTab} 
+          onChange={(e, v) => setActiveTab(v)}
+          sx={{ 
+            px: 3,
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.95rem',
+              minHeight: 48
+            }
+          }}
+        >
+          <Tab label="Basic Information" icon={<Info fontSize="small" />} iconPosition="start" />
+          <Tab label="Stock & Pricing" icon={<AttachMoney fontSize="small" />} iconPosition="start" />
+          <Tab label="Additional Details" icon={<Category fontSize="small" />} iconPosition="start" />
+        </Tabs>
+      </DialogTitle>
 
-          {activeTab === 0 && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Product Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  error={!!errors.name}
-                  helperText={errors.name}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Category"
-                  name="categoryId"
-                  value={formData.categoryId}
-                  onChange={handleChange}
-                  error={!!errors.categoryId}
-                  helperText={errors.categoryId}
-                  required
-                >
-                  {categories.map(category => (
-                    <MenuItem key={category.id} value={category.id}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  multiline
-                  rows={2}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Current Stock"
-                  name="quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  error={!!errors.quantity}
-                  helperText={errors.quantity}
-                  required
-                  InputProps={{ inputProps: { min: 0 } }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Minimum Stock Level"
-                  name="minStockLevel"
-                  type="number"
-                  value={formData.minStockLevel}
-                  onChange={handleChange}
-                  error={!!errors.minStockLevel}
-                  helperText={errors.minStockLevel}
-                  required
-                  InputProps={{ inputProps: { min: 0 } }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Unit"
-                  name="unit"
-                  value={formData.unit}
-                  onChange={handleChange}
-                  error={!!errors.unit}
-                  helperText={errors.unit}
-                  required
-                >
-                  {commonUnits.map(unit => (
-                    <MenuItem key={unit} value={unit}>
-                      {unit}
-                    </MenuItem>
-                  ))}
-                  <MenuItem value="Other">Other</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Unit Price"
-                  name="unitPrice"
-                  type="number"
-                  value={formData.unitPrice}
-                  onChange={handleChange}
-                  error={!!errors.unitPrice}
-                  helperText={errors.unitPrice}
-                  required
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                    inputProps: { min: 0, step: 0.01 }
+      <DialogContent sx={{ p: 3 }}>
+        <TabPanel value={activeTab} index={0}>
+          <Grid container spacing={3}>
+            {/* Product Image */}
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <Avatar
+                  src={imagePreview}
+                  variant="rounded"
+                  sx={{ 
+                    width: 100, 
+                    height: 100,
+                    border: `2px solid ${theme.palette.divider}`,
+                    bgcolor: theme.palette.grey[100]
                   }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Manufacturer"
-                  name="manufacturer"
-                  value={formData.manufacturer}
-                  onChange={handleChange}
-                />
-              </Grid>
-            </Grid>
-          )}
-
-          {activeTab === 1 && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Product Code"
-                  name="code"
-                  value={formData.code}
-                  onChange={handleChange}
-                  placeholder="SKU or Internal Code"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Box display="flex" gap={1}>
-                  <TextField
-                    fullWidth
-                    label="Barcode"
-                    name="barcode"
-                    value={formData.barcode}
-                    onChange={handleChange}
-                    error={!!errors.barcode}
-                    helperText={errors.barcode || "Leave empty to auto-generate"}
-                    placeholder="Alphanumeric, min 8 chars"
-                  />
-                  <IconButton 
-                    onClick={() => setScanOptionsOpen(true)}
-                    color="primary"
-                    sx={{ mt: 0.5 }}
-                  >
-                    <QrCodeScanner />
-                  </IconButton>
-                  <IconButton 
-                    onClick={generateRandomBarcode}
-                    color="secondary"
-                    sx={{ mt: 0.5 }}
-                  >
-                    <Refresh />
-                  </IconButton>
-                </Box>
-              </Grid>
-              
-              {formData.barcode && (
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <BarcodeDisplay 
-                      barcode={formData.barcode} 
-                      productName={formData.name}
-                      showActions={false}
-                    />
-                  </Box>
-                </Grid>
-              )}
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Expiry Date"
-                  name="expiryDate"
-                  type="date"
-                  value={formData.expiryDate}
-                  onChange={handleChange}
-                  error={!!errors.expiryDate}
-                  helperText={errors.expiryDate}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Batch Number"
-                  name="batchNumber"
-                  value={formData.batchNumber}
-                  onChange={handleChange}
-                />
-              </Grid>
-            </Grid>
-          )}
-
-          {activeTab === 2 && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12}>
-                <Box sx={{ border: '1px dashed #ccc', borderRadius: 1, p: 2, textAlign: 'center' }}>
-                  <Typography variant="subtitle2" gutterBottom>
+                >
+                  <Image sx={{ fontSize: 40, color: theme.palette.text.secondary }} />
+                </Avatar>
+                <Stack spacing={1}>
+                  <Typography variant="body2" fontWeight={500}>
                     Product Image
                   </Typography>
-                  
-                  {imagePreview ? (
-                    <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                      <Avatar
-                        src={imagePreview}
-                        variant="rounded"
-                        sx={{ width: 150, height: 150, mb: 1 }}
-                      />
-                      <IconButton
-                        size="small"
-                        sx={{ position: 'absolute', top: -8, right: -8 }}
-                        onClick={handleRemoveImage}
-                      >
-                        <Close />
-                      </IconButton>
-                    </Box>
-                  ) : (
-                    <Box>
-                      <input
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        id="image-upload"
-                        type="file"
-                        onChange={handleImageUpload}
-                        disabled={uploadingImage}
-                      />
-                      <label htmlFor="image-upload">
-                        <Button
-                          variant="outlined"
-                          component="span"
-                          startIcon={uploadingImage ? <CircularProgress size={20} /> : <Upload />}
-                          disabled={uploadingImage}
-                        >
-                          {uploadingImage ? 'Uploading...' : 'Upload Image'}
-                        </Button>
-                      </label>
-                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                        Max size: 5MB. Formats: JPEG, PNG, GIF, WebP
-                      </Typography>
-                    </Box>
-                  )}
-                  
+                  <Typography variant="caption" color="text.secondary">
+                    Upload a product image (Max 5MB)
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={uploadingImage ? <CircularProgress size={16} /> : <Upload />}
+                    disabled={uploadingImage}
+                    sx={{ 
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      borderColor: theme.palette.divider
+                    }}
+                  >
+                    {uploadingImage ? 'Uploading...' : 'Choose Image'}
+                    <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
+                  </Button>
                   {errors.image && (
-                    <Typography color="error" variant="caption" display="block" sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="error">
                       {errors.image}
                     </Typography>
                   )}
-                </Box>
-              </Grid>
+                </Stack>
+              </Box>
             </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {product ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
-      <BarcodeScanOptions
-        open={scanOptionsOpen}
-        onClose={() => setScanOptionsOpen(false)}
-        onCameraSelect={handleCameraSelect}
-        onImageUpload={handleImageUploadScan}
-      />
+            {/* Product Name */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Product Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                error={!!errors.name}
+                helperText={errors.name}
+                required
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
+              />
+            </Grid>
 
-      <BarcodeScanner
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={handleBarcodeScan}
-        onBack={() => {
-          setScannerOpen(false)
-          setScanOptionsOpen(true)
-        }}
-      />
-    </>
+            {/* Category */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                select
+                label="Category"
+                name="categoryId"
+                value={formData.categoryId}
+                onChange={handleChange}
+                error={!!errors.categoryId}
+                helperText={errors.categoryId}
+                required
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
+              >
+                {categories.map(category => (
+                  <MenuItem key={category.id} value={category.id}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Chip 
+                        label={category.name} 
+                        size="small"
+                        sx={{ 
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          color: theme.palette.primary.main
+                        }}
+                      />
+                      {category.productCount > 0 && (
+                        <Typography variant="caption" color="text.secondary">
+                          ({category.productCount} products)
+                        </Typography>
+                      )}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {/* Product Code */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Product Code"
+                name="code"
+                value={formData.code}
+                onChange={handleChange}
+                placeholder="e.g., MED-001"
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
+              />
+            </Grid>
+
+            {/* Barcode */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Barcode"
+                name="barcode"
+                value={formData.barcode}
+                onChange={handleChange}
+                placeholder="Enter or scan barcode"
+                InputProps={{
+                  sx: { borderRadius: '8px' },
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Stack direction="row" spacing={0.5}>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => setScanOptionsOpen(true)}
+                          sx={{ color: theme.palette.primary.main }}
+                        >
+                          <QrCodeScanner fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small" 
+                          onClick={generateBarcode}
+                          sx={{ color: theme.palette.success.main }}
+                        >
+                          <Refresh fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+
+            {/* Description */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                multiline
+                rows={3}
+                placeholder="Enter product description..."
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
+              />
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={1}>
+          <Grid container spacing={3}>
+            {/* Current Stock */}
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Current Stock"
+                name="quantity"
+                type="number"
+                value={formData.quantity}
+                onChange={handleChange}
+                error={!!errors.quantity}
+                helperText={errors.quantity}
+                required
+                InputProps={{ 
+                  inputProps: { min: 0 },
+                  sx: { borderRadius: '8px' },
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Inventory fontSize="small" color="action" />
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+
+            {/* Minimum Stock Level */}
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Minimum Stock Level"
+                name="minStockLevel"
+                type="number"
+                value={formData.minStockLevel}
+                onChange={handleChange}
+                error={!!errors.minStockLevel}
+                helperText={errors.minStockLevel || "Alert when stock falls below this level"}
+                required
+                InputProps={{ 
+                  inputProps: { min: 0 },
+                  sx: { borderRadius: '8px' }
+                }}
+              />
+            </Grid>
+
+            {/* Unit */}
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                select
+                label="Unit"
+                name="unit"
+                value={formData.unit}
+                onChange={handleChange}
+                error={!!errors.unit}
+                helperText={errors.unit}
+                required
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
+              >
+                {units.map(unit => (
+                  <MenuItem key={unit} value={unit}>
+                    {unit.charAt(0).toUpperCase() + unit.slice(1)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {/* Unit Price */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Unit Price"
+                name="unitPrice"
+                type="number"
+                value={formData.unitPrice}
+                onChange={handleChange}
+                error={!!errors.unitPrice}
+                helperText={errors.unitPrice}
+                required
+                InputProps={{
+                  inputProps: { min: 0, step: 0.01 },
+                  sx: { borderRadius: '8px' },
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <AttachMoney fontSize="small" color="action" />
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+
+            {/* Total Value Display */}
+            <Grid item xs={12} sm={6}>
+              <Paper 
+                variant="outlined" 
+                sx={{ 
+                  p: 2, 
+                  borderRadius: '8px',
+                  bgcolor: alpha(theme.palette.success.main, 0.05),
+                  borderColor: theme.palette.success.main
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Total Stock Value
+                </Typography>
+                <Typography variant="h5" fontWeight={600} color="success.main">
+                  ${(formData.quantity * formData.unitPrice).toFixed(2)}
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={2}>
+          <Grid container spacing={3}>
+            {/* Expiry Date */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Expiry Date"
+                name="expiryDate"
+                type="date"
+                value={formData.expiryDate}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  sx: { borderRadius: '8px' },
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CalendarMonth fontSize="small" color="action" />
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+
+            {/* Batch Number */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Batch Number"
+                name="batchNumber"
+                value={formData.batchNumber}
+                onChange={handleChange}
+                placeholder="e.g., BATCH-2024-001"
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
+              />
+            </Grid>
+
+            {/* Manufacturer */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Manufacturer"
+                name="manufacturer"
+                value={formData.manufacturer}
+                onChange={handleChange}
+                placeholder="Enter manufacturer name"
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
+              />
+            </Grid>
+
+            {/* Barcode Preview */}
+            {formData.barcode && (
+              <Grid item xs={12}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: '8px',
+                    bgcolor: theme.palette.grey[50]
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Barcode Preview
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <BarcodeDisplay value={formData.barcode} />
+                  </Box>
+                </Paper>
+              </Grid>
+            )}
+          </Grid>
+        </TabPanel>
+      </DialogContent>
+
+      <Divider />
+
+      <DialogActions sx={{ p: 3, gap: 2 }}>
+        <Button 
+          onClick={onClose}
+          sx={{ 
+            borderRadius: '8px',
+            textTransform: 'none',
+            px: 3
+          }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained"
+          sx={{ 
+            borderRadius: '8px',
+            textTransform: 'none',
+            px: 4,
+            boxShadow: 'none',
+            '&:hover': {
+              boxShadow: theme.shadows[4]
+            }
+          }}
+        >
+          {product ? 'Update Product' : 'Create Product'}
+        </Button>
+      </DialogActions>
+
+      {/* Scanner Options Dialog */}
+      {scanOptionsOpen && (
+        <BarcodeScanOptions
+          open={scanOptionsOpen}
+          onClose={() => setScanOptionsOpen(false)}
+          onSelectOption={(option) => {
+            setScanOptionsOpen(false)
+            if (option === 'camera') {
+              setScannerOpen(true)
+            }
+          }}
+        />
+      )}
+
+      {/* Barcode Scanner Dialog */}
+      {scannerOpen && (
+        <BarcodeScanner
+          open={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScan={(barcode) => {
+            setFormData(prev => ({ ...prev, barcode }))
+            setScannerOpen(false)
+          }}
+        />
+      )}
+    </Dialog>
   )
 }
 

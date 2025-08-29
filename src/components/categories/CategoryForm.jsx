@@ -8,19 +8,35 @@ import {
   Button,
   Box,
   MenuItem,
-  Chip
+  Chip,
+  Typography,
+  IconButton,
+  useTheme,
+  alpha,
+  InputAdornment,
+  FormHelperText,
+  Divider,
+  Fade
 } from '@mui/material'
+import {
+  Close,
+  FolderOutlined,
+  DescriptionOutlined,
+  AccountTreeOutlined,
+  InfoOutlined
+} from '@mui/icons-material'
 import { getCategories, getCategoryTree } from '../../services/api'
 
 function CategoryForm({ open, onClose, onSubmit, category }) {
+  const theme = useTheme()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     parentId: null
   })
-
   const [errors, setErrors] = useState({})
   const [parentCategories, setParentCategories] = useState([])
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -45,35 +61,45 @@ function CategoryForm({ open, onClose, onSubmit, category }) {
   
   const fetchParentCategories = async () => {
     try {
-      // Get ALL categories, not just root ones
       const response = await getCategories()
-      
-      // If editing, filter out:
-      // 1. The current category itself
-      // 2. Any descendants of the current category (to prevent circular references)
       let filtered = response.data
       
       if (category) {
-        // Get IDs of current category and its descendants
         const descendantIds = await getDescendantIds(category.id)
         filtered = response.data.filter(c => 
           c.id !== category.id && !descendantIds.includes(c.id)
         )
       }
       
-      // Sort by level and name for better display
-      filtered.sort((a, b) => {
-        if (a.level !== b.level) return a.level - b.level
-        return a.name.localeCompare(b.name)
-      })
+      // Build hierarchy paths for each category
+      const buildHierarchyPath = (cat) => {
+        const path = []
+        let current = cat
+        
+        // Build the path from bottom to top
+        while (current) {
+          path.unshift(current.name)
+          current = filtered.find(c => c.id === current.parentId)
+        }
+        
+        return path.join(' → ')
+      }
       
-      setParentCategories(filtered)
+      // Add full path to each category
+      const categoriesWithPath = filtered.map(cat => ({
+        ...cat,
+        fullPath: buildHierarchyPath(cat)
+      }))
+      
+      // Sort by full path for better hierarchy display
+      categoriesWithPath.sort((a, b) => a.fullPath.localeCompare(b.fullPath))
+      
+      setParentCategories(categoriesWithPath)
     } catch (error) {
       console.error('Failed to fetch parent categories', error)
     }
   }
   
-  // Helper function to get descendant IDs
   const getDescendantIds = async (categoryId) => {
     try {
       const response = await getCategoryTree()
@@ -90,7 +116,6 @@ function CategoryForm({ open, onClose, onSubmit, category }) {
         }
       }
       
-      // Find the category in the tree and get all its descendants
       const findInTree = (categories) => {
         for (const cat of categories) {
           if (cat.id === categoryId && cat.children) {
@@ -121,7 +146,6 @@ function CategoryForm({ open, onClose, onSubmit, category }) {
       ...prev,
       [name]: value
     }))
-    // Clear error for this field
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -144,79 +168,273 @@ function CategoryForm({ open, onClose, onSubmit, category }) {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (validate()) {
-      onSubmit(formData)
+      setLoading(true)
+      try {
+        await onSubmit(formData)
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {category ? 'Edit Category' : 'Add New Category'}
-      </DialogTitle>
-      <DialogContent>
-        <Box sx={{ mt: 2 }}>
-          <TextField
-            fullWidth
-            label="Category Name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            error={!!errors.name}
-            helperText={errors.name}
-            required
-            sx={{ mb: 2 }}
-          />
-          
-          <TextField
-            fullWidth
-            select
-            label="Parent Category"
-            name="parentId"
-            value={formData.parentId || ''}
-            onChange={handleChange}
-            sx={{ mb: 2 }}
-            helperText="Leave empty for root category"
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="sm" 
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '16px',
+          boxShadow: theme.shadows[10]
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        pb: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.primary.main
+            }}
           >
-            <MenuItem value="">
-              <em>None (Root Category)</em>
-            </MenuItem>
-            {parentCategories.map(cat => (
-              <MenuItem key={cat.id} value={cat.id}>
-                <Box component="span" sx={{ pl: cat.level * 2 }}>
-                  {cat.level > 0 && '└─ '}
-                  {cat.name}
-                  {cat.productCount > 0 && (
-                    <Chip 
-                      label={cat.productCount} 
-                      size="small" 
-                      sx={{ ml: 1, height: 20 }} 
-                    />
-                  )}
+            <FolderOutlined />
+          </Box>
+          <Box>
+            <Typography variant="h6" fontWeight={600}>
+              {category ? 'Edit Category' : 'Create New Category'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {category ? 'Update category information' : 'Add a new category to organize products'}
+            </Typography>
+          </Box>
+        </Box>
+        <IconButton 
+          onClick={onClose}
+          size="small"
+          sx={{ 
+            color: theme.palette.text.secondary,
+            '&:hover': {
+              bgcolor: alpha(theme.palette.text.secondary, 0.08)
+            }
+          }}
+        >
+          <Close fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      
+      <Divider />
+      
+      <DialogContent sx={{ pt: 3, pb: 2 }}>
+        <Fade in timeout={300}>
+          <Box>
+            {/* Category Name Field */}
+            <TextField
+              fullWidth
+              label="Category Name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              error={!!errors.name}
+              helperText={errors.name}
+              required
+              placeholder="Enter category name"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <FolderOutlined sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+                  </InputAdornment>
+                )
+              }}
+              sx={{ 
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '10px',
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.primary.main
+                  }
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: '0.875rem',
+                  fontWeight: 500
+                }
+              }}
+            />
+            
+            {/* Parent Category Field */}
+            <TextField
+              fullWidth
+              select
+              label="Parent Category"
+              name="parentId"
+              value={formData.parentId || ''}
+              onChange={handleChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <AccountTreeOutlined sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+                  </InputAdornment>
+                )
+              }}
+              sx={{ 
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '10px',
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.primary.main
+                  }
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: '0.875rem',
+                  fontWeight: 500
+                }
+              }}
+            >
+              <MenuItem value="">
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                    None (Root Category)
+                  </Typography>
                 </Box>
               </MenuItem>
-            ))}
-          </TextField>
-          
-          <TextField
-            fullWidth
-            label="Description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            error={!!errors.description}
-            helperText={errors.description}
-            multiline
-            rows={3}
-            placeholder="Enter a brief description of this category..."
-          />
-        </Box>
+              <Divider sx={{ my: 0.5 }} />
+              {parentCategories.map(cat => (
+                <MenuItem key={cat.id} value={cat.id}>
+                  <Box display="flex" alignItems="center" width="100%" gap={1}>
+                    <Box component="span" sx={{ 
+                      pl: cat.level * 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      flex: 1
+                    }}>
+                      {cat.level > 0 && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
+                          └─
+                        </Typography>
+                      )}
+                      <Typography variant="body2">
+                        {cat.name}
+                      </Typography>
+                    </Box>
+                    {cat.productCount > 0 && (
+                      <Chip 
+                        label={`${cat.productCount} products`}
+                        size="small"
+                        sx={{ 
+                          height: 20,
+                          fontSize: '0.7rem',
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          color: theme.palette.primary.main
+                        }}
+                      />
+                    )}
+                  </Box>
+                </MenuItem>
+              ))}
+            </TextField>
+            
+            {/* Helper Text for Parent Category */}
+            <Box display="flex" alignItems="center" gap={0.5} mb={2} sx={{ mt: -2 }}>
+              <InfoOutlined sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
+              <FormHelperText sx={{ m: 0 }}>
+                Leave empty to create a root category
+              </FormHelperText>
+            </Box>
+            
+            {/* Description Field */}
+            <TextField
+              fullWidth
+              label="Description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              error={!!errors.description}
+              helperText={errors.description || `${formData.description.length}/500 characters`}
+              multiline
+              rows={4}
+              placeholder="Enter a brief description of this category..."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                    <DescriptionOutlined sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+                  </InputAdornment>
+                )
+              }}
+              sx={{ 
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '10px',
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.primary.main
+                  }
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: '0.875rem',
+                  fontWeight: 500
+                }
+              }}
+            />
+          </Box>
+        </Fade>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          {category ? 'Update' : 'Create'}
+      
+      <Divider />
+      
+      <DialogActions sx={{ p: 2.5, gap: 1.5 }}>
+        <Button 
+          onClick={onClose}
+          variant="outlined"
+          sx={{ 
+            px: 3,
+            py: 1,
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.secondary,
+            '&:hover': {
+              borderColor: theme.palette.text.secondary,
+              bgcolor: alpha(theme.palette.text.secondary, 0.04)
+            }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={loading}
+          sx={{ 
+            px: 3,
+            py: 1,
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            boxShadow: theme.shadows[2],
+            '&:hover': {
+              boxShadow: theme.shadows[4]
+            },
+            '&:disabled': {
+              background: theme.palette.action.disabledBackground
+            }
+          }}
+        >
+          {loading ? 'Processing...' : (category ? 'Update Category' : 'Create Category')}
         </Button>
       </DialogActions>
     </Dialog>
