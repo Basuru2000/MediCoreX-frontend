@@ -11,13 +11,27 @@ import {
   Tab,
   IconButton,
   Tooltip,
-  Alert
+  Alert,
+  Stack,
+  Chip,
+  Divider,
+  useTheme,
+  alpha,
+  Paper,
+  LinearProgress,
+  Badge
 } from '@mui/material'
 import {
   Add,
   Close,
   Warning,
-  TrendingUp
+  TrendingUp,
+  Layers,
+  Edit,
+  Inventory,
+  Info,
+  CheckCircle,
+  Error
 } from '@mui/icons-material'
 import BatchList from './BatchList'
 import BatchForm from './BatchForm'
@@ -25,6 +39,7 @@ import BatchStockAdjustment from './BatchStockAdjustment'
 import { getBatchesByProduct, createBatch, adjustBatchStock } from '../../services/api'
 
 function BatchManagementDialog({ open, onClose, product, onBatchUpdate }) {
+  const theme = useTheme()
   const [tabValue, setTabValue] = useState(0)
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(false)
@@ -86,120 +101,328 @@ function BatchManagementDialog({ open, onClose, product, onBatchUpdate }) {
     setAdjustmentDialogOpen(true)
   }
 
-  const getProductSummary = () => {
-    const totalQuantity = batches.reduce((sum, batch) => sum + batch.quantity, 0)
-    const activeBatches = batches.filter(b => b.status === 'ACTIVE').length
-    const expiringBatches = batches.filter(b => b.daysUntilExpiry <= 30 && b.status === 'ACTIVE').length
+  const getActiveBatches = () => batches.filter(b => b.status === 'ACTIVE')
+  const getExpiringBatches = () => batches.filter(b => {
+    if (!b.expiryDate) return false
+    const daysUntilExpiry = Math.ceil(
+      (new Date(b.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
+    )
+    return daysUntilExpiry <= 30 && daysUntilExpiry > 0
+  })
 
-    return { totalQuantity, activeBatches, expiringBatches }
-  }
+  const getTotalStock = () => batches.reduce((sum, batch) => sum + batch.quantity, 0)
 
-  if (!product) return null
-
-  const summary = getProductSummary()
+  const TabPanel = ({ children, value, index }) => (
+    <Box hidden={value !== index} sx={{ mt: 3 }}>
+      {value === index && children}
+    </Box>
+  )
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-        <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+      <Dialog 
+        open={open} 
+        onClose={onClose} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{ p: 0 }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              p: 3,
+              bgcolor: theme.palette.grey[50],
+              borderBottom: `1px solid ${theme.palette.divider}`
+            }}
+          >
             <Box>
-              <Typography variant="h6">
-                Batch Management - {product.name}
+              <Typography variant="h5" fontWeight={600}>
+                Batch Management
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Product Code: {product.code || 'N/A'}
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {product?.name} - {product?.code}
               </Typography>
             </Box>
-            <IconButton onClick={onClose} size="small">
+            <IconButton 
+              onClick={onClose}
+              sx={{ 
+                color: theme.palette.text.secondary,
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.text.secondary, 0.1)
+                }
+              }}
+            >
               <Close />
             </IconButton>
           </Box>
         </DialogTitle>
 
-        <DialogContent>
+        <DialogContent sx={{ p: 3 }}>
           {/* Summary Cards */}
-          <Box display="flex" gap={2} mb={3}>
-            <Box sx={{ 
-              bgcolor: 'primary.main', 
-              color: 'white', 
-              p: 2, 
-              borderRadius: 1,
-              flex: 1
-            }}>
-              <Typography variant="h4">{summary.totalQuantity}</Typography>
-              <Typography variant="body2">Total Units in Stock</Typography>
-            </Box>
-            <Box sx={{ 
-              bgcolor: 'success.main', 
-              color: 'white', 
-              p: 2, 
-              borderRadius: 1,
-              flex: 1
-            }}>
-              <Typography variant="h4">{summary.activeBatches}</Typography>
-              <Typography variant="body2">Active Batches</Typography>
-            </Box>
-            {summary.expiringBatches > 0 && (
-              <Box sx={{ 
-                bgcolor: 'warning.main', 
-                color: 'white', 
+          <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+            <Paper 
+              sx={{ 
+                flex: 1, 
                 p: 2, 
-                borderRadius: 1,
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <Warning />
+                borderRadius: '12px',
+                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+              }}
+            >
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box>
-                  <Typography variant="h4">{summary.expiringBatches}</Typography>
-                  <Typography variant="body2">Expiring Soon</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Total Batches
+                  </Typography>
+                  <Typography variant="h5" fontWeight={600}>
+                    {batches.length}
+                  </Typography>
                 </Box>
-              </Box>
-            )}
-          </Box>
+                <Layers sx={{ color: theme.palette.primary.main, fontSize: 32 }} />
+              </Stack>
+            </Paper>
 
+            <Paper 
+              sx={{ 
+                flex: 1, 
+                p: 2, 
+                borderRadius: '12px',
+                bgcolor: alpha(theme.palette.success.main, 0.05),
+                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+              }}
+            >
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Active Batches
+                  </Typography>
+                  <Typography variant="h5" fontWeight={600} color="success.main">
+                    {getActiveBatches().length}
+                  </Typography>
+                </Box>
+                <CheckCircle sx={{ color: theme.palette.success.main, fontSize: 32 }} />
+              </Stack>
+            </Paper>
+
+            <Paper 
+              sx={{ 
+                flex: 1, 
+                p: 2, 
+                borderRadius: '12px',
+                bgcolor: alpha(theme.palette.info.main, 0.05),
+                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+              }}
+            >
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Total Stock
+                  </Typography>
+                  <Typography variant="h5" fontWeight={600} color="info.main">
+                    {getTotalStock()}
+                  </Typography>
+                </Box>
+                <Inventory sx={{ color: theme.palette.info.main, fontSize: 32 }} />
+              </Stack>
+            </Paper>
+
+            {getExpiringBatches().length > 0 && (
+              <Paper 
+                sx={{ 
+                  flex: 1, 
+                  p: 2, 
+                  borderRadius: '12px',
+                  bgcolor: alpha(theme.palette.warning.main, 0.05),
+                  border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
+                }}
+              >
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Expiring Soon
+                    </Typography>
+                    <Typography variant="h5" fontWeight={600} color="warning.main">
+                      {getExpiringBatches().length}
+                    </Typography>
+                  </Box>
+                  <Warning sx={{ color: theme.palette.warning.main, fontSize: 32 }} />
+                </Stack>
+              </Paper>
+            )}
+          </Stack>
+
+          {/* Alerts */}
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            <Alert 
+              severity="error" 
+              onClose={() => setError(null)}
+              sx={{ mb: 2, borderRadius: '8px' }}
+              icon={<Error />}
+            >
               {error}
             </Alert>
           )}
 
           {success && (
-            <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+            <Alert 
+              severity="success" 
+              onClose={() => setSuccess(null)}
+              sx={{ mb: 2, borderRadius: '8px' }}
+              icon={<CheckCircle />}
+            >
               {success}
             </Alert>
           )}
 
-          <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ mb: 2 }}>
-            <Tab label="Active Batches" />
-            <Tab label="All Batches" />
-          </Tabs>
+          {/* Tabs */}
+          <Paper 
+            elevation={0}
+            sx={{ 
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <Tabs 
+              value={tabValue} 
+              onChange={(e, v) => setTabValue(v)}
+              sx={{ 
+                px: 2,
+                bgcolor: theme.palette.grey[50],
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.95rem',
+                  minHeight: 48
+                }
+              }}
+            >
+              <Tab 
+                label={
+                  <Box display="flex" alignItems="center" gap={1}>
+                    Active Batches
+                    <Badge 
+                      badgeContent={getActiveBatches().length} 
+                      color="success"
+                      sx={{ '& .MuiBadge-badge': { position: 'relative', transform: 'none' } }}
+                    />
+                  </Box>
+                } 
+              />
+              <Tab 
+                label={
+                  <Box display="flex" alignItems="center" gap={1}>
+                    All Batches
+                    <Badge 
+                      badgeContent={batches.length} 
+                      color="default"
+                      sx={{ '& .MuiBadge-badge': { position: 'relative', transform: 'none' } }}
+                    />
+                  </Box>
+                } 
+              />
+            </Tabs>
 
-          {tabValue === 0 && (
-            <BatchList
-              batches={batches.filter(b => b.status === 'ACTIVE')}
-              onEdit={handleEditBatch}
-              onAdjustStock={handleAdjustBatch}
-            />
-          )}
+            {loading ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <LinearProgress sx={{ mb: 2, borderRadius: '4px' }} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading batches...
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ p: 2 }}>
+                <TabPanel value={tabValue} index={0}>
+                  <BatchList
+                    batches={getActiveBatches()}
+                    onEdit={handleEditBatch}
+                    onAdjustStock={handleAdjustBatch}
+                  />
+                  {getActiveBatches().length === 0 && (
+                    <Paper 
+                      sx={{ 
+                        p: 4, 
+                        textAlign: 'center',
+                        bgcolor: theme.palette.grey[50],
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <Info sx={{ fontSize: 48, color: theme.palette.text.secondary, mb: 2 }} />
+                      <Typography variant="body1" color="text.secondary">
+                        No active batches found
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Create a new batch to start tracking inventory
+                      </Typography>
+                    </Paper>
+                  )}
+                </TabPanel>
 
-          {tabValue === 1 && (
-            <BatchList
-              batches={batches}
-              onEdit={handleEditBatch}
-              onAdjustStock={handleAdjustBatch}
-            />
-          )}
+                <TabPanel value={tabValue} index={1}>
+                  <BatchList
+                    batches={batches}
+                    onEdit={handleEditBatch}
+                    onAdjustStock={handleAdjustBatch}
+                  />
+                  {batches.length === 0 && (
+                    <Paper 
+                      sx={{ 
+                        p: 4, 
+                        textAlign: 'center',
+                        bgcolor: theme.palette.grey[50],
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <Info sx={{ fontSize: 48, color: theme.palette.text.secondary, mb: 2 }} />
+                      <Typography variant="body1" color="text.secondary">
+                        No batches found
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Create your first batch to get started
+                      </Typography>
+                    </Paper>
+                  )}
+                </TabPanel>
+              </Box>
+            )}
+          </Paper>
         </DialogContent>
 
-        <DialogActions>
-          <Button onClick={onClose}>Close</Button>
+        <Divider />
+
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button 
+            onClick={onClose}
+            sx={{ 
+              borderRadius: '8px',
+              textTransform: 'none',
+              px: 3
+            }}
+          >
+            Close
+          </Button>
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={() => setBatchFormOpen(true)}
+            sx={{ 
+              borderRadius: '8px',
+              textTransform: 'none',
+              px: 4,
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: theme.shadows[4]
+              }
+            }}
           >
             Add New Batch
           </Button>

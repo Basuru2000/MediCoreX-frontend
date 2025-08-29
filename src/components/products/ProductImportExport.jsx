@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -7,154 +7,68 @@ import {
   Button,
   Box,
   Typography,
+  Tab,
+  Tabs,
+  Paper,
+  IconButton,
   LinearProgress,
   Alert,
-  List,
-  ListItem,
-  ListItemText,
+  Stack,
+  Chip,
   Divider,
-  IconButton,
-  Tooltip,
-  Paper,
+  useTheme,
+  alpha,
   Grid,
-  Chip
+  CircularProgress
 } from '@mui/material'
 import {
+  Close,
   CloudUpload,
   CloudDownload,
-  GetApp,
   Description,
   TableChart,
-  Close,
   CheckCircle,
   Error,
+  FileDownload,
+  FileUpload,
   Info
 } from '@mui/icons-material'
-import { exportProductsCSV, exportProductsExcel, downloadImportTemplate, importProducts } from '../../services/api'
+import {
+  exportProductsCSV,
+  exportProductsExcel,
+  downloadImportTemplate,
+  importProducts
+} from '../../services/api'
 
-function ProductImportExport({ open, onClose, onImportSuccess, currentFilter = 'all' }) {
+function ProductImportExport({ open, onClose, currentFilter = 'all', onImportSuccess }) {
+  const theme = useTheme()
+  const [activeTab, setActiveTab] = useState(0)
+  const [selectedFile, setSelectedFile] = useState(null)
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [selectedFile, setSelectedFile] = useState(null)
   const [importResult, setImportResult] = useState(null)
-  const [error, setError] = useState('')
-  const [dragActive, setDragActive] = useState(false)
+  const [error, setError] = useState(null)
 
-  const getFilterLabel = () => {
-    switch (currentFilter) {
-      case 'lowstock':
-        return 'Low Stock Products'
-      case 'expiring':
-        return 'Expiring Products'
-      default:
-        return 'All Products'
-    }
-  }
-
-  const handleExportCSV = async () => {
-    try {
-      setExporting(true)
-      const response = await exportProductsCSV(currentFilter)
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      const validTypes = ['.csv', '.xlsx', '.xls']
+      const fileExtension = '.' + file.name.split('.').pop().toLowerCase()
       
-      // Create blob and download
-      const blob = new Blob([response.data], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `products_${currentFilter}_${new Date().toISOString().split('T')[0]}.csv`
-      a.click()
-      window.URL.revokeObjectURL(url)
-    } catch (err) {
-      setError('Failed to export CSV')
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  const handleExportExcel = async () => {
-    try {
-      setExporting(true)
-      const response = await exportProductsExcel(currentFilter)
+      if (!validTypes.includes(fileExtension)) {
+        setError('Please select a valid CSV or Excel file')
+        return
+      }
       
-      // Create blob and download
-      const blob = new Blob([response.data], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `products_${currentFilter}_${new Date().toISOString().split('T')[0]}.xlsx`
-      a.click()
-      window.URL.revokeObjectURL(url)
-    } catch (err) {
-      setError('Failed to export Excel')
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  const handleDownloadTemplate = async () => {
-    try {
-      const response = await downloadImportTemplate()
+      if (file.size > 10 * 1024 * 1024) {
+        setError('File size should be less than 10MB')
+        return
+      }
       
-      // Create blob and download
-      const blob = new Blob([response.data], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'product_import_template.xlsx'
-      a.click()
-      window.URL.revokeObjectURL(url)
-    } catch (err) {
-      setError('Failed to download template')
+      setSelectedFile(file)
+      setError(null)
+      setImportResult(null)
     }
-  }
-
-  const handleDrag = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
-    } else if (e.type === "dragleave") {
-      setDragActive(false)
-    }
-  }
-
-  const handleDrop = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0])
-    }
-  }
-
-  const handleFileSelect = (file) => {
-    setError('')
-    setImportResult(null)
-    
-    // Validate file type
-    const validTypes = [
-      'text/csv',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ]
-    
-    if (!validTypes.includes(file.type) && !file.name.match(/\.(csv|xlsx?)$/)) {
-      setError('Please select a CSV or Excel file')
-      return
-    }
-    
-    // Validate file size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB')
-      return
-    }
-    
-    setSelectedFile(file)
   }
 
   const handleImport = async () => {
@@ -163,262 +77,445 @@ function ProductImportExport({ open, onClose, onImportSuccess, currentFilter = '
       return
     }
 
+    setImporting(true)
+    setError(null)
+
     try {
-      setImporting(true)
-      setError('')
-      
       const response = await importProducts(selectedFile)
       setImportResult(response.data)
       
-      if (response.data.successfulImports > 0) {
-        // Refresh product list after successful import
-        setTimeout(() => {
-          onImportSuccess()
-        }, 2000)
+      if (onImportSuccess) {
+        onImportSuccess()
       }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to import products')
+      
+      setTimeout(() => {
+        setSelectedFile(null)
+        setImportResult(null)
+      }, 3000)
+    } catch (error) {
+      setError(error.response?.data?.message || 'Import failed. Please check your file format.')
     } finally {
       setImporting(false)
     }
   }
 
-  const handleClose = () => {
-    setSelectedFile(null)
-    setImportResult(null)
-    setError('')
-    onClose()
+  const handleExport = async (format) => {
+    setExporting(true)
+    setError(null)
+
+    try {
+      let response
+      let filename
+      let mimeType
+
+      // Map the filter correctly
+      const exportFilter = currentFilter === 'low-stock' ? 'low-stock' : 
+                          currentFilter === 'expiring' ? 'expiring' :
+                          currentFilter === 'out-of-stock' ? 'out-of-stock' : 
+                          'all'
+
+      if (format === 'csv') {
+        response = await exportProductsCSV(exportFilter)
+        filename = `products_${exportFilter}_${new Date().toISOString().split('T')[0]}.csv`
+        mimeType = 'text/csv'
+      } else {
+        response = await exportProductsExcel(exportFilter)
+        filename = `products_${exportFilter}_${new Date().toISOString().split('T')[0]}.xlsx`
+        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+
+      const blob = new Blob([response.data], { type: mimeType })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      setError('Export failed. Please try again.')
+    } finally {
+      setExporting(false)
+    }
   }
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await downloadImportTemplate()
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'product_import_template.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      setError('Failed to download template')
+    }
+  }
+
+  const TabPanel = ({ children, value, index }) => (
+    <Box hidden={value !== index} sx={{ pt: 3 }}>
+      {value === index && children}
+    </Box>
+  )
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Import/Export Products</Typography>
-          <IconButton size="small" onClick={handleClose}>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="sm" 
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '16px',
+          overflow: 'hidden'
+        }
+      }}
+    >
+      <DialogTitle sx={{ p: 0 }}>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            p: 3,
+            bgcolor: theme.palette.grey[50],
+            borderBottom: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Box>
+            <Typography variant="h5" fontWeight={600}>
+              Import / Export Products
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Bulk manage your product inventory
+            </Typography>
+          </Box>
+          <IconButton 
+            onClick={onClose}
+            sx={{ 
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                bgcolor: alpha(theme.palette.text.secondary, 0.1)
+              }
+            }}
+          >
             <Close />
           </IconButton>
         </Box>
+        <Tabs 
+          value={activeTab} 
+          onChange={(e, v) => setActiveTab(v)}
+          sx={{ 
+            px: 3,
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.95rem',
+              minHeight: 48
+            }
+          }}
+        >
+          <Tab label="Import Products" icon={<FileUpload fontSize="small" />} iconPosition="start" />
+          <Tab label="Export Products" icon={<FileDownload fontSize="small" />} iconPosition="start" />
+        </Tabs>
       </DialogTitle>
-      
-      <DialogContent>
-        <Grid container spacing={3}>
-          {/* Export Section */}
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                <CloudDownload sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Export Products
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Export <strong>{getFilterLabel()}</strong> in your preferred format
-              </Typography>
-              {currentFilter !== 'all' && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  You are currently viewing <strong>{getFilterLabel()}</strong>. 
-                  Only products matching this filter will be exported.
-                </Alert>
-              )}
-              <Box display="flex" gap={2}>
-                <Button
-                  variant="outlined"
-                  startIcon={<TableChart />}
-                  onClick={handleExportCSV}
-                  disabled={exporting}
-                >
-                  Export as CSV
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Description />}
-                  onClick={handleExportExcel}
-                  disabled={exporting}
-                  color="success"
-                >
-                  Export as Excel
-                </Button>
-              </Box>
-            </Paper>
-          </Grid>
 
-          <Divider sx={{ width: '100%', my: 2 }} />
+      <DialogContent sx={{ p: 3, minHeight: 350 }}>
+        {error && (
+          <Alert 
+            severity="error" 
+            onClose={() => setError(null)}
+            sx={{ mb: 2, borderRadius: '8px' }}
+          >
+            {error}
+          </Alert>
+        )}
 
-          {/* Import Section */}
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                <CloudUpload sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Import Products
-              </Typography>
-              
-              {/* Step 1: Download Template */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Step 1: Download Import Template
-                </Typography>
-                <Button
-                  variant="text"
-                  startIcon={<GetApp />}
-                  onClick={handleDownloadTemplate}
-                  size="small"
-                >
-                  Download Template
-                </Button>
-              </Box>
-
-              {/* Step 2: Upload File */}
-              <Typography variant="subtitle2" gutterBottom>
-                Step 2: Upload Your File
-              </Typography>
-              
-              <Box
-                sx={{
-                  border: '2px dashed',
-                  borderColor: dragActive ? 'primary.main' : 'grey.300',
-                  borderRadius: 2,
-                  p: 3,
-                  textAlign: 'center',
-                  backgroundColor: dragActive ? 'action.hover' : 'background.paper',
-                  cursor: 'pointer',
-                  mb: 2
-                }}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => document.getElementById('file-input').click()}
-              >
-                <input
-                  id="file-input"
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleFileSelect(e.target.files[0])}
-                />
-                
-                <CloudUpload sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="body1" gutterBottom>
-                  Drag and drop your file here, or click to browse
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Supported formats: CSV, Excel (.xlsx, .xls) - Max size: 10MB
-                </Typography>
-              </Box>
-
-              {selectedFile && (
-                <Alert
-                  severity="info"
-                  action={
-                    <IconButton size="small" onClick={() => setSelectedFile(null)}>
-                      <Close />
-                    </IconButton>
-                  }
-                  sx={{ mb: 2 }}
-                >
-                  Selected file: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
-                </Alert>
-              )}
-
-              {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {error}
-                </Alert>
-              )}
-
-              {importing && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" gutterBottom>
-                    Importing products...
+        <TabPanel value={activeTab} index={0}>
+          <Stack spacing={3}>
+            {/* Instructions */}
+            <Paper 
+              sx={{ 
+                p: 2, 
+                borderRadius: '12px',
+                bgcolor: alpha(theme.palette.info.main, 0.05),
+                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+              }}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                <Info sx={{ color: theme.palette.info.main, mt: 0.5 }} />
+                <Box>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Import Instructions
                   </Typography>
-                  <LinearProgress />
+                  <Typography variant="caption" color="text.secondary" component="div">
+                    1. Download the template file first<br />
+                    2. Fill in your product data following the format<br />
+                    3. Save as CSV or Excel file<br />
+                    4. Upload the file here to import<br />
+                    5. Remove the row containing field descriptions (e.g., "Required", "Optional", etc.) before uploading the file
+                  </Typography>
                 </Box>
-              )}
+              </Stack>
+            </Paper>
 
-              {/* Import Results */}
-              {importResult && (
+            {/* Template Download */}
+            <Box>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<Description />}
+                onClick={handleDownloadTemplate}
+                sx={{ 
+                  py: 1.5,
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  borderColor: theme.palette.divider,
+                  borderStyle: 'dashed',
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    borderStyle: 'dashed',
+                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                  }
+                }}
+              >
+                Download Import Template
+              </Button>
+            </Box>
+
+            {/* File Upload Area */}
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 3,
+                borderRadius: '12px',
+                borderStyle: 'dashed',
+                borderColor: selectedFile ? theme.palette.success.main : theme.palette.divider,
+                bgcolor: selectedFile ? alpha(theme.palette.success.main, 0.05) : 'transparent',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.02)
+                }
+              }}
+              component="label"
+            >
+              <input
+                type="file"
+                hidden
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileSelect}
+              />
+              <CloudUpload 
+                sx={{ 
+                  fontSize: 48, 
+                  color: selectedFile ? theme.palette.success.main : theme.palette.text.secondary,
+                  mb: 2
+                }} 
+              />
+              <Typography variant="body1" fontWeight={500} gutterBottom>
+                {selectedFile ? selectedFile.name : 'Click to upload or drag and drop'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                CSV or Excel files (Max 10MB)
+              </Typography>
+              {selectedFile && (
                 <Box sx={{ mt: 2 }}>
-                  <Alert 
-                    severity={importResult.failedImports === 0 ? 'success' : 'warning'}
-                    sx={{ mb: 2 }}
-                  >
-                    <Typography variant="subtitle2" gutterBottom>
-                      Import Complete
-                    </Typography>
-                    <Box display="flex" gap={2}>
-                      <Chip
-                        icon={<CheckCircle />}
-                        label={`${importResult.successfulImports} Successful`}
-                        color="success"
-                        size="small"
-                      />
-                      {importResult.failedImports > 0 && (
-                        <Chip
-                          icon={<Error />}
-                          label={`${importResult.failedImports} Failed`}
-                          color="error"
-                          size="small"
-                        />
-                      )}
-                      <Chip
-                        label={`Total Rows: ${importResult.totalRows}`}
-                        size="small"
-                      />
-                    </Box>
-                  </Alert>
-
-                  {importResult.errors && importResult.errors.length > 0 && (
-                    <Box>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Import Errors:
-                      </Typography>
-                      <Paper variant="outlined" sx={{ maxHeight: 200, overflow: 'auto' }}>
-                        <List dense>
-                          {importResult.errors.map((error, index) => (
-                            <ListItem key={index}>
-                              <ListItemText
-                                primary={`Row ${error.rowNumber}`}
-                                secondary={error.errorMessage}
-                              />
-                            </ListItem>
-                          ))}
-                        </List>
-                      </Paper>
-                    </Box>
-                  )}
+                  <Chip
+                    label={`${(selectedFile.size / 1024).toFixed(2)} KB`}
+                    size="small"
+                    color="success"
+                    sx={{ mr: 1 }}
+                  />
+                  <Chip
+                    label={selectedFile.type || 'File selected'}
+                    size="small"
+                    color="success"
+                  />
                 </Box>
               )}
             </Paper>
-          </Grid>
 
-          {/* Instructions */}
-          <Grid item xs={12}>
-            <Alert severity="info">
-              <Typography variant="subtitle2" gutterBottom>
-                <Info sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Import Instructions:
+            {/* Import Result */}
+            {importResult && (
+              <Alert 
+                severity="success"
+                icon={<CheckCircle />}
+                sx={{ borderRadius: '8px' }}
+              >
+                <Typography variant="body2" fontWeight={500}>
+                  Import Successful!
+                </Typography>
+                <Typography variant="caption">
+                  {importResult.successCount} products imported successfully
+                  {importResult.failedCount > 0 && `, ${importResult.failedCount} failed`}
+                </Typography>
+              </Alert>
+            )}
+
+            {/* Import Progress */}
+            {importing && (
+              <Box>
+                <Typography variant="body2" gutterBottom>
+                  Importing products...
+                </Typography>
+                <LinearProgress sx={{ borderRadius: '4px' }} />
+              </Box>
+            )}
+          </Stack>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={1}>
+          <Stack spacing={3}>
+            {/* Export Options */}
+            <Paper 
+              sx={{ 
+                p: 2, 
+                borderRadius: '12px',
+                bgcolor: theme.palette.grey[50]
+              }}
+            >
+              <Typography variant="body2" fontWeight={500} gutterBottom>
+                Export Filter
               </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Currently exporting: 
+                <Chip 
+                  label={currentFilter.replace(/-/g, ' ').toUpperCase()} 
+                  size="small" 
+                  sx={{ ml: 1 }}
+                  color={
+                    currentFilter === 'low-stock' ? 'warning' : 
+                    currentFilter === 'expiring' ? 'error' : 
+                    currentFilter === 'out-of-stock' ? 'error' :
+                    'default'
+                  }
+                />
+              </Typography>
+            </Paper>
+
+            {/* Export Formats */}
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    borderRadius: '12px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'center',
+                    '&:hover': {
+                      borderColor: theme.palette.primary.main,
+                      bgcolor: alpha(theme.palette.primary.main, 0.02),
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                  onClick={() => handleExport('csv')}
+                >
+                  <TableChart sx={{ fontSize: 40, color: theme.palette.success.main, mb: 1 }} />
+                  <Typography variant="body1" fontWeight={500}>
+                    CSV Format
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Lightweight text format
+                  </Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={6}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    borderRadius: '12px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'center',
+                    '&:hover': {
+                      borderColor: theme.palette.primary.main,
+                      bgcolor: alpha(theme.palette.primary.main, 0.02),
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                  onClick={() => handleExport('excel')}
+                >
+                  <Description sx={{ fontSize: 40, color: theme.palette.primary.main, mb: 1 }} />
+                  <Typography variant="body1" fontWeight={500}>
+                    Excel Format
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Full Excel compatibility
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+
+            {/* Export Info */}
+            <Alert 
+              severity="info" 
+              sx={{ borderRadius: '8px' }}
+              icon={<Info />}
+            >
               <Typography variant="body2">
-                1. Download the template and fill in your product data<br />
-                2. Ensure category names match existing categories in the system<br />
-                3. Product codes will be auto-generated if left empty<br />
-                4. Required fields: Product Name, Category, Quantity, Min Stock, Unit, Unit Price<br />
-                5. Remove the row containing field descriptions (e.g., “Required”, “Optional”, etc.) before uploading the file.
+                Exported files will include all product information including stock levels, 
+                prices, and expiry dates based on the current filter.
               </Typography>
             </Alert>
-          </Grid>
-        </Grid>
+
+            {/* Export Progress */}
+            {exporting && (
+              <Box>
+                <Typography variant="body2" gutterBottom>
+                  Preparing export...
+                </Typography>
+                <LinearProgress sx={{ borderRadius: '4px' }} />
+              </Box>
+            )}
+          </Stack>
+        </TabPanel>
       </DialogContent>
-      
-      <DialogActions>
-        <Button onClick={handleClose}>Close</Button>
-        <Button
-          variant="contained"
-          onClick={handleImport}
-          disabled={!selectedFile || importing}
-          startIcon={<CloudUpload />}
+
+      <Divider />
+
+      <DialogActions sx={{ p: 3, gap: 2 }}>
+        <Button 
+          onClick={onClose}
+          sx={{ 
+            borderRadius: '8px',
+            textTransform: 'none',
+            px: 3
+          }}
         >
-          Import Products
+          Close
         </Button>
+        {activeTab === 0 && (
+          <Button
+            variant="contained"
+            onClick={handleImport}
+            disabled={!selectedFile || importing}
+            startIcon={importing ? <CircularProgress size={16} /> : <CloudUpload />}
+            sx={{ 
+              borderRadius: '8px',
+              textTransform: 'none',
+              px: 4,
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: theme.shadows[4]
+              }
+            }}
+          >
+            {importing ? 'Importing...' : 'Import Products'}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   )

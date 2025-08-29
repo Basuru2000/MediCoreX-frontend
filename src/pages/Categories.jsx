@@ -5,20 +5,23 @@ import {
   Paper,
   Typography,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Alert,
   Snackbar,
   Card,
-  CardContent,
   Grid,
   Chip,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip
+  Tooltip,
+  Fade,
+  Grow,
+  Container,
+  useTheme,
+  alpha,
+  Skeleton,
+  Stack,
+  Badge,
+  TextField
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import {
@@ -26,8 +29,14 @@ import {
   Edit,
   Delete,
   Category as CategoryIcon,
-  List as ListIcon,
-  AccountTree
+  GridView,
+  AccountTreeOutlined,
+  FolderOutlined,
+  Inventory2Outlined,
+  RefreshOutlined,
+  InfoOutlined,
+  Close,
+  SearchOutlined
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
@@ -41,30 +50,68 @@ import CategoryForm from '../components/categories/CategoryForm'
 import CategoryTreeView from '../components/categories/CategoryTreeView'
 
 function Categories() {
+  const theme = useTheme()
   const { isManager } = useAuth()
+  
+  // All state declarations at the top
   const [categories, setCategories] = useState([])
   const [categoryTree, setCategoryTree] = useState([])
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState('tree') // 'tree' or 'grid'
+  const [viewMode, setViewMode] = useState('tree')
   const [openDialog, setOpenDialog] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [categoryChildrenCount, setCategoryChildrenCount] = useState({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredCategories, setFilteredCategories] = useState([])
+  const [filteredTree, setFilteredTree] = useState([])
 
+  // Fetch categories on mount
   useEffect(() => {
     fetchCategories()
   }, [])
 
+  // Filter categories when search query or categories change
+  useEffect(() => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const filtered = categories.filter(cat => 
+        cat.name.toLowerCase().includes(query) ||
+        cat.description?.toLowerCase().includes(query) ||
+        cat.parentName?.toLowerCase().includes(query)
+      )
+      setFilteredCategories(filtered)
+      
+      // Filter tree as well
+      const filterTree = (cats) => {
+        return cats.map(cat => ({
+          ...cat,
+          children: cat.children ? filterTree(cat.children) : []
+        })).filter(cat => 
+          cat.name.toLowerCase().includes(query) ||
+          cat.description?.toLowerCase().includes(query) ||
+          (cat.children && cat.children.length > 0)
+        )
+      }
+      setFilteredTree(filterTree(categoryTree))
+    } else {
+      setFilteredCategories(categories)
+      setFilteredTree(categoryTree)
+    }
+  }, [searchQuery, categories, categoryTree])
+
   const fetchCategories = async () => {
     try {
+      setLoading(true)
       const [flatResponse, treeResponse] = await Promise.all([
         getCategories(),
         getCategoryTree()
       ])
       setCategories(flatResponse.data)
       setCategoryTree(treeResponse.data)
+      setFilteredCategories(flatResponse.data)
+      setFilteredTree(treeResponse.data)
       
-      // Calculate children count for each category
       const childrenCount = {}
       flatResponse.data.forEach(category => {
         const childCount = flatResponse.data.filter(c => c.parentId === category.id).length
@@ -120,61 +167,120 @@ function Categories() {
     setSnackbar({ open: true, message, severity })
   }
 
+  const getTotalProducts = () => {
+    return filteredCategories.reduce((sum, category) => sum + (category.productCount || 0), 0)
+  }
+
   const columns = [
-    { field: 'id', headerName: 'ID', width: 70 },
+    { 
+      field: 'id', 
+      headerName: 'ID', 
+      width: 70,
+      headerAlign: 'center',
+      align: 'center'
+    },
     { 
       field: 'name', 
       headerName: 'Category Name', 
-      width: 200,
+      width: 250,
       renderCell: (params) => (
-        <Box display="flex" alignItems="center">
-          <CategoryIcon sx={{ mr: 1, color: 'primary.main' }} />
-          {params.value}
+        <Box display="flex" alignItems="center" gap={1}>
+          <FolderOutlined sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+          <Typography variant="body2" fontWeight={500}>
+            {params.value}
+          </Typography>
         </Box>
       )
     },
-    { field: 'description', headerName: 'Description', width: 250 },
+    { 
+      field: 'description', 
+      headerName: 'Description', 
+      flex: 1,
+      minWidth: 200,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary" sx={{ 
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {params.value || '—'}
+        </Typography>
+      )
+    },
     { 
       field: 'parentName', 
       headerName: 'Parent Category', 
-      width: 150,
-      renderCell: (params) => params.value || '-'
+      width: 180,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary">
+          {params.value || '—'}
+        </Typography>
+      )
     },
     { 
       field: 'level', 
       headerName: 'Level', 
-      width: 80,
+      width: 100,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => (
         <Chip 
-          label={params.value} 
+          label={`L${params.value}`}
           size="small" 
           variant="outlined"
+          sx={{ 
+            minWidth: 45,
+            borderColor: theme.palette.divider,
+            fontSize: '0.75rem'
+          }}
         />
       )
     },
     { 
       field: 'productCount', 
       headerName: 'Products', 
-      width: 90,
+      width: 120,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => (
-        <Chip 
-          label={params.value} 
-          size="small" 
+        <Badge 
+          badgeContent={params.value} 
           color={params.value > 0 ? 'primary' : 'default'}
+          showZero
+          sx={{
+            '& .MuiBadge-badge': {
+              position: 'relative',
+              transform: 'none',
+              fontSize: '0.875rem',
+              height: 24,
+              minWidth: 24
+            }
+          }}
         />
       )
     },
     { 
       field: 'childrenCount', 
-      headerName: 'Children', 
-      width: 90,
+      headerName: 'Subcategories', 
+      width: 130,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
         const count = categoryChildrenCount[params.row.id] || 0
         return (
-          <Chip 
-            label={count} 
-            size="small" 
+          <Badge 
+            badgeContent={count} 
             color={count > 0 ? 'secondary' : 'default'}
+            showZero
+            sx={{
+              '& .MuiBadge-badge': {
+                position: 'relative',
+                transform: 'none',
+                fontSize: '0.875rem',
+                height: 24,
+                minWidth: 24
+              }
+            }}
           />
         )
       }
@@ -182,23 +288,32 @@ function Categories() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 180,
+      width: 120,
       sortable: false,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
         const childCount = categoryChildrenCount[params.row.id] || 0
         const canDelete = params.row.productCount === 0 && childCount === 0
         
         return (
-          <>
+          <Box display="flex" gap={0.5}>
             {isManager && (
               <>
-                <IconButton
-                  size="small"
-                  onClick={() => handleOpenDialog(params.row)}
-                  color="primary"
-                >
-                  <Edit />
-                </IconButton>
+                <Tooltip title="Edit category">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenDialog(params.row)}
+                    sx={{ 
+                      color: theme.palette.primary.main,
+                      '&:hover': { 
+                        bgcolor: alpha(theme.palette.primary.main, 0.08) 
+                      }
+                    }}
+                  >
+                    <Edit fontSize="small" />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip 
                   title={
                     !canDelete 
@@ -212,135 +327,349 @@ function Categories() {
                     <IconButton
                       size="small"
                       onClick={() => handleDelete(params.row.id)}
-                      color="error"
                       disabled={!canDelete}
+                      sx={{ 
+                        color: canDelete ? theme.palette.error.main : theme.palette.action.disabled,
+                        '&:hover': canDelete ? {
+                          bgcolor: alpha(theme.palette.error.main, 0.08)
+                        } : {}
+                      }}
                     >
-                      <Delete />
+                      <Delete fontSize="small" />
                     </IconButton>
                   </span>
                 </Tooltip>
               </>
             )}
-          </>
+          </Box>
         )
       }
     }
   ]
 
-  const getTotalProducts = () => {
-    return categories.reduce((sum, category) => sum + (category.productCount || 0), 0)
-  }
+  const statsCards = [
+    {
+      title: 'Total Categories',
+      value: filteredCategories.length,
+      icon: <FolderOutlined />,
+      color: theme.palette.primary.main,
+      bgColor: alpha(theme.palette.primary.main, 0.08)
+    },
+    {
+      title: 'Total Products',
+      value: getTotalProducts(),
+      icon: <Inventory2Outlined />,
+      color: theme.palette.success.main,
+      bgColor: alpha(theme.palette.success.main, 0.08)
+    },
+    {
+      title: 'Root Categories',
+      value: filteredCategories.filter(c => !c.parentId).length,
+      icon: <AccountTreeOutlined />,
+      color: theme.palette.info.main,
+      bgColor: alpha(theme.palette.info.main, 0.08)
+    },
+    {
+      title: 'Empty Categories',
+      value: filteredCategories.filter(c => c.productCount === 0).length,
+      icon: <InfoOutlined />,
+      color: theme.palette.warning.main,
+      bgColor: alpha(theme.palette.warning.main, 0.08)
+    }
+  ]
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Category Management</Typography>
-        <Box display="flex" gap={2} alignItems="center">
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(e, newMode) => newMode && setViewMode(newMode)}
-            size="small"
-          >
-            <ToggleButton value="tree">
-              <AccountTree sx={{ mr: 1 }} />
-              Tree View
-            </ToggleButton>
-            <ToggleButton value="grid">
-              <ListIcon sx={{ mr: 1 }} />
-              List View
-            </ToggleButton>
-          </ToggleButtonGroup>
-          
-          {isManager && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleOpenDialog()}
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      {/* Header Section */}
+      <Fade in timeout={600}>
+        <Box mb={4}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+            <Typography 
+              variant="h4" 
+              fontWeight={600}
+              color="text.primary"
             >
-              Add Category
-            </Button>
-          )}
+              Category Management
+            </Typography>
+            <Box display="flex" gap={2} alignItems="center">
+              <Tooltip title="Refresh data">
+                <IconButton 
+                  onClick={fetchCategories}
+                  sx={{ 
+                    color: theme.palette.text.secondary,
+                    '&:hover': { color: theme.palette.primary.main }
+                  }}
+                >
+                  <RefreshOutlined />
+                </IconButton>
+              </Tooltip>
+              
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(e, newMode) => newMode && setViewMode(newMode)}
+                size="small"
+                sx={{
+                  bgcolor: 'background.paper',
+                  '& .MuiToggleButton-root': {
+                    px: 2,
+                    py: 0.75,
+                    textTransform: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    border: `1px solid ${theme.palette.divider}`,
+                    '&.Mui-selected': {
+                      bgcolor: theme.palette.primary.main,
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: theme.palette.primary.dark
+                      }
+                    }
+                  }
+                }}
+              >
+                <ToggleButton value="tree">
+                  <AccountTreeOutlined sx={{ mr: 1, fontSize: 18 }} />
+                  Tree View
+                </ToggleButton>
+                <ToggleButton value="grid">
+                  <GridView sx={{ mr: 1, fontSize: 18 }} />
+                  List View
+                </ToggleButton>
+              </ToggleButtonGroup>
+              
+              {isManager && (
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => handleOpenDialog()}
+                  sx={{
+                    px: 3,
+                    py: 1,
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    boxShadow: theme.shadows[2],
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                    '&:hover': {
+                      boxShadow: theme.shadows[4],
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  Add Category
+                </Button>
+              )}
+            </Box>
+          </Box>
+          <Typography variant="body2" color="text.secondary">
+            Organize and manage product categories with hierarchical structure
+          </Typography>
         </Box>
-      </Box>
+      </Fade>
 
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
-                    Total Categories
-                  </Typography>
-                  <Typography variant="h4">
-                    {categories.length}
-                  </Typography>
+      {/* Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {statsCards.map((stat, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grow in timeout={800 + index * 100}>
+              <Card 
+                sx={{ 
+                  p: 2.5,
+                  height: '100%',
+                  borderRadius: '12px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: theme.shadows[0],
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: theme.shadows[4],
+                    transform: 'translateY(-4px)'
+                  }
+                }}
+              >
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary" 
+                      fontWeight={500}
+                      gutterBottom
+                    >
+                      {stat.title}
+                    </Typography>
+                    {loading ? (
+                      <Skeleton variant="text" width={60} height={40} />
+                    ) : (
+                      <Typography variant="h4" fontWeight={700}>
+                        {stat.value}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: stat.bgColor,
+                      color: stat.color
+                    }}
+                  >
+                    {stat.icon}
+                  </Box>
                 </Box>
-                <CategoryIcon color="primary" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
-                    Total Products
-                  </Typography>
-                  <Typography variant="h4">
-                    {getTotalProducts()}
-                  </Typography>
-                </Box>
-                <CategoryIcon color="secondary" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+              </Card>
+            </Grow>
+          </Grid>
+        ))}
       </Grid>
 
-      {!isManager && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          You can view categories but only Hospital Managers can add, edit, or delete them.
-        </Alert>
-      )}
-
-      <Paper sx={{ height: 400, width: '100%' }}>
-        {viewMode === 'grid' ? (
-          <DataGrid
-            rows={categories}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            loading={loading}
-            disableSelectionOnClick
-            getRowClassName={(params) => 
-              params.row.productCount === 0 ? 'empty-category' : ''
-            }
-            sx={{
-              '& .empty-category': {
-                backgroundColor: 'action.hover',
+      {/* Search Bar */}
+      <Fade in timeout={1000}>
+        <Paper 
+          sx={{ 
+            p: 2,
+            mb: 3,
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.shadows[0]
+          }}
+        >
+          <TextField
+            fullWidth
+            placeholder="Search categories by name, description, or parent..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <Box sx={{ mr: 1.5, display: 'flex', alignItems: 'center' }}>
+                  <SearchOutlined sx={{ color: theme.palette.text.secondary }} />
+                </Box>
+              ),
+              endAdornment: searchQuery && (
+                <IconButton 
+                  size="small" 
+                  onClick={() => setSearchQuery('')}
+                  sx={{ color: theme.palette.text.secondary }}
+                >
+                  <Close fontSize="small" />
+                </IconButton>
+              ),
+              sx: {
+                borderRadius: '10px',
+                '& fieldset': {
+                  border: 'none'
+                }
+              }
+            }}
+            sx={{ 
+              '& .MuiInputBase-input': {
+                fontSize: '0.875rem'
               }
             }}
           />
-        ) : (
-          <Box sx={{ height: '100%', overflow: 'auto', p: 2 }}>
-            {loading ? (
-              <Typography>Loading...</Typography>
-            ) : (
-              <CategoryTreeView
-                categories={categoryTree}
-                onEdit={handleOpenDialog}
-                onDelete={handleDelete}
-                isManager={isManager}
-              />
-            )}
-          </Box>
-        )}
-      </Paper>
+        </Paper>
+      </Fade>
 
+      {/* Info Alert for Non-Managers */}
+      {!isManager && (
+        <Fade in timeout={1100}>
+          <Alert 
+            severity="info" 
+            sx={{ 
+              mb: 3,
+              borderRadius: '8px',
+              '& .MuiAlert-icon': {
+                fontSize: 24
+              }
+            }}
+          >
+            You can view categories but only Hospital Managers can add, edit, or delete them.
+          </Alert>
+        </Fade>
+      )}
+
+      {/* Main Content Area */}
+      <Grow in timeout={1200}>
+        <Paper 
+          sx={{ 
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden',
+            boxShadow: theme.shadows[0]
+          }}
+        >
+          {viewMode === 'grid' ? (
+            <DataGrid
+              rows={filteredCategories}
+              columns={columns}
+              pageSize={10}
+              rowsPerPageOptions={[10, 25, 50]}
+              loading={loading}
+              disableSelectionOnClick
+              autoHeight
+              getRowClassName={(params) => 
+                params.row.productCount === 0 ? 'empty-category' : ''
+              }
+              sx={{
+                border: 'none',
+                '& .MuiDataGrid-columnHeaders': {
+                  bgcolor: '#FAFAFA',
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                  '& .MuiDataGrid-columnHeaderTitle': {
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    color: theme.palette.text.secondary
+                  }
+                },
+                '& .MuiDataGrid-row': {
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.02)
+                  },
+                  '&.empty-category': {
+                    bgcolor: alpha(theme.palette.warning.main, 0.02)
+                  }
+                },
+                '& .MuiDataGrid-cell': {
+                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                  fontSize: '0.875rem'
+                },
+                '& .MuiDataGrid-footerContainer': {
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  bgcolor: '#FAFAFA'
+                }
+              }}
+            />
+          ) : (
+            <Box sx={{ 
+              maxHeight: 450,
+              overflow: 'auto',
+              p: 2,
+              bgcolor: '#FAFAFA'
+            }}>
+              {loading ? (
+                <Stack spacing={2}>
+                  {[1, 2, 3].map(i => (
+                    <Skeleton key={i} variant="rectangular" height={60} sx={{ borderRadius: 1 }} />
+                  ))}
+                </Stack>
+              ) : (
+                <CategoryTreeView
+                  categories={filteredTree}
+                  onEdit={handleOpenDialog}
+                  onDelete={handleDelete}
+                  isManager={isManager}
+                />
+              )}
+            </Box>
+          )}
+        </Paper>
+      </Grow>
+
+      {/* Category Form Dialog */}
       {openDialog && (
         <CategoryForm
           open={openDialog}
@@ -350,20 +679,26 @@ function Categories() {
         />
       )}
 
+      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
+        autoHideDuration={4000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          variant="filled"
+          sx={{ 
+            borderRadius: '8px',
+            boxShadow: theme.shadows[4]
+          }}
         >
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+    </Container>
   )
 }
 

@@ -6,12 +6,6 @@ import {
   Typography,
   IconButton,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
   Alert,
   Snackbar,
   InputAdornment,
@@ -21,7 +15,15 @@ import {
   Card,
   CardContent,
   Tooltip,
-  Avatar
+  Fade,
+  Grow,
+  TextField,
+  useTheme,
+  alpha,
+  Stack,
+  Divider,
+  Avatar,
+  LinearProgress
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import {
@@ -38,7 +40,11 @@ import {
   QrCode,
   Print,
   QrCodeScanner,
-  Layers
+  Layers,
+  TrendingUp,
+  ErrorOutline,
+  CheckCircle,
+  Close
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
@@ -64,6 +70,7 @@ import BarcodeScanOptions from '../components/products/BarcodeScanOptions'
 import BatchManagementDialog from '../components/batch/BatchManagementDialog'
 
 function Products() {
+  const theme = useTheme()
   const { isManager, isStaff } = useAuth()
   const [products, setProducts] = useState([])
   const [lowStockProducts, setLowStockProducts] = useState([])
@@ -81,19 +88,20 @@ function Products() {
   const [selectedProductForBatch, setSelectedProductForBatch] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const [selectedProducts, setSelectedProducts] = useState([])
   const [tabValue, setTabValue] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(10)
   const [totalElements, setTotalElements] = useState(0)
+  const [outOfStockProducts, setOutOfStockProducts] = useState([])
 
   useEffect(() => {
     fetchProducts()
     fetchCategories()
     fetchLowStockProducts()
     fetchExpiringProducts()
+    fetchOutOfStockProducts()
   }, [page, pageSize])
 
   const fetchProducts = async () => {
@@ -102,27 +110,9 @@ function Products() {
       setProducts(response.data.content)
       setTotalElements(response.data.totalElements)
     } catch (error) {
-      showSnackbar('Failed to fetch products', 'error')
+      showSnackbar('Error fetching products', 'error')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchLowStockProducts = async () => {
-    try {
-      const response = await getLowStockProducts()
-      setLowStockProducts(response.data)
-    } catch (error) {
-      console.error('Failed to fetch low stock products', error)
-    }
-  }
-
-  const fetchExpiringProducts = async () => {
-    try {
-      const response = await getExpiringProducts(30)
-      setExpiringProducts(response.data)
-    } catch (error) {
-      console.error('Failed to fetch expiring products', error)
     }
   }
 
@@ -131,92 +121,35 @@ function Products() {
       const response = await getCategories()
       setCategories(response.data)
     } catch (error) {
-      showSnackbar('Failed to fetch categories', 'error')
+      console.error('Error fetching categories:', error)
     }
   }
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      fetchProducts()
-      return
-    }
-    
+  const fetchLowStockProducts = async () => {
     try {
-      setLoading(true)
-      const response = await searchProducts(searchQuery)
-      setProducts(response.data)
+      const response = await getLowStockProducts()
+      setLowStockProducts(response.data)
     } catch (error) {
-      showSnackbar('Failed to search products', 'error')
-    } finally {
-      setLoading(false)
+      console.error('Error fetching low stock products:', error)
     }
   }
 
-  const handleBarcodeScan = async (barcode) => {
+  const fetchExpiringProducts = async () => {
     try {
-      const response = await getProductByBarcode(barcode)
-      // Navigate to the product or show product details
-      showSnackbar(`Found product: ${response.data.name}`, 'success')
-      setSearchQuery(barcode)
-      handleSearch()
+      const response = await getExpiringProducts()
+      setExpiringProducts(response.data)
     } catch (error) {
-      showSnackbar('Product not found with this barcode', 'error')
+      console.error('Error fetching expiring products:', error)
     }
   }
 
-  const handleCameraSelect = () => {
-    setOpenScanOptions(false)
-    setOpenScanner(true)
-  }
-
-  const handleImageUpload = async (file) => {
+  const fetchOutOfStockProducts = async () => {
     try {
-      // Convert file to base64
-      const reader = new FileReader()
-      reader.onloadend = async () => {
-        const base64 = reader.result
-        
-        try {
-          // Send to backend for decoding
-          const response = await scanBarcode({
-            barcodeImage: base64
-          })
-          
-          if (response.data) {
-            // Check if it's a barcode string or a product object
-            if (typeof response.data === 'string') {
-              // It's just a barcode, search for the product
-              try {
-                const productResponse = await getProductByBarcode(response.data)
-                showSnackbar(`Found product: ${productResponse.data.name}`, 'success')
-                setSearchQuery(response.data)
-                handleSearch()
-              } catch (error) {
-                showSnackbar(`Barcode detected: ${response.data}, but no matching product found`, 'warning')
-                setSearchQuery(response.data)
-                handleSearch()
-              }
-            } else {
-              // It's a product object
-              showSnackbar(`Found product: ${response.data.name}`, 'success')
-              setSearchQuery(response.data.barcode || response.data.code || response.data.name)
-              handleSearch()
-            }
-          }
-        } catch (error) {
-          if (error.response?.status === 404) {
-            showSnackbar('No product found with this barcode', 'warning')
-          } else {
-            showSnackbar('Failed to decode barcode from image. Please ensure the image is clear and contains a valid barcode.', 'error')
-          }
-        }
-      }
-      reader.onerror = () => {
-        throw new Error('Failed to read file')
-      }
-      reader.readAsDataURL(file)
+      const response = await getProducts({ page: 0, size: 1000 })
+      const outOfStock = response.data.content.filter(product => product.quantity === 0)
+      setOutOfStockProducts(outOfStock)
     } catch (error) {
-      throw error
+      console.error('Error fetching out of stock products:', error)
     }
   }
 
@@ -239,12 +172,10 @@ function Products() {
         await createProduct(formData)
         showSnackbar('Product created successfully', 'success')
       }
-      handleCloseDialog()
       fetchProducts()
-      fetchLowStockProducts()
-      fetchExpiringProducts()
+      handleCloseDialog()
     } catch (error) {
-      showSnackbar(error.response?.data?.message || 'Operation failed', 'error')
+      showSnackbar(error.response?.data?.message || 'Error saving product', 'error')
     }
   }
 
@@ -254,13 +185,8 @@ function Products() {
         await deleteProduct(id)
         showSnackbar('Product deleted successfully', 'success')
         fetchProducts()
-        fetchLowStockProducts()
-        fetchExpiringProducts()
       } catch (error) {
-        const errorMessage = error.response?.data?.message || 
-                           error.response?.data?.error || 
-                           'Failed to delete product'
-        showSnackbar(errorMessage, 'error')
+        showSnackbar(error.response?.data?.message || 'Error deleting product', 'error')
       }
     }
   }
@@ -270,18 +196,70 @@ function Products() {
     setOpenStockDialog(true)
   }
 
-  const handleViewBarcode = (product) => {
-    setSelectedProduct(product)
-    setOpenBarcodeDialog(true)
-  }
-
-  const handlePrintBarcodes = () => {
-    const productsWithBarcodes = products.filter(p => p.barcode)
-    if (productsWithBarcodes.length === 0) {
-      showSnackbar('No products with barcodes to print', 'warning')
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      fetchProducts()
       return
     }
-    setSelectedProducts(productsWithBarcodes)
+
+    try {
+      setLoading(true)
+      const response = await searchProducts(searchQuery)
+      
+      // Apply the search to the current tab
+      if (tabValue === 0) {
+        setProducts(response.data)
+      } else if (tabValue === 1) {
+        const filtered = response.data.filter(p => p.quantity <= p.minStockLevel)
+        setLowStockProducts(filtered)
+      } else if (tabValue === 2) {
+        const filtered = response.data.filter(p => {
+          if (!p.expiryDate) return false
+          const daysUntilExpiry = Math.ceil(
+            (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
+          )
+          return daysUntilExpiry <= 30 && daysUntilExpiry > 0
+        })
+        setExpiringProducts(filtered)
+      } else {
+        const filtered = response.data.filter(p => p.quantity === 0)
+        setOutOfStockProducts(filtered)
+      }
+    } catch (error) {
+      showSnackbar('Error searching products', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Add debounced search for auto-suggest
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch()
+      } else {
+        // Reset to original data when search is cleared
+        fetchProducts()
+        fetchLowStockProducts()
+        fetchExpiringProducts()
+        fetchOutOfStockProducts()
+      }
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchQuery])
+
+  const handlePrintBarcodes = () => {
+    // Get current visible products based on active tab
+    const currentProducts = tabValue === 0 ? products : 
+                           tabValue === 1 ? lowStockProducts : 
+                           tabValue === 2 ? expiringProducts : 
+                           outOfStockProducts
+    
+    if (currentProducts.length === 0) {
+      showSnackbar('No products available to print', 'warning')
+      return
+    }
     setOpenPrintDialog(true)
   }
 
@@ -289,202 +267,415 @@ function Products() {
     setSnackbar({ open: true, message, severity })
   }
 
-  const getStockStatusChip = (status) => {
-    const statusConfig = {
-      'NORMAL': { color: 'success', label: 'In Stock' },
-      'LOW': { color: 'warning', label: 'Low Stock' },
-      'OUT_OF_STOCK': { color: 'error', label: 'Out of Stock' }
+  const getStockStatusColor = (status) => {
+    switch(status) {
+      case 'LOW': return 'warning'
+      case 'OUT_OF_STOCK': return 'error'
+      default: return 'success'
     }
-    const config = statusConfig[status] || statusConfig['NORMAL']
-    return <Chip label={config.label} color={config.color} size="small" />
+  }
+
+  const getStockStatusIcon = (status) => {
+    switch(status) {
+      case 'LOW': return <Warning />
+      case 'OUT_OF_STOCK': return <ErrorOutline />
+      default: return <CheckCircle />
+    }
   }
 
   const columns = [
-    { field: 'id', headerName: 'ID', width: 70 },
     {
       field: 'imageUrl',
-      headerName: 'Image',
-      width: 80,
+      headerName: '',
+      width: 50,
+      sortable: false,
       renderCell: (params) => (
         <Avatar
-          src={params.value ? `http://localhost:8080${params.value}` : null}
+          src={params.value}
           variant="rounded"
-          sx={{ width: 40, height: 40 }}
+          sx={{ width: 36, height: 36 }}
         >
-          {!params.value && params.row.name?.[0]}
+          <Inventory sx={{ fontSize: 16 }} />
         </Avatar>
       )
     },
-    { field: 'code', headerName: 'Code', width: 100 },
-    { 
-      field: 'barcode', 
-      headerName: 'Barcode', 
-      width: 130,
+    {
+      field: 'id',
+      headerName: 'ID',
+      width: 55,
       renderCell: (params) => (
-        <Box display="flex" alignItems="center" gap={1}>
-          <Typography variant="body2">{params.value || '-'}</Typography>
-          {params.value && (
-            <IconButton 
-              size="small" 
-              onClick={() => handleViewBarcode(params.row)}
-            >
-              <QrCode fontSize="small" />
-            </IconButton>
-          )}
+        <Typography variant="body2" fontWeight={500}>
+          #{params.value}
+        </Typography>
+      )
+    },
+    {
+      field: 'code',
+      headerName: 'Code',
+      width: 85,
+      renderCell: (params) => (
+        <Chip 
+          label={params.value || 'N/A'} 
+          size="small" 
+          variant="outlined"
+          sx={{ fontSize: '0.7rem' }}
+        />
+      )
+    },
+    {
+      field: 'name',
+      headerName: 'Product Name',
+      width: 180,
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="body2" fontWeight={500} noWrap>
+            {params.value}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {params.row.barcode}
+          </Typography>
         </Box>
       )
     },
-    { field: 'name', headerName: 'Product Name', width: 200 },
-    { field: 'categoryName', headerName: 'Category', width: 130 },
-    { 
-      field: 'quantity', 
-      headerName: 'Stock', 
-      width: 100,
+    {
+      field: 'categoryName',
+      headerName: 'Category',
+      width: 110,
       renderCell: (params) => (
-        <Box display="flex" alignItems="center">
-          {params.value}
-          {params.row.quantity <= params.row.minStockLevel && (
-            <Warning color="warning" fontSize="small" sx={{ ml: 1 }} />
-          )}
-        </Box>
+        <Chip 
+          label={params.value} 
+          size="small"
+          sx={{ 
+            borderRadius: '6px',
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            color: theme.palette.primary.main,
+            fontSize: '0.7rem'
+          }}
+        />
       )
     },
-    { field: 'minStockLevel', headerName: 'Min Stock', width: 100 },
-    { field: 'unit', headerName: 'Unit', width: 80 },
-    { 
-      field: 'unitPrice', 
-      headerName: 'Price', 
-      width: 100,
-      valueFormatter: (params) => `$${params.value}`
+    {
+      field: 'quantity',
+      headerName: 'Stock',
+      width: 80,
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="body2" fontWeight={500}>
+            {params.value}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+            {params.row.unit}
+          </Typography>
+        </Box>
+      )
     },
     {
       field: 'stockStatus',
       headerName: 'Status',
-      width: 120,
-      renderCell: (params) => getStockStatusChip(params.value)
+      width: 100,
+      renderCell: (params) => (
+        <Chip
+          icon={getStockStatusIcon(params.value)}
+          label={params.value?.replace('_', ' ')}
+          size="small"
+          color={getStockStatusColor(params.value)}
+          sx={{ borderRadius: '6px', fontSize: '0.65rem' }}
+        />
+      )
+    },
+    {
+      field: 'unitPrice',
+      headerName: 'Price',
+      width: 75,
+      renderCell: (params) => (
+        <Typography variant="body2" fontWeight={500}>
+          ${params.value?.toFixed(2)}
+        </Typography>
+      )
     },
     {
       field: 'expiryDate',
-      headerName: 'Expiry Date',
-      width: 120,
-      valueFormatter: (params) => params.value ? new Date(params.value).toLocaleDateString() : '-'
+      headerName: 'Expiry',
+      width: 95,
+      renderCell: (params) => params.value ? (
+        <Box>
+          <Typography variant="caption" color={params.row.isExpiringSoon ? 'error' : 'text.secondary'} sx={{ fontSize: '0.7rem' }}>
+            {new Date(params.value).toLocaleDateString()}
+          </Typography>
+          {params.row.isExpiringSoon && (
+            <Chip 
+              label="Soon" 
+              size="small" 
+              color="error"
+              sx={{ ml: 0.5, height: 14, fontSize: '0.6rem' }}
+            />
+          )}
+        </Box>
+      ) : '-'
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 140,
       sortable: false,
       renderCell: (params) => (
-        <>
-          <Tooltip title="Manage Batches">
+        <Stack direction="row" spacing={0.5}>
+          <Tooltip title="Batches">
             <IconButton
               size="small"
               onClick={() => {
                 setSelectedProductForBatch(params.row)
                 setBatchDialogOpen(true)
               }}
-              color="primary"
+              sx={{ 
+                p: 0.5,
+                color: theme.palette.primary.main,
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+              }}
             >
-              <Layers />
+              <Layers sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Adjust Stock">
+          <Tooltip title="Stock">
             <IconButton
               size="small"
               onClick={() => handleStockAdjustment(params.row)}
-              color="primary"
+              sx={{ 
+                p: 0.5,
+                color: theme.palette.info.main,
+                '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.1) }
+              }}
             >
-              <Inventory />
+              <Inventory sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
-          <IconButton
-            size="small"
-            onClick={() => handleOpenDialog(params.row)}
-            color="primary"
-          >
-            <Edit />
-          </IconButton>
-          {isManager && (
+          <Tooltip title="Edit">
             <IconButton
               size="small"
-              onClick={() => handleDelete(params.row.id)}
-              color="error"
+              onClick={() => handleOpenDialog(params.row)}
+              sx={{ 
+                p: 0.5,
+                color: theme.palette.success.main,
+                '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) }
+              }}
             >
-              <Delete />
+              <Edit sx={{ fontSize: 16 }} />
             </IconButton>
+          </Tooltip>
+          {isManager && (
+            <Tooltip title="Delete">
+              <IconButton
+                size="small"
+                onClick={() => handleDelete(params.row.id)}
+                sx={{ 
+                  p: 0.5,
+                  color: theme.palette.error.main,
+                  '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                }}
+              >
+                <Delete sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
           )}
-        </>
+        </Stack>
       )
     }
   ]
 
   const renderSummaryCards = () => (
-    <Grid container spacing={3} sx={{ mb: 3 }}>
+    <Grid container spacing={3} sx={{ mb: 4 }}>
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Total Products
-                </Typography>
-                <Typography variant="h4">
+        <Card 
+          elevation={0}
+          sx={{ 
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '12px',
+            height: '140px',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: theme.shadows[4]
+            }
+          }}
+          onClick={() => setTabValue(0)}
+        >
+          <CardContent sx={{ height: '100%', p: 3 }}>
+            <Stack spacing={2}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box 
+                  sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: '12px',
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Inventory sx={{ color: theme.palette.primary.main }} />
+                </Box>
+                <Typography variant="h4" fontWeight={600}>
                   {totalElements}
                 </Typography>
               </Box>
-              <Inventory color="primary" sx={{ fontSize: 40 }} />
-            </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                  Total Products
+                </Typography>
+                <Typography variant="caption" color="success.main">
+                  All inventory items
+                </Typography>
+              </Box>
+            </Stack>
           </CardContent>
         </Card>
       </Grid>
+
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Low Stock Items
-                </Typography>
-                <Typography variant="h4" color="warning.main">
+        <Card 
+          elevation={0}
+          sx={{ 
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '12px',
+            height: '140px',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: theme.shadows[4]
+            }
+          }}
+          onClick={() => setTabValue(1)}
+        >
+          <CardContent sx={{ height: '100%', p: 3 }}>
+            <Stack spacing={2}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box 
+                  sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: '12px',
+                    bgcolor: alpha(theme.palette.warning.main, 0.1),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <TrendingDown sx={{ color: theme.palette.warning.main }} />
+                </Box>
+                <Typography variant="h4" fontWeight={600} color="warning.main">
                   {lowStockProducts.length}
                 </Typography>
               </Box>
-              <TrendingDown color="warning" sx={{ fontSize: 40 }} />
-            </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                  Low Stock Items
+                </Typography>
+                <Typography variant="caption" color="warning.main">
+                  Requires attention
+                </Typography>
+              </Box>
+            </Stack>
           </CardContent>
         </Card>
       </Grid>
+
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Expiring Soon
-                </Typography>
-                <Typography variant="h4" color="error.main">
+        <Card 
+          elevation={0}
+          sx={{ 
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '12px',
+            height: '140px',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: theme.shadows[4]
+            }
+          }}
+          onClick={() => setTabValue(2)}
+        >
+          <CardContent sx={{ height: '100%', p: 3 }}>
+            <Stack spacing={2}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box 
+                  sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: '12px',
+                    bgcolor: alpha(theme.palette.error.main, 0.1),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <CalendarMonth sx={{ color: theme.palette.error.main }} />
+                </Box>
+                <Typography variant="h4" fontWeight={600} color="error.main">
                   {expiringProducts.length}
                 </Typography>
               </Box>
-              <CalendarMonth color="error" sx={{ fontSize: 40 }} />
-            </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                  Expiring Soon
+                </Typography>
+                <Typography variant="caption" color="error.main">
+                  Within 30 days
+                </Typography>
+              </Box>
+            </Stack>
           </CardContent>
         </Card>
       </Grid>
+
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Categories
-                </Typography>
-                <Typography variant="h4">
-                  {categories.length}
+        <Card 
+          elevation={0}
+          sx={{ 
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '12px',
+            height: '140px',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: theme.shadows[4]
+            }
+          }}
+          onClick={() => setTabValue(3)}
+        >
+          <CardContent sx={{ height: '100%', p: 3 }}>
+            <Stack spacing={2}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box 
+                  sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: '12px',
+                    bgcolor: alpha(theme.palette.error.main, 0.1),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <ErrorOutline sx={{ color: theme.palette.error.main }} />
+                </Box>
+                <Typography variant="h4" fontWeight={600} color="error.main">
+                  {outOfStockProducts.length}
                 </Typography>
               </Box>
-              <LocalOffer color="secondary" sx={{ fontSize: 40 }} />
-            </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                  Out of Stock
+                </Typography>
+                <Typography variant="caption" color="error.main">
+                  Immediate action needed
+                </Typography>
+              </Box>
+            </Stack>
           </CardContent>
         </Card>
       </Grid>
@@ -492,218 +683,345 @@ function Products() {
   )
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Product Management</Typography>
-        <Box display="flex" gap={2}>
-          <Button
-            variant="outlined"
-            startIcon={<QrCodeScanner />}
-            onClick={() => setOpenScanOptions(true)}
-          >
-            Scan Barcode
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Print />}
-            onClick={handlePrintBarcodes}
-          >
-            Print Barcodes
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Upload />}
-            onClick={() => setOpenImportExport(true)}
-          >
-            Import/Export
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
-          >
-            Add Product
-          </Button>
+    <Fade in timeout={300}>
+      <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+        {/* Header Section */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+          <Box>
+            <Typography variant="h4" fontWeight={600} gutterBottom>
+              Product Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage your inventory, track stock levels, and monitor expiring products
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', md: 'flex' } }}>
+            <Button
+              variant="outlined"
+              startIcon={<QrCodeScanner />}
+              onClick={() => setOpenScanOptions(true)}
+              sx={{ 
+                borderRadius: '8px',
+                textTransform: 'none',
+                borderColor: theme.palette.divider,
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.05)
+                }
+              }}
+            >
+              Scan
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Print />}
+              onClick={handlePrintBarcodes}
+              sx={{ 
+                borderRadius: '8px',
+                textTransform: 'none',
+                borderColor: theme.palette.divider,
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.05)
+                }
+              }}
+            >
+              Print
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Upload />}
+              onClick={() => setOpenImportExport(true)}
+              sx={{ 
+                borderRadius: '8px',
+                textTransform: 'none',
+                borderColor: theme.palette.divider,
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.05)
+                }
+              }}
+            >
+              Import/Export
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog()}
+              sx={{ 
+                borderRadius: '8px',
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: theme.shadows[4]
+                }
+              }}
+            >
+              Add Product
+            </Button>
+          </Stack>
         </Box>
-      </Box>
 
-      {renderSummaryCards()}
+        {/* Summary Cards */}
+        {renderSummaryCards()}
 
-      <Paper sx={{ mb: 2 }}>
-        <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-          <Tab label="All Products" />
-          <Tab label="Low Stock" />
-          <Tab label="Expiring Soon" />
-        </Tabs>
-      </Paper>
-
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="Search by name, code, barcode or manufacturer..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton onClick={handleSearch}>
-                  <Search />
-                </IconButton>
-              </InputAdornment>
-            )
+        {/* Search and Tabs Section */}
+        <Paper 
+          elevation={0}
+          sx={{ 
+            mb: 3,
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '12px',
+            overflow: 'hidden'
           }}
-        />
-      </Paper>
-
-      <Paper sx={{ height: 600, width: '100%' }}>
-        <DataGrid
-          rows={tabValue === 0 ? products : tabValue === 1 ? lowStockProducts : expiringProducts}
-          columns={columns}
-          pageSize={pageSize}
-          rowsPerPageOptions={[10, 25, 50]}
-          loading={loading}
-          pagination
-          paginationMode="server"
-          rowCount={tabValue === 0 ? totalElements : tabValue === 1 ? lowStockProducts.length : expiringProducts.length}
-          page={page}
-          onPageChange={(newPage) => setPage(newPage)}
-          onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
-          disableSelectionOnClick
-        />
-      </Paper>
-
-      {openDialog && (
-        <ProductForm
-          open={openDialog}
-          onClose={handleCloseDialog}
-          onSubmit={handleSubmit}
-          product={editingProduct}
-          categories={categories}
-        />
-      )}
-
-      {openImportExport && (
-        <ProductImportExport
-          open={openImportExport}
-          onClose={() => setOpenImportExport(false)}
-          currentFilter={tabValue === 0 ? 'all' : tabValue === 1 ? 'lowstock' : 'expiring'}
-          onImportSuccess={() => {
-            setOpenImportExport(false)
-            fetchProducts()
-            fetchLowStockProducts()
-            fetchExpiringProducts()
-            showSnackbar('Products imported successfully', 'success')
-          }}
-        />
-      )}
-
-      {openStockDialog && (
-        <StockAdjustment
-          open={openStockDialog}
-          onClose={() => {
-            setOpenStockDialog(false)
-            setSelectedProduct(null)
-            fetchProducts()
-          }}
-          product={selectedProduct}
-        />
-      )}
-
-      {/* Barcode Display Dialog */}
-      <Dialog 
-        open={openBarcodeDialog} 
-        onClose={() => setOpenBarcodeDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Product Codes - {selectedProduct?.name}
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>
-                Barcode
-              </Typography>
-              <BarcodeDisplay
-                barcode={selectedProduct?.barcode}
-                productName={selectedProduct?.name}
-                showActions={true}
-                onPrint={() => {
-                  setSelectedProducts([selectedProduct])
-                  setOpenPrintDialog(true)
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>
-                QR Code
-              </Typography>
-              <QRCodeDisplay
-                qrCode={selectedProduct?.qrCode}
-                productName={selectedProduct?.name}
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenBarcodeDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Barcode Scan Options Dialog */}
-      <BarcodeScanOptions
-        open={openScanOptions}
-        onClose={() => setOpenScanOptions(false)}
-        onCameraSelect={handleCameraSelect}
-        onImageUpload={handleImageUpload}
-      />
-
-      {/* Barcode Scanner */}
-      <BarcodeScanner
-        open={openScanner}
-        onClose={() => setOpenScanner(false)}
-        onScan={handleBarcodeScan}
-        onBack={() => {
-          setOpenScanner(false)
-          setOpenScanOptions(true)
-        }}
-      />
-
-      {/* Print Dialog */}
-      <BarcodePrintDialog
-        open={openPrintDialog}
-        onClose={() => setOpenPrintDialog(false)}
-        products={selectedProducts}
-      />
-
-      <BatchManagementDialog
-        open={batchDialogOpen}
-        onClose={() => {
-          setBatchDialogOpen(false)
-          setSelectedProductForBatch(null)
-        }}
-        product={selectedProductForBatch}
-        onBatchUpdate={() => {
-          fetchProducts()
-        }}
-      />
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+          <Box sx={{ p: 2, bgcolor: theme.palette.grey[50] }}>
+            <TextField
+              fullWidth
+              placeholder="Search products by name, code, barcode or manufacturer..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search sx={{ color: theme.palette.text.secondary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => { setSearchQuery(''); }}>
+                      <Close fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: {
+                  bgcolor: 'background.paper',
+                  borderRadius: '8px',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.divider
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.primary.main
+                  }
+                }
+              }}
+            />
+          </Box>
+          <Divider />
+          <Tabs 
+            value={tabValue} 
+            onChange={(e, v) => setTabValue(v)}
+            sx={{
+              px: 2,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '0.95rem',
+                minHeight: 48
+              }
+            }}
+          >
+            <Tab label={`All Products (${totalElements})`} />
+            <Tab 
+              label={
+                <Box display="flex" alignItems="center" gap={1}>
+                  Low Stock
+                  <Chip 
+                    label={lowStockProducts.length} 
+                    size="small" 
+                    color="warning"
+                    sx={{ height: 20 }}
+                  />
+                </Box>
+              } 
+            />
+            <Tab 
+              label={
+                <Box display="flex" alignItems="center" gap={1}>
+                  Expiring Soon
+                  <Chip 
+                    label={expiringProducts.length} 
+                    size="small" 
+                    color="error"
+                    sx={{ height: 20 }}
+                  />
+                </Box>
+              } 
+            />
+            <Tab 
+              label={
+                <Box display="flex" alignItems="center" gap={1}>
+                  Out of Stock
+                  <Chip 
+                    label={outOfStockProducts.length} 
+                    size="small" 
+                    color="error"
+                    sx={{ height: 20 }}
+                  />
+                </Box>
+              } 
+            />
+          </Tabs>
+        </Paper>
+
+        {/* Data Grid */}
+        <Grow in timeout={400}>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              height: 600,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <DataGrid
+              rows={tabValue === 0 ? products : tabValue === 1 ? lowStockProducts : tabValue === 2 ? expiringProducts : outOfStockProducts}
+              columns={columns}
+              pageSize={pageSize}
+              rowsPerPageOptions={[10, 25, 50]}
+              loading={loading}
+              pagination
+              paginationMode="server"
+              rowCount={tabValue === 0 ? totalElements : tabValue === 1 ? lowStockProducts.length : tabValue === 2 ? expiringProducts.length : outOfStockProducts.length}
+              page={page}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
+              disableSelectionOnClick
+              sx={{
+                border: 'none',
+                '& .MuiDataGrid-columnHeaders': {
+                  bgcolor: theme.palette.grey[50],
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                  fontSize: '0.875rem',
+                  fontWeight: 600
+                },
+                '& .MuiDataGrid-cell': {
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                  fontSize: '0.875rem'
+                },
+                '& .MuiDataGrid-row:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.02)
+                },
+                '& .MuiDataGrid-footerContainer': {
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  bgcolor: theme.palette.grey[50]
+                }
+              }}
+            />
+          </Paper>
+        </Grow>
+
+        {/* Dialogs */}
+        {openDialog && (
+          <ProductForm
+            open={openDialog}
+            onClose={handleCloseDialog}
+            onSubmit={handleSubmit}
+            product={editingProduct}
+            categories={categories}
+          />
+        )}
+
+        {openImportExport && (
+          <ProductImportExport
+            open={openImportExport}
+            onClose={() => setOpenImportExport(false)}
+            currentFilter={tabValue === 0 ? 'all' : tabValue === 1 ? 'low-stock' : tabValue === 2 ? 'expiring' : 'out-of-stock'}
+            onImportSuccess={fetchProducts}
+          />
+        )}
+
+        {openStockDialog && selectedProduct && (
+          <StockAdjustment
+            open={openStockDialog}
+            onClose={() => {
+              setOpenStockDialog(false)
+              setSelectedProduct(null)
+            }}
+            product={selectedProduct}
+            onSuccess={fetchProducts}
+          />
+        )}
+
+        {openBarcodeDialog && selectedProduct && (
+          <BarcodeDisplay
+            open={openBarcodeDialog}
+            onClose={() => setOpenBarcodeDialog(false)}
+            product={selectedProduct}
+          />
+        )}
+
+        {openScanner && (
+          <BarcodeScanner
+            open={openScanner}
+            onClose={() => setOpenScanner(false)}
+            onScan={async (barcode) => {
+              try {
+                const response = await getProductByBarcode(barcode)
+                handleOpenDialog(response.data)
+                setOpenScanner(false)
+              } catch (error) {
+                showSnackbar('Product not found', 'error')
+              }
+            }}
+          />
+        )}
+
+        {openScanOptions && (
+          <BarcodeScanOptions
+            open={openScanOptions}
+            onClose={() => setOpenScanOptions(false)}
+            onCameraSelect={() => {
+              setOpenScanOptions(false)
+              setOpenScanner(true)
+            }}
+            onImageUpload={async (file) => {
+              // Handle barcode image upload
+              setOpenScanOptions(false)
+              showSnackbar('Processing image for barcode...', 'info')
+              // In a real implementation, you would process the image here
+            }}
+          />
+        )}
+
+        {openPrintDialog && (
+          <BarcodePrintDialog
+            open={openPrintDialog}
+            onClose={() => setOpenPrintDialog(false)}
+            products={tabValue === 0 ? products : tabValue === 1 ? lowStockProducts : tabValue === 2 ? expiringProducts : outOfStockProducts}
+          />
+        )}
+
+        {batchDialogOpen && (
+          <BatchManagementDialog
+            open={batchDialogOpen}
+            onClose={() => {
+              setBatchDialogOpen(false)
+              setSelectedProductForBatch(null)
+            }}
+            product={selectedProductForBatch}
+            onBatchUpdate={fetchProducts}
+          />
+        )}
+
+        {/* Snackbar */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            sx={{ borderRadius: '8px' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </Fade>
   )
 }
 
