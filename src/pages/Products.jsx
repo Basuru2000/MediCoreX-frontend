@@ -92,8 +92,9 @@ function Products() {
   const [searchQuery, setSearchQuery] = useState('')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [page, setPage] = useState(0)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(100)  // Changed from 10 to 100
   const [totalElements, setTotalElements] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
   const [outOfStockProducts, setOutOfStockProducts] = useState([])
 
   useEffect(() => {
@@ -105,12 +106,23 @@ function Products() {
   }, [page, pageSize])
 
   const fetchProducts = async () => {
+    setLoading(true)
     try {
-      const response = await getProducts({ page, size: pageSize })
-      setProducts(response.data.content)
-      setTotalElements(response.data.totalElements)
+      const response = await getProducts({ 
+        page: page,  // Use current page state
+        size: pageSize,  // Use current pageSize state
+        sortBy: 'id',
+        sortDirection: 'DESC'
+      })
+      
+      if (response.data) {
+        setProducts(response.data.content)
+        setTotalElements(response.data.totalElements)
+        setTotalPages(response.data.totalPages)
+      }
     } catch (error) {
-      showSnackbar('Error fetching products', 'error')
+      console.error('Error fetching products:', error)
+      showSnackbar('Failed to fetch products', 'error')
     } finally {
       setLoading(false)
     }
@@ -150,6 +162,27 @@ function Products() {
       setOutOfStockProducts(outOfStock)
     } catch (error) {
       console.error('Error fetching out of stock products:', error)
+    }
+  }
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue)
+    setPage(0)  // Reset to first page when changing tabs
+    
+    // For different tabs, use different pagination modes
+    if (newValue === 0) {
+      // All Products - already fetched with server pagination
+      fetchProducts()
+    } else if (newValue === 1) {
+      // Low Stock - client-side data
+      fetchLowStockProducts()
+    } else if (newValue === 2) {
+      // Expiring Soon - client-side data
+      fetchExpiringProducts()
+    } else if (newValue === 3) {
+      // Out of Stock - filter from products
+      const outOfStock = products.filter(p => p.quantity === 0)
+      setOutOfStockProducts(outOfStock)
     }
   }
 
@@ -291,7 +324,7 @@ function Products() {
       sortable: false,
       renderCell: (params) => (
         <Avatar
-          src={params.value}
+          src={params.value ? `http://localhost:8080${params.value}` : null}
           variant="rounded"
           sx={{ width: 36, height: 36 }}
         >
@@ -302,7 +335,7 @@ function Products() {
     {
       field: 'id',
       headerName: 'ID',
-      width: 55,
+      width: 60,
       renderCell: (params) => (
         <Typography variant="body2" fontWeight={500}>
           #{params.value}
@@ -312,26 +345,27 @@ function Products() {
     {
       field: 'code',
       headerName: 'Code',
-      width: 85,
+      width: 100,
       renderCell: (params) => (
         <Chip 
           label={params.value || 'N/A'} 
           size="small" 
           variant="outlined"
-          sx={{ fontSize: '0.7rem' }}
+          sx={{ fontSize: '0.75rem' }}
         />
       )
     },
     {
       field: 'name',
       headerName: 'Product Name',
-      width: 180,
+      flex: 1,
+      minWidth: 200,
       renderCell: (params) => (
         <Box>
-          <Typography variant="body2" fontWeight={500} noWrap>
+          <Typography variant="body2" fontWeight={500}>
             {params.value}
           </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
+          <Typography variant="caption" color="text.secondary">
             {params.row.barcode}
           </Typography>
         </Box>
@@ -340,16 +374,16 @@ function Products() {
     {
       field: 'categoryName',
       headerName: 'Category',
-      width: 110,
+      width: 120,
       renderCell: (params) => (
         <Chip 
           label={params.value} 
           size="small"
           sx={{ 
-            borderRadius: '6px',
+            borderRadius: '8px',
             bgcolor: alpha(theme.palette.primary.main, 0.1),
             color: theme.palette.primary.main,
-            fontSize: '0.7rem'
+            fontSize: '0.75rem'
           }}
         />
       )
@@ -357,13 +391,13 @@ function Products() {
     {
       field: 'quantity',
       headerName: 'Stock',
-      width: 80,
+      width: 100,
       renderCell: (params) => (
         <Box>
           <Typography variant="body2" fontWeight={500}>
             {params.value}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+          <Typography variant="caption" color="text.secondary">
             {params.row.unit}
           </Typography>
         </Box>
@@ -372,21 +406,21 @@ function Products() {
     {
       field: 'stockStatus',
       headerName: 'Status',
-      width: 100,
+      width: 120,
       renderCell: (params) => (
         <Chip
           icon={getStockStatusIcon(params.value)}
           label={params.value?.replace('_', ' ')}
           size="small"
           color={getStockStatusColor(params.value)}
-          sx={{ borderRadius: '6px', fontSize: '0.65rem' }}
+          sx={{ borderRadius: '8px', fontSize: '0.75rem' }}
         />
       )
     },
     {
       field: 'unitPrice',
       headerName: 'Price',
-      width: 75,
+      width: 90,
       renderCell: (params) => (
         <Typography variant="body2" fontWeight={500}>
           ${params.value?.toFixed(2)}
@@ -396,10 +430,10 @@ function Products() {
     {
       field: 'expiryDate',
       headerName: 'Expiry',
-      width: 95,
+      width: 110,
       renderCell: (params) => params.value ? (
         <Box>
-          <Typography variant="caption" color={params.row.isExpiringSoon ? 'error' : 'text.secondary'} sx={{ fontSize: '0.7rem' }}>
+          <Typography variant="caption" color={params.row.isExpiringSoon ? 'error' : 'text.secondary'}>
             {new Date(params.value).toLocaleDateString()}
           </Typography>
           {params.row.isExpiringSoon && (
@@ -407,7 +441,7 @@ function Products() {
               label="Soon" 
               size="small" 
               color="error"
-              sx={{ ml: 0.5, height: 14, fontSize: '0.6rem' }}
+              sx={{ ml: 0.5, height: 18, fontSize: '0.7rem' }}
             />
           )}
         </Box>
@@ -416,7 +450,7 @@ function Products() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 140,
+      width: 160,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={0.5}>
@@ -428,12 +462,11 @@ function Products() {
                 setBatchDialogOpen(true)
               }}
               sx={{ 
-                p: 0.5,
                 color: theme.palette.primary.main,
                 '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
               }}
             >
-              <Layers sx={{ fontSize: 16 }} />
+              <Layers sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Stock">
@@ -441,12 +474,11 @@ function Products() {
               size="small"
               onClick={() => handleStockAdjustment(params.row)}
               sx={{ 
-                p: 0.5,
                 color: theme.palette.info.main,
                 '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.1) }
               }}
             >
-              <Inventory sx={{ fontSize: 16 }} />
+              <Inventory sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Edit">
@@ -454,12 +486,11 @@ function Products() {
               size="small"
               onClick={() => handleOpenDialog(params.row)}
               sx={{ 
-                p: 0.5,
                 color: theme.palette.success.main,
                 '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) }
               }}
             >
-              <Edit sx={{ fontSize: 16 }} />
+              <Edit sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
           {isManager && (
@@ -468,12 +499,11 @@ function Products() {
                 size="small"
                 onClick={() => handleDelete(params.row.id)}
                 sx={{ 
-                  p: 0.5,
                   color: theme.palette.error.main,
                   '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
                 }}
               >
-                <Delete sx={{ fontSize: 16 }} />
+                <Delete sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
           )}
@@ -810,7 +840,7 @@ function Products() {
           <Divider />
           <Tabs 
             value={tabValue} 
-            onChange={(e, v) => setTabValue(v)}
+            onChange={handleTabChange}
             sx={{
               px: 2,
               '& .MuiTab-root': {
@@ -869,26 +899,55 @@ function Products() {
           <Paper 
             elevation={0}
             sx={{ 
-              height: 600,
+              height: '70vh',
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: '12px',
               overflow: 'hidden'
             }}
           >
             <DataGrid
-              rows={tabValue === 0 ? products : tabValue === 1 ? lowStockProducts : tabValue === 2 ? expiringProducts : outOfStockProducts}
+              rows={(() => {
+                switch(tabValue) {
+                  case 0: return products  // All Products
+                  case 1: return lowStockProducts  // Low Stock
+                  case 2: return expiringProducts  // Expiring Soon
+                  case 3: return outOfStockProducts  // Out of Stock
+                  default: return products
+                }
+              })()}
               columns={columns}
               pageSize={pageSize}
-              rowsPerPageOptions={[10, 25, 50]}
+              rowsPerPageOptions={[10, 25, 50, 100]}  // Add 100 as an option
               loading={loading}
               pagination
-              paginationMode="server"
-              rowCount={tabValue === 0 ? totalElements : tabValue === 1 ? lowStockProducts.length : tabValue === 2 ? expiringProducts.length : outOfStockProducts.length}
+              paginationMode={tabValue === 0 ? "server" : "client"}  // Server for All Products, client for others
+              rowCount={(() => {
+                switch(tabValue) {
+                  case 0: return totalElements  // Server-side total
+                  case 1: return lowStockProducts.length
+                  case 2: return expiringProducts.length
+                  case 3: return outOfStockProducts.length
+                  default: return 0
+                }
+              })()}
               page={page}
-              onPageChange={(newPage) => setPage(newPage)}
-              onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
+              onPageChange={(newPage) => {
+                setPage(newPage)
+              }}
+              onPageSizeChange={(newPageSize) => {
+                setPageSize(newPageSize)
+                setPage(0)  // Reset to first page
+              }}
               disableSelectionOnClick
+              getRowId={(row) => row.id}  // Ensure unique row IDs
+              autoHeight={false}
               sx={{
+                height: '70vh',  // Set a specific height
+                minHeight: 500,
+                maxHeight: 800,
+                '& .MuiDataGrid-virtualScroller': {
+                  minHeight: 400
+                },
                 border: 'none',
                 '& .MuiDataGrid-columnHeaders': {
                   bgcolor: theme.palette.grey[50],
@@ -928,7 +987,27 @@ function Products() {
             open={openImportExport}
             onClose={() => setOpenImportExport(false)}
             currentFilter={tabValue === 0 ? 'all' : tabValue === 1 ? 'low-stock' : tabValue === 2 ? 'expiring' : 'out-of-stock'}
-            onImportSuccess={fetchProducts}
+            onImportSuccess={() => {
+              // Close the dialog first
+              setOpenImportExport(false)
+              
+              // Reset to first page and fetch
+              setPage(0)
+              setTabValue(0)  // Switch to "All Products" tab
+              
+              // Fetch products after a short delay to ensure backend processing is complete
+              setTimeout(() => {
+                fetchProducts()
+                fetchLowStockProducts()
+                fetchExpiringProducts()
+                
+                setSnackbar({
+                  open: true,
+                  message: 'Products imported successfully',
+                  severity: 'success'
+                })
+              }, 500)
+            }}
           />
         )}
 

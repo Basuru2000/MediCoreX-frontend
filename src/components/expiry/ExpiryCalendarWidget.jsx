@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Paper,
@@ -13,8 +13,11 @@ import {
   Divider,
   Menu,
   MenuItem,
-  Tooltip
-} from '@mui/material';
+  Tooltip,
+  Stack,
+  useTheme,
+  alpha
+} from '@mui/material'
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,14 +28,18 @@ import {
   Warning,
   Error as ErrorIcon,
   Info,
-  CheckCircle
-} from '@mui/icons-material';
+  CheckCircle,
+  Inventory,
+  Block
+} from '@mui/icons-material'
 import {
   format,
   startOfWeek,
   endOfWeek,
   addWeeks,
   subWeeks,
+  addDays,
+  subDays,
   startOfMonth,
   endOfMonth,
   addMonths,
@@ -42,13 +49,12 @@ import {
   isToday,
   isSameDay,
   parseISO
-} from 'date-fns';
-import { useNavigate } from 'react-router-dom';
-import { getExpiryCalendar, getExpiryCalendarRange } from '../../services/api';
-import ExpiryCalendarDay from './ExpiryCalendarDay';
-import ExpiryCalendarLegend from './ExpiryCalendarLegend';
-import ExpiryCalendarEvent from './ExpiryCalendarEvent';
-import './ExpiryCalendarStyles.css';
+} from 'date-fns'
+import { useNavigate } from 'react-router-dom'
+import { getExpiryCalendar, getExpiryCalendarRange } from '../../services/api'
+import ExpiryCalendarDay from './ExpiryCalendarDay'
+import ExpiryCalendarLegend from './ExpiryCalendarLegend'
+import ExpiryCalendarEvent from './ExpiryCalendarEvent'
 
 const ExpiryCalendarWidget = ({
   viewMode = 'month',
@@ -59,232 +65,380 @@ const ExpiryCalendarWidget = ({
   selectedCategory,
   selectedSeverity: initialSeverity
 }) => {
-  const navigate = useNavigate();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarData, setCalendarData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedSeverity, setSelectedSeverity] = useState(initialSeverity || 'all');
-  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [calendarData, setCalendarData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [selectedSeverity, setSelectedSeverity] = useState(initialSeverity || 'all')
+  const [filterAnchorEl, setFilterAnchorEl] = useState(null)
+  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [eventDialogOpen, setEventDialogOpen] = useState(false)
 
   useEffect(() => {
-    fetchCalendarData();
-  }, [currentDate, viewMode, selectedCategory]);
+    fetchCalendarData()
+  }, [currentDate, viewMode, selectedCategory])
 
   const fetchCalendarData = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
       
       if (viewMode === 'week' || dashboardView) {
-        // For week view, fetch data for the current week
-        const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday
-        const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 }); // Saturday
+        const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
+        const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
         
         const response = await getExpiryCalendarRange(
           format(weekStart, 'yyyy-MM-dd'),
           format(weekEnd, 'yyyy-MM-dd')
-        );
-        setCalendarData(response.data);
+        )
+        setCalendarData(response.data)
       } else {
-        // For month view, fetch monthly data
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        const response = await getExpiryCalendar(year, month);
-        setCalendarData(response.data);
+        const year = currentDate.getFullYear()
+        const month = currentDate.getMonth() + 1
+        const response = await getExpiryCalendar(year, month)
+        setCalendarData(response.data)
       }
     } catch (err) {
-      console.error('Error fetching calendar data:', err);
-      setError('Failed to load calendar data');
+      console.error('Error fetching calendar data:', err)
+      setError('Failed to load calendar data')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handlePrevious = () => {
-    if (viewMode === 'week' || dashboardView) {
-      setCurrentDate(subWeeks(currentDate, 1));
+    if (viewMode === 'day') {
+      setCurrentDate(subDays(currentDate, 1))
+    } else if (viewMode === 'week' || dashboardView) {
+      setCurrentDate(subWeeks(currentDate, 1))
     } else {
-      setCurrentDate(subMonths(currentDate, 1));
+      setCurrentDate(subMonths(currentDate, 1))
     }
-  };
+  }
 
   const handleNext = () => {
-    if (viewMode === 'week' || dashboardView) {
-      setCurrentDate(addWeeks(currentDate, 1));
+    if (viewMode === 'day') {
+      setCurrentDate(addDays(currentDate, 1))
+    } else if (viewMode === 'week' || dashboardView) {
+      setCurrentDate(addWeeks(currentDate, 1))
     } else {
-      setCurrentDate(addMonths(currentDate, 1));
+      setCurrentDate(addMonths(currentDate, 1))
     }
-  };
+  }
 
   const handleToday = () => {
-    setCurrentDate(new Date());
-  };
+    setCurrentDate(new Date())
+  }
 
   const handleFullCalendarView = () => {
-    navigate('/expiry-calendar');
-  };
+    navigate('/expiry-calendar')
+  }
 
   const handleRefresh = () => {
-    fetchCalendarData();
-  };
+    fetchCalendarData()
+  }
 
   const handleFilterClick = (event) => {
-    setFilterAnchorEl(event.currentTarget);
-  };
+    setFilterAnchorEl(event.currentTarget)
+  }
 
   const handleFilterClose = () => {
-    setFilterAnchorEl(null);
-  };
+    setFilterAnchorEl(null)
+  }
 
   const handleSeverityFilter = (severity) => {
-    setSelectedSeverity(severity);
-    handleFilterClose();
-  };
+    setSelectedSeverity(severity)
+    handleFilterClose()
+  }
 
   const handleEventClick = (event, date) => {
-    setSelectedEvent({ ...event, date });
-    setEventDialogOpen(true);
+    setSelectedEvent({ ...event, date })
+    setEventDialogOpen(true)
     if (onEventClick) {
-      onEventClick(event, date);
+      onEventClick(event, date)
     }
-  };
+  }
 
   const handleEventAction = (action) => {
     if (action === 'view') {
-      navigate(`/products/${selectedEvent.productId}`);
+      navigate(`/products/${selectedEvent.productId}`)
     } else if (action === 'quarantine') {
-      navigate('/quarantine');
+      navigate('/quarantine')
     }
-    setEventDialogOpen(false);
-  };
+    setEventDialogOpen(false)
+  }
 
   const getEventsForDate = (date) => {
-    if (!calendarData?.events) return [];
+    if (!calendarData?.events) return []
     
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const events = calendarData.events[dateStr] || [];
+    const dateStr = format(date, 'yyyy-MM-dd')
+    const events = calendarData.events[dateStr] || []
     
     if (selectedSeverity === 'all') {
-      return events;
+      return events
     }
     
     return events.filter(event => 
       event.severity?.toLowerCase() === selectedSeverity.toLowerCase()
-    );
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity?.toUpperCase()) {
-      case 'CRITICAL': return 'error';
-      case 'HIGH': return 'warning';
-      case 'MEDIUM': return 'info';
-      case 'LOW': return 'success';
-      default: return 'default';
-    }
-  };
-
-  const getSeverityIcon = (severity) => {
-    switch (severity?.toUpperCase()) {
-      case 'CRITICAL': return <ErrorIcon fontSize="small" />;
-      case 'HIGH': return <Warning fontSize="small" />;
-      case 'MEDIUM': return <Info fontSize="small" />;
-      case 'LOW': return <CheckCircle fontSize="small" />;
-      default: return null;
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" p={3}>
-        <CircularProgress />
-      </Box>
-    );
+    )
   }
 
-  if (error) {
-    return (
-      <Alert severity="error" sx={{ m: 2 }}>
-        {error}
-      </Alert>
-    );
+  const getSeverityColor = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical': return theme.palette.error.main
+      case 'high': return theme.palette.warning.main
+      case 'medium': return theme.palette.info.main
+      case 'low': return theme.palette.success.main
+      default: return theme.palette.grey[500]
+    }
   }
 
   const renderCalendarHeader = () => {
-    const isWeekView = viewMode === 'week' || dashboardView;
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
-    
     return (
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <IconButton size="small" onClick={handlePrevious}>
-            <ChevronLeft />
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 3
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton 
+            onClick={handlePrevious}
+            size="small"
+            sx={{
+              border: `1px solid ${theme.palette.divider}`,
+              '&:hover': { 
+                bgcolor: theme.palette.action.hover,
+                borderColor: theme.palette.primary.main
+              }
+            }}
+          >
+            <ChevronLeft fontSize="small" />
           </IconButton>
-          
-          <Typography variant="h6" sx={{ minWidth: 200, textAlign: 'center' }}>
-            {isWeekView 
-              ? `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`
-              : format(currentDate, 'MMMM yyyy')
-            }
-          </Typography>
-          
-          <IconButton size="small" onClick={handleNext}>
-            <ChevronRight />
+          <IconButton 
+            onClick={handleNext}
+            size="small"
+            sx={{
+              border: `1px solid ${theme.palette.divider}`,
+              '&:hover': { 
+                bgcolor: theme.palette.action.hover,
+                borderColor: theme.palette.primary.main
+              }
+            }}
+          >
+            <ChevronRight fontSize="small" />
           </IconButton>
-          
-          <Button 
-            size="small" 
-            startIcon={<Today />} 
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Today fontSize="small" />}
             onClick={handleToday}
-            sx={{ ml: 1 }}
+            sx={{
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              borderColor: theme.palette.divider,
+              ml: 1,
+              '&:hover': {
+                borderColor: theme.palette.primary.main,
+                bgcolor: alpha(theme.palette.primary.main, 0.05)
+              }
+            }}
           >
             Today
           </Button>
-        </Box>
-        
-        <Box display="flex" gap={1}>
-          <IconButton 
-            size="small" 
-            onClick={handleFilterClick}
-          >
-            <Badge 
-              badgeContent={selectedSeverity !== 'all' ? '1' : 0} 
-              color="primary"
-            >
-              <FilterList />
-            </Badge>
-          </IconButton>
-          
-          <IconButton size="small" onClick={handleRefresh}>
-            <Refresh />
-          </IconButton>
-        </Box>
-      </Box>
-    );
-  };
+        </Stack>
 
-  const renderWeekView = () => {
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
-    const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            fontWeight: 600,
+            flex: 1,
+            textAlign: 'center'
+          }}
+        >
+          {viewMode === 'day' 
+            ? format(currentDate, 'EEEE, MMMM d, yyyy')
+            : viewMode === 'week' 
+            ? `Week of ${format(startOfWeek(currentDate), 'MMM d, yyyy')}`
+            : format(currentDate, 'MMMM yyyy')
+          }
+        </Typography>
+
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="Filter" arrow>
+            <IconButton 
+              size="small" 
+              onClick={handleFilterClick}
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                '&:hover': { 
+                  bgcolor: theme.palette.action.hover,
+                  borderColor: theme.palette.primary.main
+                }
+              }}
+            >
+              <Badge 
+                badgeContent={selectedSeverity !== 'all' ? '1' : 0} 
+                color="primary"
+              >
+                <FilterList fontSize="small" />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="Refresh" arrow>
+            <IconButton 
+              size="small" 
+              onClick={handleRefresh}
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                '&:hover': { 
+                  bgcolor: theme.palette.action.hover,
+                  borderColor: theme.palette.primary.main
+                }
+              }}
+            >
+              <Refresh fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Box>
+    )
+  }
+
+  const renderDayView = () => {
+    const events = getEventsForDate(currentDate)
     
     return (
       <Box>
-        {/* Day headers */}
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            fontWeight: 600,
+            mb: 3,
+            textAlign: 'center'
+          }}
+        >
+          {format(currentDate, 'EEEE, MMMM d, yyyy')}
+        </Typography>
+        
+        {events.length === 0 ? (
+          <Paper 
+            sx={{ 
+              p: 4, 
+              textAlign: 'center',
+              bgcolor: 'background.default',
+              border: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Typography variant="body1" color="text.secondary">
+              No expiry events scheduled for this day
+            </Typography>
+          </Paper>
+        ) : (
+          <Stack spacing={2}>
+            {events.map((event, index) => (
+              <Paper
+                key={index}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderLeft: `4px solid ${getSeverityColor(event.severity)}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.02),
+                    borderColor: theme.palette.primary.main
+                  }
+                }}
+                onClick={() => handleEventClick(event, currentDate)}
+              >
+                <Box display="flex" alignItems="flex-start" gap={2}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '8px',
+                      bgcolor: alpha(getSeverityColor(event.severity), 0.1),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {event.type === 'BATCH_EXPIRY' ? <Inventory /> :
+                     event.type === 'ALERT' ? <Warning /> :
+                     event.type === 'QUARANTINE' ? <Block /> :
+                     <Info />}
+                  </Box>
+                  <Box flex={1}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {event.title || 'Expiry Event'}
+                    </Typography>
+                    {event.description && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {event.description}
+                      </Typography>
+                    )}
+                    <Box display="flex" gap={2} mt={1}>
+                      <Chip
+                        label={event.severity || 'Normal'}
+                        size="small"
+                        sx={{
+                          bgcolor: alpha(getSeverityColor(event.severity), 0.1),
+                          color: getSeverityColor(event.severity),
+                          fontWeight: 600
+                        }}
+                      />
+                      {event.itemCount && (
+                        <Typography variant="caption" color="text.secondary">
+                          {event.itemCount} items affected
+                        </Typography>
+                      )}
+                      {event.totalQuantity && (
+                        <Typography variant="caption" color="text.secondary">
+                          {event.totalQuantity} units
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Box>
+    )
+  }
+
+  const renderWeekView = () => {
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
+    const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
+    
+    return (
+      <Box>
         <Grid container spacing={1} mb={2}>
           {weekDays.map((day, index) => (
             <Grid item xs key={index} sx={{ textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary" display="block">
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                display="block"
+                sx={{ fontWeight: 600, mb: 0.5, fontSize: '0.875rem' }}
+              >
                 {format(day, 'EEE')}
               </Typography>
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  fontWeight: isToday(day) ? 'bold' : 'normal',
-                  color: isToday(day) ? 'primary.main' : 'text.primary'
+                  fontWeight: isToday(day) ? 700 : 500,
+                  color: isToday(day) ? theme.palette.primary.main : 'text.primary',
+                  fontSize: '1.1rem'
                 }}
               >
                 {format(day, 'd')}
@@ -293,134 +447,94 @@ const ExpiryCalendarWidget = ({
           ))}
         </Grid>
         
-        {/* Events for each day */}
         <Grid container spacing={1}>
           {weekDays.map((day, index) => {
-            const events = getEventsForDate(day);
-            const hasEvents = events.length > 0;
+            const events = getEventsForDate(day)
+            const hasEvents = events.length > 0
             
             return (
               <Grid item xs key={index}>
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1, 
+                    p: 1.5, 
                     minHeight: 120,
                     cursor: hasEvents ? 'pointer' : 'default',
-                    backgroundColor: isToday(day) ? 'action.hover' : 'background.paper',
-                    '&:hover': hasEvents ? { backgroundColor: 'action.hover' } : {}
+                    backgroundColor: isToday(day) ? alpha(theme.palette.primary.main, 0.02) : 'background.paper',
+                    borderColor: isToday(day) ? theme.palette.primary.main : theme.palette.divider,
+                    transition: 'all 0.2s ease',
+                    '&:hover': hasEvents ? { 
+                      backgroundColor: theme.palette.action.hover,
+                      borderColor: theme.palette.primary.main
+                    } : {}
                   }}
                   onClick={() => hasEvents && handleEventClick(events[0], day)}
                 >
                   {events.length === 0 ? (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.disabled" align="center" display="block">
                       No events
                     </Typography>
                   ) : (
-                    <Box>
-                      {/* Show severity summary */}
-                      {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(severity => {
-                        const severityEvents = events.filter(e => 
-                          e.severity?.toUpperCase() === severity
-                        );
-                        if (severityEvents.length === 0) return null;
-                        
-                        return (
-                          <Chip
-                            key={severity}
-                            size="small"
-                            icon={getSeverityIcon(severity)}
-                            label={severityEvents.length}
-                            color={getSeverityColor(severity)}
-                            sx={{ mb: 0.5, mr: 0.5 }}
-                          />
-                        );
-                      })}
-                      
-                      {/* Show total count if multiple items */}
-                      {events.length > 1 && (
-                        <Typography variant="caption" display="block" mt={1}>
-                          {events.length} total items
+                    <Stack spacing={0.5}>
+                      {events.slice(0, 3).map((event, idx) => (
+                        <Chip
+                          key={idx}
+                          label={event.itemCount || 1}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            bgcolor: alpha(getSeverityColor(event.severity), 0.1),
+                            color: getSeverityColor(event.severity),
+                            border: `1px solid ${alpha(getSeverityColor(event.severity), 0.3)}`
+                          }}
+                        />
+                      ))}
+                      {events.length > 3 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          +{events.length - 3} more
                         </Typography>
                       )}
-                    </Box>
+                    </Stack>
                   )}
                 </Paper>
               </Grid>
-            );
+            )
           })}
         </Grid>
-        
-        {/* Week summary */}
-        {calendarData?.summary && !compact && (
-          <Box mt={2} p={2} bgcolor="background.default" borderRadius={1}>
-            <Grid container spacing={2}>
-              <Grid item xs={6} sm={3}>
-                <Typography variant="caption" color="text.secondary">
-                  This Week Total
-                </Typography>
-                <Typography variant="h6">
-                  {calendarData.summary.thisWeekCount || 0}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <Typography variant="caption" color="text.secondary">
-                  Critical Items
-                </Typography>
-                <Typography variant="h6" color="error">
-                  {calendarData.summary.criticalCount || 0}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <Typography variant="caption" color="text.secondary">
-                  Value at Risk
-                </Typography>
-                <Typography variant="h6">
-                  ${(calendarData.summary.weekValueAtRisk || 0).toLocaleString()}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <Typography variant="caption" color="text.secondary">
-                  Next Week
-                </Typography>
-                <Typography variant="h6">
-                  {calendarData.summary.nextWeekCount || 0} items
-                </Typography>
-              </Grid>
-            </Grid>
-          </Box>
-        )}
       </Box>
-    );
-  };
+    )
+  }
 
   const renderMonthView = () => {
-    // Existing month view logic remains the same
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
-    const weeks = [];
+    const monthStart = startOfMonth(currentDate)
+    const monthEnd = endOfMonth(currentDate)
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 })
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 })
+    const days = eachDayOfInterval({ start: startDate, end: endDate })
+    const weeks = []
     
     for (let i = 0; i < days.length; i += 7) {
-      weeks.push(days.slice(i, i + 7));
+      weeks.push(days.slice(i, i + 7))
     }
     
     return (
       <Box>
-        {/* Day headers */}
         <Grid container spacing={0.5} mb={1}>
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
             <Grid item xs key={day} sx={{ textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+                sx={{ fontWeight: 600, fontSize: '0.875rem' }}
+              >
                 {day}
               </Typography>
             </Grid>
           ))}
         </Grid>
         
-        {/* Calendar weeks */}
         {weeks.map((week, weekIndex) => (
           <Grid container spacing={0.5} key={weekIndex} mb={0.5}>
             {week.map(day => (
@@ -438,25 +552,79 @@ const ExpiryCalendarWidget = ({
           </Grid>
         ))}
       </Box>
-    );
-  };
+    )
+  }
+
+  if (loading) {
+    return (
+      <Paper 
+        sx={{ 
+          p: 4,
+          borderRadius: '8px',
+          boxShadow: 'none',
+          border: `1px solid ${theme.palette.divider}`,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400
+        }}
+      >
+        <CircularProgress />
+      </Paper>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert 
+        severity="error" 
+        sx={{ borderRadius: '8px' }}
+      >
+        {error}
+      </Alert>
+    )
+  }
 
   return (
-    <Paper className="expiry-calendar-widget" sx={{ p: compact ? 2 : 3 }}>
-      {!dashboardView && (
+    <Paper 
+      sx={{ 
+        p: 3,
+        borderRadius: '8px',
+        boxShadow: 'none',
+        border: `1px solid ${theme.palette.divider}`
+      }}
+    >
+      {!dashboardView && !compact && (
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant={compact ? "h6" : "h5"}>
-            {viewMode === 'week' ? 'Expiry Calendar - Week View' : 'Expiry Calendar'}
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            {viewMode === 'day' ? 'Day View' : viewMode === 'week' ? 'Week View' : 'Month View'}
           </Typography>
-          {!compact && (
-            <Button
-              variant="outlined"
-              startIcon={<CalendarMonth />}
-              onClick={handleFullCalendarView}
-            >
-              Full View
-            </Button>
-          )}
+        </Box>
+      )}
+      
+      {dashboardView && (
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Week View
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<CalendarMonth fontSize="small" />}
+            onClick={handleFullCalendarView}
+            sx={{
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              borderColor: theme.palette.divider,
+              '&:hover': {
+                borderColor: theme.palette.primary.main,
+                bgcolor: alpha(theme.palette.primary.main, 0.05)
+              }
+            }}
+          >
+            Full View
+          </Button>
         </Box>
       )}
       
@@ -464,10 +632,11 @@ const ExpiryCalendarWidget = ({
       
       {!compact && <Divider sx={{ my: 2 }} />}
       
-      {/* Render based on view mode */}
-      {(viewMode === 'week' || dashboardView) ? renderWeekView() : renderMonthView()}
+      {viewMode === 'day' ? renderDayView() :
+       viewMode === 'week' || dashboardView ? renderWeekView() : 
+       renderMonthView()}
       
-      {!compact && !dashboardView && <ExpiryCalendarLegend />}
+      {!compact && !dashboardView && viewMode !== 'day' && <ExpiryCalendarLegend />}
       
       {/* Filter Menu */}
       <Menu
@@ -500,15 +669,15 @@ const ExpiryCalendarWidget = ({
       <ExpiryCalendarEvent
         open={eventDialogOpen}
         onClose={() => {
-          setEventDialogOpen(false);
-          setSelectedEvent(null);
+          setEventDialogOpen(false)
+          setSelectedEvent(null)
         }}
         event={selectedEvent}
         date={selectedEvent?.date}
         onActionClick={handleEventAction}
       />
     </Paper>
-  );
-};
+  )
+}
 
-export default ExpiryCalendarWidget;
+export default ExpiryCalendarWidget

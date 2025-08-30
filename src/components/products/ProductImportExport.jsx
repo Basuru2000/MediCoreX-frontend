@@ -48,6 +48,7 @@ function ProductImportExport({ open, onClose, currentFilter = 'all', onImportSuc
   const [exporting, setExporting] = useState(false)
   const [importResult, setImportResult] = useState(null)
   const [error, setError] = useState(null)
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0]
@@ -76,24 +77,48 @@ function ProductImportExport({ open, onClose, currentFilter = 'all', onImportSuc
       setError('Please select a file to import')
       return
     }
-
     setImporting(true)
     setError(null)
-
     try {
       const response = await importProducts(selectedFile)
-      setImportResult(response.data)
       
-      if (onImportSuccess) {
-        onImportSuccess()
+      if (response.data) {
+        setImportResult(response.data)
+        
+        // Check if any products were successfully imported
+        if (response.data.successCount > 0) {
+          // Important: Call the success callback if provided
+          if (typeof onImportSuccess === 'function') {
+            console.log('Import successful, calling refresh callback')
+            onImportSuccess()
+          }
+          
+          // Clear the file selection
+          setSelectedFile(null)
+          
+          // Show success message in the dialog
+          setSnackbar({
+            open: true,
+            message: `Successfully imported ${response.data.successCount} products`,
+            severity: 'success'
+          })
+        } else {
+          // No products imported, show warning
+          setSnackbar({
+            open: true,
+            message: 'No products were imported. Check the error details.',
+            severity: 'warning'
+          })
+        }
       }
-      
-      setTimeout(() => {
-        setSelectedFile(null)
-        setImportResult(null)
-      }, 3000)
-    } catch (error) {
-      setError(error.response?.data?.message || 'Import failed. Please check your file format.')
+    } catch (err) {
+      console.error('Import error:', err)
+      setError(err.response?.data?.message || 'Import failed')
+      setSnackbar({
+        open: true,
+        message: 'Import failed. Please check your file format.',
+        severity: 'error'
+      })
     } finally {
       setImporting(false)
     }

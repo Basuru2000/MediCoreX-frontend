@@ -24,6 +24,7 @@ import {
   ArrowBack,
   Image as ImageIcon
 } from '@mui/icons-material'
+import { scanBarcode } from '../../services/api'
 
 function BarcodeScanOptions({ open, onClose, onCameraSelect, onImageUpload }) {
   const [selectedFile, setSelectedFile] = useState(null)
@@ -68,14 +69,80 @@ function BarcodeScanOptions({ open, onClose, onCameraSelect, onImageUpload }) {
       setError('Please select an image file')
       return
     }
-
     setUploading(true)
+    setError('')
+    
     try {
-      await onImageUpload(selectedFile)
-      handleClose()
+      // Read file as base64
+      const reader = new FileReader()
+      
+      reader.onloadend = async () => {
+        try {
+          const base64Image = reader.result
+          
+          console.log('Sending image for barcode scanning...')
+          
+          // Send to backend for processing
+          const response = await scanBarcode({ barcodeImage: base64Image })
+          
+          if (response.data) {
+            if (response.data.barcode) {
+              // Successfully decoded barcode
+              console.log('Barcode detected:', response.data.barcode)
+              
+              // Call the onImageUpload callback with the barcode
+              if (typeof onImageUpload === 'function') {
+                await onImageUpload(response.data.barcode)
+              }
+              
+              handleClose()
+            } else if (response.data.id) {
+              // Found a product with this barcode
+              console.log('Product found with barcode:', response.data.barcode)
+              
+              if (typeof onImageUpload === 'function') {
+                await onImageUpload(response.data.barcode || response.data.code)
+              }
+              
+              handleClose()
+            } else {
+              setError('Barcode decoded but no data returned')
+            }
+          }
+        } catch (err) {
+          console.error('Barcode scan error:', err)
+          
+          // Extract error message from response
+          let errorMessage = 'Failed to process image. ';
+          
+          if (err.response?.data?.message) {
+            errorMessage = err.response.data.message;
+          } else if (err.response?.data?.error) {
+            errorMessage = err.response.data.error;
+          } else if (err.message) {
+            errorMessage = err.message;
+          }
+          
+          // Provide helpful guidance
+          if (errorMessage.includes('No barcode found')) {
+            errorMessage += '\n\nTips:\n• Ensure the barcode is clearly visible\n• Try cropping the image to focus on the barcode\n• Use good lighting when taking the photo\n• Supported formats: Code 128, Code 39, EAN-13, QR Code';
+          }
+          
+          setError(errorMessage)
+        } finally {
+          setUploading(false)
+        }
+      }
+      
+      reader.onerror = () => {
+        setError('Failed to read the image file')
+        setUploading(false)
+      }
+      
+      reader.readAsDataURL(selectedFile)
     } catch (err) {
-      setError('Failed to process image. Please ensure it contains a clear barcode.')
-    } finally {
+      console.error('File read error:', err)
+      setError('Failed to read image file')
       setUploading(false)
     }
   }
