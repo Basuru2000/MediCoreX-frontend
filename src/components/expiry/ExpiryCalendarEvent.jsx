@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -20,8 +20,11 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  Tooltip
-} from '@mui/material';
+  Tooltip,
+  Stack,
+  useTheme,
+  alpha
+} from '@mui/material'
 import {
   Close,
   Warning,
@@ -35,10 +38,11 @@ import {
   Schedule,
   NavigateNext,
   Print,
-  Share
-} from '@mui/icons-material';
-import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+  Share,
+  Circle
+} from '@mui/icons-material'
+import { format } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
 
 const ExpiryCalendarEvent = ({ 
   open, 
@@ -47,50 +51,51 @@ const ExpiryCalendarEvent = ({
   date,
   onActionClick 
 }) => {
-  const navigate = useNavigate();
-  const [expandedDetails, setExpandedDetails] = useState(false);
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const [expandedDetails, setExpandedDetails] = useState(false)
   
-  if (!event) return null;
+  if (!event) return null
   
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
-      case 'critical': return 'error';
-      case 'high': return 'warning';
-      case 'medium': return 'info';
-      case 'low': return 'success';
-      default: return 'default';
+      case 'critical': return theme.palette.error.main
+      case 'high': return theme.palette.warning.main
+      case 'medium': return theme.palette.info.main
+      case 'low': return theme.palette.success.main
+      default: return theme.palette.grey[500]
     }
-  };
+  }
   
   const getSeverityIcon = (severity) => {
     switch (severity?.toLowerCase()) {
-      case 'critical': return <Error />;
-      case 'high': return <Warning />;
-      case 'medium': return <Info />;
-      default: return <Info />;
+      case 'critical': return <Error fontSize="small" />
+      case 'high': return <Warning fontSize="small" />
+      case 'medium': return <Info fontSize="small" />
+      default: return <Info fontSize="small" />
     }
-  };
+  }
   
   const getEventTypeIcon = (type) => {
     switch (type) {
-      case 'BATCH_EXPIRY': return <Inventory />;
-      case 'PRODUCT_EXPIRY': return <LocalShipping />;
-      case 'ALERT': return <Warning />;
-      case 'QUARANTINE': return <Block />;
-      default: return <Info />;
+      case 'BATCH_EXPIRY': return <Inventory fontSize="small" />
+      case 'PRODUCT_EXPIRY': return <LocalShipping fontSize="small" />
+      case 'ALERT': return <Warning fontSize="small" />
+      case 'QUARANTINE': return <Block fontSize="small" />
+      default: return <Info fontSize="small" />
     }
-  };
+  }
   
   const handleNavigate = (url) => {
     if (url) {
-      navigate(url);
-      onClose();
+      navigate(url)
+      onClose()
     }
-  };
+  }
   
   const handlePrint = () => {
-    window.print();
-  };
+    window.print()
+  }
   
   const handleShare = () => {
     if (navigator.share) {
@@ -98,17 +103,17 @@ const ExpiryCalendarEvent = ({
         title: event.title,
         text: event.description,
         url: window.location.href
-      });
+      })
     }
-  };
+  }
   
   const renderEventHeader = () => (
     <Box display="flex" alignItems="center" gap={2}>
       <Box 
         sx={{ 
-          p: 1, 
-          borderRadius: 1, 
-          bgcolor: `${getSeverityColor(event.severity)}.light`,
+          p: 1,
+          borderRadius: '8px',
+          bgcolor: alpha(getSeverityColor(event.severity), 0.1),
           display: 'flex',
           alignItems: 'center'
         }}
@@ -116,77 +121,93 @@ const ExpiryCalendarEvent = ({
         {getEventTypeIcon(event.type)}
       </Box>
       <Box flex={1}>
-        <Typography variant="h6">
-          {event.title}
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          {event.title || 'Expiry Event'}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="caption" color="text.secondary">
           {format(new Date(date || event.date), 'EEEE, MMMM d, yyyy')}
         </Typography>
       </Box>
       <Chip
-        icon={getSeverityIcon(event.severity)}
-        label={event.severity}
-        color={getSeverityColor(event.severity)}
+        icon={<Circle sx={{ fontSize: 8 }} />}
+        label={event.severity || 'Normal'}
         size="small"
+        sx={{
+          fontWeight: 600,
+          bgcolor: alpha(getSeverityColor(event.severity), 0.1),
+          color: getSeverityColor(event.severity),
+          border: `1px solid ${alpha(getSeverityColor(event.severity), 0.3)}`
+        }}
       />
     </Box>
-  );
+  )
   
   const renderEventSummary = () => (
     <Grid container spacing={2} sx={{ mt: 2 }}>
       <Grid item xs={6} sm={3}>
-        <Typography variant="caption" color="text.secondary">
-          Type
-        </Typography>
-        <Typography variant="body2">
-          {event.type?.replace('_', ' ')}
-        </Typography>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+            TYPE
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
+            {event.type?.replace('_', ' ') || 'Unknown'}
+          </Typography>
+        </Box>
       </Grid>
       <Grid item xs={6} sm={3}>
-        <Typography variant="caption" color="text.secondary">
-          Items Affected
-        </Typography>
-        <Typography variant="body2">
-          {event.itemCount || 0}
-        </Typography>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+            ITEMS AFFECTED
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
+            {event.itemCount || 0}
+          </Typography>
+        </Box>
       </Grid>
       <Grid item xs={6} sm={3}>
-        <Typography variant="caption" color="text.secondary">
-          Total Quantity
-        </Typography>
-        <Typography variant="body2">
-          {event.totalQuantity || 0} units
-        </Typography>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+            TOTAL QUANTITY
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
+            {event.totalQuantity || 0} units
+          </Typography>
+        </Box>
       </Grid>
       <Grid item xs={6} sm={3}>
-        <Typography variant="caption" color="text.secondary">
-          Value at Risk
-        </Typography>
-        <Typography variant="body2">
-          ${event.totalValue?.toLocaleString() || '0'}
-        </Typography>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+            VALUE AT RISK
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5, color: theme.palette.warning.main }}>
+            ${event.totalValue?.toLocaleString() || '0'}
+          </Typography>
+        </Box>
       </Grid>
     </Grid>
-  );
+  )
   
   const renderEventDetails = () => {
-    if (!event.details || event.details.length === 0) return null;
+    if (!event.details || event.details.length === 0) return null
     
     return (
       <Box sx={{ mt: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="subtitle2">
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
             Affected Items ({event.details.length})
           </Typography>
-          <Button
-            size="small"
-            onClick={() => setExpandedDetails(!expandedDetails)}
-          >
-            {expandedDetails ? 'Show Less' : 'Show All'}
-          </Button>
+          {event.details.length > 3 && (
+            <Button
+              size="small"
+              onClick={() => setExpandedDetails(!expandedDetails)}
+              sx={{ textTransform: 'none', fontWeight: 500 }}
+            >
+              {expandedDetails ? 'Show Less' : 'Show All'}
+            </Button>
+          )}
         </Box>
         
-        <List dense>
+        <List dense sx={{ p: 0 }}>
           {event.details.slice(0, expandedDetails ? undefined : 3).map((detail, index) => (
             <ListItem
               key={index}
@@ -197,26 +218,30 @@ const ExpiryCalendarEvent = ({
                     size="small"
                     onClick={() => handleNavigate(detail.actionUrl)}
                   >
-                    <NavigateNext />
+                    <NavigateNext fontSize="small" />
                   </IconButton>
                 )
               }
               sx={{
                 bgcolor: 'background.default',
                 mb: 1,
-                borderRadius: 1,
+                borderRadius: '6px',
+                border: `1px solid ${theme.palette.divider}`,
                 '&:hover': {
-                  bgcolor: 'action.hover'
+                  bgcolor: alpha(theme.palette.primary.main, 0.02)
                 }
               }}
             >
-              <ListItemIcon>
-                {detail.itemType === 'BATCH' ? <Inventory /> : <Category />}
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                {detail.itemType === 'BATCH' ? 
+                  <Inventory fontSize="small" /> : 
+                  <Category fontSize="small" />
+                }
               </ListItemIcon>
               <ListItemText
                 primary={
                   <Box display="flex" justifyContent="space-between">
-                    <Typography variant="body2">
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {detail.itemName}
                     </Typography>
                     {detail.batchNumber && (
@@ -224,26 +249,27 @@ const ExpiryCalendarEvent = ({
                         label={detail.batchNumber} 
                         size="small" 
                         variant="outlined"
+                        sx={{ height: 20, fontSize: '0.7rem' }}
                       />
                     )}
                   </Box>
                 }
                 secondary={
-                  <Box display="flex" gap={2}>
-                    <Typography variant="caption">
+                  <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary">
                       Qty: {detail.quantity}
                     </Typography>
                     {detail.value && (
-                      <Typography variant="caption">
+                      <Typography variant="caption" color="text.secondary">
                         Value: ${detail.value.toLocaleString()}
                       </Typography>
                     )}
                     {detail.category && (
-                      <Typography variant="caption">
-                        Category: {detail.category}
+                      <Typography variant="caption" color="text.secondary">
+                        {detail.category}
                       </Typography>
                     )}
-                  </Box>
+                  </Stack>
                 }
               />
             </ListItem>
@@ -254,80 +280,34 @@ const ExpiryCalendarEvent = ({
           <Typography 
             variant="caption" 
             color="text.secondary" 
-            sx={{ ml: 2 }}
+            sx={{ ml: 2, fontStyle: 'italic' }}
           >
             +{event.details.length - 3} more items
           </Typography>
         )}
       </Box>
-    );
-  };
-  
-  const renderEventMetadata = () => (
-    <Table size="small" sx={{ mt: 2 }}>
-      <TableBody>
-        {event.daysUntil !== undefined && (
-          <TableRow>
-            <TableCell component="th" scope="row">
-              <Box display="flex" alignItems="center" gap={1}>
-                <Schedule fontSize="small" />
-                <Typography variant="caption">Days Until</Typography>
-              </Box>
-            </TableCell>
-            <TableCell>
-              <Chip
-                label={
-                  event.isPast 
-                    ? `${Math.abs(event.daysUntil)} days ago`
-                    : event.isToday 
-                    ? 'Today'
-                    : `${event.daysUntil} days`
-                }
-                size="small"
-                color={event.daysUntil <= 7 ? 'error' : 'default'}
-              />
-            </TableCell>
-          </TableRow>
-        )}
-        {event.description && (
-          <TableRow>
-            <TableCell component="th" scope="row">
-              <Typography variant="caption">Description</Typography>
-            </TableCell>
-            <TableCell>
-              <Typography variant="body2">
-                {event.description}
-              </Typography>
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
-  );
+    )
+  }
   
   const renderAlertMessage = () => {
-    if (event.severity === 'CRITICAL' && event.daysUntil <= 0) {
+    if (event.severity?.toLowerCase() === 'critical' && event.daysUntil <= 0) {
       return (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          <Typography variant="body2">
-            This item has already expired and requires immediate attention!
-          </Typography>
+        <Alert severity="error" sx={{ mt: 2, borderRadius: '8px' }}>
+          This item has already expired and requires immediate attention!
         </Alert>
-      );
+      )
     }
     
-    if (event.severity === 'CRITICAL' && event.daysUntil <= 7) {
+    if (event.severity?.toLowerCase() === 'critical' && event.daysUntil <= 7) {
       return (
-        <Alert severity="warning" sx={{ mt: 2 }}>
-          <Typography variant="body2">
-            Critical expiry alert! This item expires in {event.daysUntil} days.
-          </Typography>
+        <Alert severity="warning" sx={{ mt: 2, borderRadius: '8px' }}>
+          Critical expiry alert! This item expires in {event.daysUntil} days.
         </Alert>
-      );
+      )
     }
     
-    return null;
-  };
+    return null
+  }
   
   return (
     <Dialog
@@ -337,77 +317,106 @@ const ExpiryCalendarEvent = ({
       fullWidth
       PaperProps={{
         sx: {
-          borderTop: `4px solid`,
-          borderTopColor: event.color || '#1976d2'
+          borderRadius: '8px'
         }
       }}
     >
-      <DialogTitle>
+      <DialogTitle sx={{ pb: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box>{renderEventHeader()}</Box>
+          <Box flex={1}>{renderEventHeader()}</Box>
           <IconButton
             edge="end"
-            color="inherit"
             onClick={onClose}
-            aria-label="close"
+            size="small"
+            sx={{ ml: 2 }}
           >
             <Close />
           </IconButton>
         </Box>
       </DialogTitle>
       
-      <DialogContent dividers>
+      <Divider />
+      
+      <DialogContent sx={{ pt: 3 }}>
         {renderAlertMessage()}
         {renderEventSummary()}
-        <Divider sx={{ my: 2 }} />
+        
+        {event.description && (
+          <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: '6px' }}>
+            <Typography variant="body2">
+              {event.description}
+            </Typography>
+          </Box>
+        )}
+        
         {renderEventDetails()}
-        {renderEventMetadata()}
+        
+        {event.daysUntil !== undefined && (
+          <Box sx={{ mt: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Schedule fontSize="small" color="action" />
+              <Typography variant="body2" color="text.secondary">
+                Days until expiry:
+              </Typography>
+              <Chip
+                label={
+                  event.daysUntil < 0 
+                    ? `${Math.abs(event.daysUntil)} days ago`
+                    : event.daysUntil === 0 
+                    ? 'Today'
+                    : `${event.daysUntil} days`
+                }
+                size="small"
+                color={event.daysUntil <= 7 ? 'error' : 'default'}
+                sx={{ fontWeight: 600 }}
+              />
+            </Stack>
+          </Box>
+        )}
       </DialogContent>
       
-      <DialogActions>
-        <Box display="flex" justifyContent="space-between" width="100%">
-          <Box>
-            <Tooltip title="Print">
-              <IconButton onClick={handlePrint}>
-                <Print />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Share">
-              <IconButton onClick={handleShare}>
-                <Share />
-              </IconButton>
-            </Tooltip>
-          </Box>
-          <Box display="flex" gap={1}>
-            <Button onClick={onClose}>
-              Close
+      <Divider />
+      
+      <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="Print">
+            <IconButton onClick={handlePrint} size="small">
+              <Print fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Share">
+            <IconButton onClick={handleShare} size="small">
+              <Share fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+        
+        <Stack direction="row" spacing={1}>
+          <Button 
+            onClick={onClose}
+            sx={{ textTransform: 'none' }}
+          >
+            Close
+          </Button>
+          {event.actionUrl && (
+            <Button
+              variant="contained"
+              onClick={() => handleNavigate(event.actionUrl)}
+              endIcon={<NavigateNext fontSize="small" />}
+              sx={{ 
+                textTransform: 'none',
+                borderRadius: '6px',
+                boxShadow: 'none',
+                '&:hover': { boxShadow: 'none' }
+              }}
+            >
+              View Details
             </Button>
-            {event.actionUrl && (
-              <Button
-                variant="contained"
-                onClick={() => handleNavigate(event.actionUrl)}
-                endIcon={<NavigateNext />}
-              >
-                View Details
-              </Button>
-            )}
-            {onActionClick && (
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => {
-                  onActionClick(event);
-                  onClose();
-                }}
-              >
-                Take Action
-              </Button>
-            )}
-          </Box>
-        </Box>
+          )}
+        </Stack>
       </DialogActions>
     </Dialog>
-  );
-};
+  )
+}
 
-export default ExpiryCalendarEvent;
+export default ExpiryCalendarEvent

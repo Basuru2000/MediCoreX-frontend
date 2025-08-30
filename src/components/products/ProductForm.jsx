@@ -72,6 +72,11 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scanOptionsOpen, setScanOptionsOpen] = useState(false)
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  })
 
   const units = ['tablets', 'bottles', 'boxes', 'pieces', 'packets', 'vials', 'strips']
 
@@ -92,7 +97,8 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
         manufacturer: product.manufacturer || '',
         imageUrl: product.imageUrl || ''
       })
-      setImagePreview(product.imageUrl || null)
+      // Fix: Prepend backend URL for existing images
+      setImagePreview(product.imageUrl ? `http://localhost:8080${product.imageUrl}` : null)
     }
   }, [product])
 
@@ -626,11 +632,19 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
         <BarcodeScanOptions
           open={scanOptionsOpen}
           onClose={() => setScanOptionsOpen(false)}
-          onSelectOption={(option) => {
+          onCameraSelect={() => {
             setScanOptionsOpen(false)
-            if (option === 'camera') {
-              setScannerOpen(true)
-            }
+            setScannerOpen(true)
+          }}
+          onImageUpload={(barcode) => {
+            // Handle the decoded barcode
+            setFormData(prev => ({ ...prev, barcode }))
+            setScanOptionsOpen(false)
+            setSnackbar({
+              open: true,
+              message: `Barcode detected: ${barcode}`,
+              severity: 'success'
+            })
           }}
         />
       )}
