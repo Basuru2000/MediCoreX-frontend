@@ -1,53 +1,95 @@
-import { useState } from 'react'
-import { Outlet, Link, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import NotificationBell from './notifications/NotificationBell'
-import WebSocketStatus from './notifications/WebSocketStatus'
 import {
-  AppBar,
   Box,
-  CssBaseline,
   Drawer,
-  IconButton,
+  AppBar,
+  CssBaseline,
+  Toolbar,
   List,
+  Typography,
+  Divider,
+  IconButton,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Toolbar,
-  Typography,
   Button,
   Menu,
   MenuItem,
-  Divider,
-  Avatar
+  Avatar,
+  Collapse,
+  Stack,
+  Chip,
+  Tooltip,
+  alpha,
+  useTheme
 } from '@mui/material'
 import {
   Menu as MenuIcon,
   Dashboard,
   People,
   Inventory,
+  Category,
+  QrCodeScanner,
   ShoppingCart,
   Assessment,
-  AccountCircle,
-  Logout,
-  Category,
-  Schedule,
-  Layers,
   Warning,
+  MonitorHeart,
+  CalendarMonth,
+  Block,
   Notifications,
-  Settings as SettingsIcon,
-  NotificationsActive as NotificationPrefIcon,
-  CalendarMonth
+  Settings,
+  Logout,
+  AccountCircle,
+  ExpandLess,
+  ExpandMore,
+  NotificationsActive,
+  SettingsApplications,
+  BarChart,
+  TrendingUp,
+  LocalPharmacy,
+  WarningAmber,
+  EventNote,
+  Person
 } from '@mui/icons-material'
+import NotificationBell from './notifications/NotificationBell'
+import WebSocketStatus from './notifications/WebSocketStatus'
 
-const drawerWidth = 240
+const drawerWidth = 280
 
 function Layout() {
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { user, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState(null)
-  const { user, logout, isManager, isStaff, isProcurement } = useAuth()
-  const navigate = useNavigate()
+  
+  // Expandable menu states
+  const [expiryOpen, setExpiryOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [reportsOpen, setReportsOpen] = useState(false)
+  
+  // Determine user role for menu filtering
+  const isManager = user?.role === 'HOSPITAL_MANAGER'
+  const isStaff = user?.role === 'PHARMACY_STAFF'
+  const isProcurement = user?.role === 'PROCUREMENT_OFFICER'
+
+  // Auto-expand sections based on current path
+  useEffect(() => {
+    const path = location.pathname
+    if (path.includes('/expiry-config') || path.includes('/expiry-monitoring')) {
+      setExpiryOpen(true)
+    }
+    if (path.includes('/notification')) {
+      setNotificationsOpen(true)
+    }
+    if (path.includes('/reports/')) {
+      setReportsOpen(true)
+    }
+  }, [location.pathname])
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -64,63 +106,439 @@ function Layout() {
   const handleLogout = () => {
     handleClose()
     logout()
+    navigate('/login')
   }
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
-    { text: 'Users', icon: <People />, path: '/users', roles: ['HOSPITAL_MANAGER'] },
-    { text: 'Products', icon: <Inventory />, path: '/products', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
-    { text: 'Categories', icon: <Category />, path: '/categories', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
-    { text: 'Batch Tracking', icon: <Layers />, path: '/batch-tracking', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
-    { text: 'Procurement', icon: <ShoppingCart />, path: '/procurement', roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'] },
-    { text: 'Stock Valuation', icon: <Assessment />, path: '/reports/stock-valuation', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
-    { text: 'Expiry Alerts', icon: <Schedule />, path: '/expiry-config', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
-    { text: 'Expiry Monitoring', icon: <Schedule />, path: '/expiry-monitoring', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
-    { 
-      text: 'Expiry Calendar', 
-      icon: <CalendarMonth />, 
-      path: '/expiry-calendar', 
-      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] 
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (user?.fullName) {
+      return user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()
+    }
+    return user?.username ? user.username[0].toUpperCase() : 'U'
+  }
+
+  // Get avatar background color based on role
+  const getAvatarColor = () => {
+    switch(user?.role) {
+      case 'HOSPITAL_MANAGER': return theme.palette.primary.main
+      case 'PHARMACY_STAFF': return theme.palette.success.main
+      case 'PROCUREMENT_OFFICER': return theme.palette.info.main
+      default: return theme.palette.grey[600]
+    }
+  }
+
+  // Navigation items with improved structure
+  const navigationItems = [
+    {
+      text: 'Dashboard',
+      icon: <Dashboard />,
+      path: '/',
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER']
     },
-    { text: 'Quarantine', icon: <Warning />, path: '/quarantine', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'] },
-    { text: 'Notifications', icon: <Notifications />, path: '/notifications', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
-    { text: 'Notification Settings', icon: <NotificationPrefIcon />, path: '/notification-preferences', roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'] },
+    {
+      text: 'Users',
+      icon: <People />,
+      path: '/users',
+      roles: ['HOSPITAL_MANAGER']
+    },
+    {
+      text: 'Products',
+      icon: <Inventory />,
+      path: '/products',
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+    },
+    {
+      text: 'Categories',
+      icon: <Category />,
+      path: '/categories',
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+    },
+    {
+      text: 'Batch Tracking',
+      icon: <QrCodeScanner />,
+      path: '/batch-tracking',
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+    }
   ]
 
+  // Grouped navigation sections
+  const groupedSections = [
+    {
+      title: 'Expiry Management',
+      icon: <Warning />,
+      open: expiryOpen,
+      toggle: () => setExpiryOpen(!expiryOpen),
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'],
+      items: [
+        {
+          text: 'Expiry Alerts',
+          icon: <WarningAmber />,
+          path: '/expiry-config',
+          roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+        },
+        {
+          text: 'Expiry Monitoring',
+          icon: <MonitorHeart />,
+          path: '/expiry-monitoring',
+          roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER']
+        }
+      ]
+    },
+    {
+      title: 'Reports',
+      icon: <Assessment />,
+      open: reportsOpen,
+      toggle: () => setReportsOpen(!reportsOpen),
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'],
+      items: [
+        {
+          text: 'Stock Valuation',
+          icon: <BarChart />,
+          path: '/reports/stock-valuation',
+          roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER']
+        },
+        {
+          text: 'Category Valuation',
+          icon: <TrendingUp />,
+          path: '/reports/category-valuation',
+          roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+        }
+      ]
+    },
+    {
+      title: 'Notifications',
+      icon: <Notifications />,
+      open: notificationsOpen,
+      toggle: () => setNotificationsOpen(!notificationsOpen),
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'],
+      items: [
+        {
+          text: 'Notifications',
+          icon: <NotificationsActive />,
+          path: '/notifications',
+          roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER']
+        },
+        {
+          text: 'Notification Settings',
+          icon: <SettingsApplications />,
+          path: '/notification-preferences',
+          roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+        }
+      ]
+    }
+  ]
+
+  // Additional standalone items
+  const additionalItems = [
+    {
+      text: 'Expiry Calendar',
+      icon: <EventNote />,
+      path: '/expiry-calendar',
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+    },
+    {
+      text: 'Quarantine',
+      icon: <Block />,
+      path: '/quarantine',
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+    },
+    {
+      text: 'Procurement',
+      icon: <ShoppingCart />,
+      path: '/procurement',
+      roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
+      disabled: true
+    }
+  ]
+
+  const isItemActive = (path) => location.pathname === path
+
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          MediCoreX
-        </Typography>
-      </Toolbar>
-      <Divider />
-      <List>
-        {menuItems
-          .filter(item => item.roles.includes(user?.role))
-          .map((item) => (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton component={Link} to={item.path}>
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-      </List>
-    </div>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: theme.palette.grey[50] }}>
+      {/* Logo Section - Aligned with top bar */}
+      <Box
+        sx={{
+          height: 64, // Same height as AppBar
+          px: 3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          borderRight: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <LocalPharmacy sx={{ fontSize: 28, color: theme.palette.primary.main }} />
+        <Box>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 700,
+              color: theme.palette.text.primary,
+              letterSpacing: '-0.5px',
+              fontSize: '1.1rem'
+            }}
+          >
+            MediCoreX
+          </Typography>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              color: theme.palette.text.secondary,
+              fontSize: '0.65rem',
+              lineHeight: 1
+            }}
+          >
+            Healthcare Inventory System
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Navigation Items */}
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 2, backgroundColor: theme.palette.grey[50] }}>
+        <List sx={{ px: 2 }}>
+          {/* Main Navigation Items */}
+          {navigationItems
+            .filter(item => item.roles.includes(user?.role))
+            .map((item) => (
+              <ListItem 
+                key={item.text} 
+                disablePadding 
+                sx={{ mb: 0.5 }}
+              >
+                <ListItemButton
+                  component={Link}
+                  to={item.path}
+                  disabled={item.disabled}
+                  sx={{
+                    borderRadius: 2,
+                    transition: 'all 0.2s',
+                    backgroundColor: isItemActive(item.path) 
+                      ? theme.palette.background.paper 
+                      : 'transparent',
+                    borderLeft: isItemActive(item.path) 
+                      ? `3px solid ${theme.palette.primary.main}` 
+                      : '3px solid transparent',
+                    '&:hover': {
+                      backgroundColor: isItemActive(item.path) 
+                        ? theme.palette.background.paper
+                        : alpha(theme.palette.background.paper, 0.6),
+                      transform: 'translateX(2px)'
+                    }
+                  }}
+                >
+                  <ListItemIcon 
+                    sx={{ 
+                      minWidth: 40,
+                      color: isItemActive(item.path) 
+                        ? theme.palette.primary.main 
+                        : theme.palette.text.secondary 
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: isItemActive(item.path) ? 600 : 500,
+                      color: isItemActive(item.path) 
+                        ? theme.palette.primary.main 
+                        : theme.palette.text.primary
+                    }}
+                  />
+                  {item.disabled && (
+                    <Chip
+                      label="Soon"
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                        color: theme.palette.warning.dark
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </ListItem>
+            ))}
+        </List>
+
+        <Divider sx={{ my: 2, mx: 3, backgroundColor: alpha(theme.palette.divider, 0.3) }} />
+
+        {/* Grouped Sections */}
+        <List sx={{ px: 2 }}>
+          {groupedSections
+            .filter(section => section.roles.includes(user?.role))
+            .map((section) => (
+              <Box key={section.title} sx={{ mb: 1 }}>
+                <ListItemButton
+                  onClick={section.toggle}
+                  sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.background.paper, 0.6)
+                    }
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40, color: theme.palette.text.secondary }}>
+                    {section.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={section.title}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: theme.palette.text.primary
+                    }}
+                  />
+                  {section.open ? <ExpandLess /> : <ExpandMore />}
+                </ListItemButton>
+                <Collapse in={section.open} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {section.items
+                      .filter(item => item.roles.includes(user?.role))
+                      .map((item) => (
+                        <ListItem key={item.text} disablePadding sx={{ pl: 2 }}>
+                          <ListItemButton
+                            component={Link}
+                            to={item.path}
+                            sx={{
+                              borderRadius: 2,
+                              backgroundColor: isItemActive(item.path) 
+                                ? theme.palette.background.paper 
+                                : 'transparent',
+                              borderLeft: isItemActive(item.path) 
+                                ? `3px solid ${theme.palette.primary.main}` 
+                                : '3px solid transparent',
+                              '&:hover': {
+                                backgroundColor: isItemActive(item.path) 
+                                  ? theme.palette.background.paper
+                                  : alpha(theme.palette.background.paper, 0.6),
+                                transform: 'translateX(2px)'
+                              }
+                            }}
+                          >
+                            <ListItemIcon 
+                              sx={{ 
+                                minWidth: 36,
+                                color: isItemActive(item.path) 
+                                  ? theme.palette.primary.main 
+                                  : theme.palette.text.secondary 
+                              }}
+                            >
+                              {item.icon}
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={item.text}
+                              primaryTypographyProps={{
+                                fontSize: '0.8125rem',
+                                fontWeight: isItemActive(item.path) ? 600 : 500,
+                                color: isItemActive(item.path) 
+                                  ? theme.palette.primary.main 
+                                  : theme.palette.text.secondary
+                              }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      ))}
+                  </List>
+                </Collapse>
+              </Box>
+            ))}
+        </List>
+
+        <Divider sx={{ my: 2, mx: 3 }} />
+
+        {/* Additional Items */}
+        <List sx={{ px: 2 }}>
+          {additionalItems
+            .filter(item => item.roles.includes(user?.role))
+            .map((item) => (
+              <ListItem 
+                key={item.text} 
+                disablePadding 
+                sx={{ mb: 0.5 }}
+              >
+                <ListItemButton
+                  component={Link}
+                  to={item.path}
+                  disabled={item.disabled}
+                  sx={{
+                    borderRadius: 2,
+                    backgroundColor: isItemActive(item.path) 
+                      ? theme.palette.background.paper 
+                      : 'transparent',
+                    borderLeft: isItemActive(item.path) 
+                      ? `3px solid ${theme.palette.primary.main}` 
+                      : '3px solid transparent',
+                    '&:hover': {
+                      backgroundColor: isItemActive(item.path) 
+                        ? theme.palette.background.paper
+                        : alpha(theme.palette.background.paper, 0.6),
+                      transform: 'translateX(2px)'
+                    }
+                  }}
+                >
+                  <ListItemIcon 
+                    sx={{ 
+                      minWidth: 40,
+                      color: isItemActive(item.path) 
+                        ? theme.palette.primary.main 
+                        : theme.palette.text.secondary 
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: isItemActive(item.path) ? 600 : 500,
+                      color: isItemActive(item.path) 
+                        ? theme.palette.primary.main 
+                        : theme.palette.text.primary
+                    }}
+                  />
+                  {item.disabled && (
+                    <Chip
+                      label="Soon"
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                        color: theme.palette.warning.dark
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </ListItem>
+            ))}
+        </List>
+      </Box>
+    </Box>
   )
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.paper }}>
       <CssBaseline />
+      
+      {/* App Bar */}
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          backgroundColor: theme.palette.background.paper,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: theme.palette.text.primary,
+          height: 64
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ px: { xs: 2, sm: 3 }, minHeight: 64, height: 64 }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -130,30 +548,90 @@ function Layout() {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            MediCoreX
+          
+          {/* Page Title */}
+          <Typography 
+            variant="h6" 
+            noWrap 
+            component="div" 
+            sx={{ 
+              flexGrow: 1,
+              fontWeight: 600,
+              fontSize: '1.125rem'
+            }}
+          >
+            {location.pathname === '/' ? 'Dashboard' : 
+             location.pathname.split('/').pop().split('-').map(word => 
+               word.charAt(0).toUpperCase() + word.slice(1)
+             ).join(' ')}
           </Typography>
           
-          {/* WebSocket Status Indicator */}
-          <Box sx={{ mr: 2 }}>
+          {/* Right Side Actions */}
+          <Stack direction="row" spacing={2} alignItems="center">
+            {/* WebSocket Status */}
             <WebSocketStatus compact={false} />
-          </Box>
-          
-          <NotificationBell />
-          
-          <Box sx={{ ml: 2 }}>
+            
+            {/* Notification Bell */}
+            <NotificationBell />
+            
+            {/* User Menu */}
             <Button
-              color="inherit"
               onClick={handleMenu}
-              startIcon={<AccountCircle />}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                px: 2,
+                py: 1,
+                borderRadius: 3,
+                backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                }
+              }}
             >
-              {user?.fullName || user?.username}
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  backgroundColor: getAvatarColor(),
+                  fontSize: '0.8125rem',
+                  fontWeight: 600
+                }}
+                src={user?.profileImageUrl ? `http://localhost:8080${user.profileImageUrl}` : undefined}
+              >
+                {!user?.profileImageUrl && getUserInitials()}
+              </Avatar>
+              <Box sx={{ textAlign: 'left', display: { xs: 'none', md: 'block' } }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: 600,
+                    fontSize: '0.8125rem',
+                    textTransform: 'none',
+                    color: theme.palette.text.primary
+                  }}
+                >
+                  {user?.fullName || user?.username}
+                </Typography>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    color: theme.palette.text.secondary,
+                    fontSize: '0.7rem',
+                    textTransform: 'none'
+                  }}
+                >
+                  {user?.role?.replace('_', ' ')}
+                </Typography>
+              </Box>
             </Button>
+            
             <Menu
               id="menu-appbar"
               anchorEl={anchorEl}
               anchorOrigin={{
-                vertical: 'top',
+                vertical: 'bottom',
                 horizontal: 'right',
               }}
               keepMounted
@@ -163,24 +641,53 @@ function Layout() {
               }}
               open={Boolean(anchorEl)}
               onClose={handleClose}
+              PaperProps={{
+                elevation: 3,
+                sx: {
+                  mt: 1.5,
+                  minWidth: 200,
+                  borderRadius: 2,
+                  '& .MuiMenuItem-root': {
+                    borderRadius: 1,
+                    mx: 1,
+                    my: 0.5
+                  }
+                }
+              }}
             >
-              <MenuItem disabled>
-                <Typography variant="caption">
-                  Role: {user?.role?.replace('_', ' ')}
+              <Box sx={{ px: 2, py: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Typography variant="caption" color="text.secondary">
+                  Signed in as
                 </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {user?.email}
+                </Typography>
+              </Box>
+              <MenuItem onClick={handleClose}>
+                <ListItemIcon>
+                  <Person fontSize="small" />
+                </ListItemIcon>
+                Profile
               </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleClose}>Profile</MenuItem>
+              <MenuItem onClick={handleClose}>
+                <ListItemIcon>
+                  <Settings fontSize="small" />
+                </ListItemIcon>
+                Settings
+              </MenuItem>
+              <Divider sx={{ my: 1 }} />
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
-                  <Logout fontSize="small" />
+                  <Logout fontSize="small" sx={{ color: theme.palette.error.main }} />
                 </ListItemIcon>
-                Logout
+                <Typography color="error">Logout</Typography>
               </MenuItem>
             </Menu>
-          </Box>
+          </Stack>
         </Toolbar>
       </AppBar>
+      
+      {/* Drawer */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
@@ -194,7 +701,12 @@ function Layout() {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              backgroundColor: theme.palette.grey[50],
+              borderRight: `1px solid ${theme.palette.divider}`
+            },
           }}
         >
           {drawer}
@@ -203,20 +715,29 @@ function Layout() {
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              backgroundColor: theme.palette.grey[50],
+              borderRight: `1px solid ${theme.palette.divider}`
+            },
           }}
           open
         >
           {drawer}
         </Drawer>
       </Box>
+      
+      {/* Main Content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: 8
+          mt: '64px',
+          minHeight: 'calc(100vh - 64px)',
+          backgroundColor: theme.palette.background.paper
         }}
       >
         <Outlet />
