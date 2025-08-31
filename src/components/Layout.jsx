@@ -49,7 +49,6 @@ import {
   SettingsApplications,
   BarChart,
   TrendingUp,
-  LocalPharmacy,
   WarningAmber,
   EventNote,
   Person
@@ -254,7 +253,7 @@ function Layout() {
   const isItemActive = (path) => location.pathname === path
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: theme.palette.grey[50] }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#f8f9fa' }}>
       {/* Logo Section - Aligned with top bar */}
       <Box
         sx={{
@@ -262,21 +261,20 @@ function Layout() {
           px: 3,
           display: 'flex',
           alignItems: 'center',
-          gap: 2,
           backgroundColor: theme.palette.background.paper,
           borderBottom: `1px solid ${theme.palette.divider}`,
           borderRight: `1px solid ${theme.palette.divider}`
         }}
       >
-        <LocalPharmacy sx={{ fontSize: 28, color: theme.palette.primary.main }} />
         <Box>
           <Typography 
             variant="h6" 
             sx={{ 
               fontWeight: 700,
-              color: theme.palette.text.primary,
+              color: theme.palette.primary.main,
               letterSpacing: '-0.5px',
-              fontSize: '1.1rem'
+              fontSize: '1.2rem',
+              lineHeight: 1.3
             }}
           >
             MediCoreX
@@ -285,8 +283,10 @@ function Layout() {
             variant="caption" 
             sx={{ 
               color: theme.palette.text.secondary,
-              fontSize: '0.65rem',
-              lineHeight: 1
+              fontSize: '0.75rem',
+              lineHeight: 1.2,
+              display: 'block',
+              mt: -0.25
             }}
           >
             Healthcare Inventory System
@@ -295,7 +295,7 @@ function Layout() {
       </Box>
 
       {/* Navigation Items */}
-      <Box sx={{ flex: 1, overflowY: 'auto', py: 2, backgroundColor: theme.palette.grey[50] }}>
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 2, backgroundColor: '#f8f9fa' }}>
         <List sx={{ px: 2 }}>
           {/* Main Navigation Items */}
           {navigationItems
@@ -319,10 +319,13 @@ function Layout() {
                     borderLeft: isItemActive(item.path) 
                       ? `3px solid ${theme.palette.primary.main}` 
                       : '3px solid transparent',
+                    boxShadow: isItemActive(item.path) 
+                      ? `0 1px 3px ${alpha(theme.palette.common.black, 0.08)}` 
+                      : 'none',
                     '&:hover': {
                       backgroundColor: isItemActive(item.path) 
                         ? theme.palette.background.paper
-                        : alpha(theme.palette.background.paper, 0.6),
+                        : alpha(theme.palette.background.paper, 0.7),
                       transform: 'translateX(2px)'
                     }
                   }}
@@ -364,7 +367,7 @@ function Layout() {
             ))}
         </List>
 
-        <Divider sx={{ my: 2, mx: 3, backgroundColor: alpha(theme.palette.divider, 0.3) }} />
+        <Divider sx={{ my: 2, mx: 3, backgroundColor: alpha(theme.palette.divider, 0.5) }} />
 
         {/* Grouped Sections */}
         <List sx={{ px: 2 }}>
@@ -378,7 +381,7 @@ function Layout() {
                     borderRadius: 2,
                     mb: 0.5,
                     '&:hover': {
-                      backgroundColor: alpha(theme.palette.background.paper, 0.6)
+                      backgroundColor: alpha(theme.palette.background.paper, 0.7)
                     }
                   }}
                 >
@@ -412,10 +415,13 @@ function Layout() {
                               borderLeft: isItemActive(item.path) 
                                 ? `3px solid ${theme.palette.primary.main}` 
                                 : '3px solid transparent',
+                              boxShadow: isItemActive(item.path) 
+                                ? `0 1px 3px ${alpha(theme.palette.common.black, 0.08)}` 
+                                : 'none',
                               '&:hover': {
                                 backgroundColor: isItemActive(item.path) 
                                   ? theme.palette.background.paper
-                                  : alpha(theme.palette.background.paper, 0.6),
+                                  : alpha(theme.palette.background.paper, 0.7),
                                 transform: 'translateX(2px)'
                               }
                             }}
@@ -473,10 +479,13 @@ function Layout() {
                     borderLeft: isItemActive(item.path) 
                       ? `3px solid ${theme.palette.primary.main}` 
                       : '3px solid transparent',
+                    boxShadow: isItemActive(item.path) 
+                      ? `0 1px 3px ${alpha(theme.palette.common.black, 0.08)}` 
+                      : 'none',
                     '&:hover': {
                       backgroundColor: isItemActive(item.path) 
                         ? theme.palette.background.paper
-                        : alpha(theme.palette.background.paper, 0.6),
+                        : alpha(theme.palette.background.paper, 0.7),
                       transform: 'translateX(2px)'
                     }
                   }}
@@ -522,7 +531,7 @@ function Layout() {
   )
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.paper }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#ffffff' }}>
       <CssBaseline />
       
       {/* App Bar */}
@@ -538,7 +547,7 @@ function Layout() {
           height: 64
         }}
       >
-        <Toolbar sx={{ px: { xs: 2, sm: 3 }, minHeight: 64, height: 64 }}>
+        <Toolbar sx={{ px: { xs: 2, sm: 3 }, minHeight: 64, height: 64, display: 'flex', alignItems: 'center' }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -557,7 +566,8 @@ function Layout() {
             sx={{ 
               flexGrow: 1,
               fontWeight: 600,
-              fontSize: '1.125rem'
+              fontSize: '1.125rem',
+              color: theme.palette.primary.main
             }}
           >
             {location.pathname === '/' ? 'Dashboard' : 
@@ -587,7 +597,8 @@ function Layout() {
                 backgroundColor: alpha(theme.palette.primary.main, 0.05),
                 '&:hover': {
                   backgroundColor: alpha(theme.palette.primary.main, 0.1)
-                }
+                },
+                my: 0.5
               }}
             >
               <Avatar
@@ -704,7 +715,7 @@ function Layout() {
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
-              backgroundColor: theme.palette.grey[50],
+              backgroundColor: '#f8f9fa',
               borderRight: `1px solid ${theme.palette.divider}`
             },
           }}
@@ -718,7 +729,7 @@ function Layout() {
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
-              backgroundColor: theme.palette.grey[50],
+              backgroundColor: '#f8f9fa',
               borderRight: `1px solid ${theme.palette.divider}`
             },
           }}
@@ -737,7 +748,7 @@ function Layout() {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: '64px',
           minHeight: 'calc(100vh - 64px)',
-          backgroundColor: theme.palette.background.paper
+          backgroundColor: '#ffffff'
         }}
       >
         <Outlet />
