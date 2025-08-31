@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'
 import { 
   IconButton, 
   Badge, 
@@ -13,22 +13,28 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  IconButton as DeleteIcon,
   Snackbar,
   Alert,
-  Tooltip
-} from '@mui/material';
+  Tooltip,
+  Stack,
+  alpha,
+  useTheme
+} from '@mui/material'
 import { 
   Notifications as NotificationsIcon,
+  NotificationsNone,
+  NotificationsActive,
   Delete as DeleteIconMui,
   CheckCircle,
   Warning,
   Error,
   Info,
-  MarkEmailRead
-} from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { useWebSocketContext } from '../../context/WebSocketContext';
+  MarkEmailRead,
+  Settings,
+  OpenInNew
+} from '@mui/icons-material'
+import { useNavigate } from 'react-router-dom'
+import { useWebSocketContext } from '../../context/WebSocketContext'
 import {
   getNotifications,
   getUnreadNotificationCount,
@@ -36,397 +42,527 @@ import {
   markAllNotificationsAsRead,
   deleteNotification,
   archiveNotification,
-  // getPreferences,  // COMMENTED OUT - function doesn't exist
-  getNotificationPreferences,  // USE THIS INSTEAD
+  getNotificationPreferences,
   sendTestNotification
-} from '../../services/api';
+} from '../../services/api'
 
 const NotificationBell = () => {
-  const navigate = useNavigate();
-  const webSocket = useWebSocketContext();
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const webSocket = useWebSocketContext()
   
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [showToast, setShowToast] = useState(false);
-  const [newNotification, setNewNotification] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [showToast, setShowToast] = useState(false)
+  const [newNotification, setNewNotification] = useState(null)
   
-  const open = Boolean(anchorEl);
-  const audioRef = useRef(null);
-  const previousCountRef = useRef(0);
+  const open = Boolean(anchorEl)
+  const audioRef = useRef(null)
+  const previousCountRef = useRef(0)
 
-  // Initialize audio - FIX: Don't create Audio in useRef directly
+  // Initialize audio
   useEffect(() => {
     try {
-      audioRef.current = new Audio('/notification-sound.mp3');
+      audioRef.current = new Audio('/notification-sound.mp3')
     } catch (err) {
-      console.log('Could not load notification sound');
+      console.log('Could not load notification sound')
     }
-  }, []);
+  }, [])
 
-  /*
-  // Check preferences - COMMENT OUT OR REMOVE THIS ENTIRE USEEFFECT
+  // Check preferences
   useEffect(() => {
     const checkPreferences = async () => {
       try {
-        const response = await getPreferences();
+        const response = await getNotificationPreferences()
         // Handle preferences
       } catch (err) {
-        console.error('Failed to load preferences:', err);
+        console.error('Failed to load preferences:', err)
       }
-    };
+    }
     
-    checkPreferences();
-  }, []);
-  */
-
-  // Replace with corrected version if preferences are needed:
-  useEffect(() => {
-    const checkPreferences = async () => {
-      try {
-        const response = await getNotificationPreferences();  // CORRECTED FUNCTION NAME
-        // Handle preferences
-      } catch (err) {
-        console.error('Failed to load preferences:', err);
-      }
-    };
-    
-    checkPreferences();
-  }, []);
+    checkPreferences()
+  }, [])
 
   // Use WebSocket notifications when connected
   useEffect(() => {
-    // Always fetch initial count regardless of WebSocket status
-    fetchUnreadCount();
+    fetchUnreadCount()
     
     if (webSocket && webSocket.connected) {
-      // When WebSocket connects, still fetch from API to ensure sync
-      fetchUnreadCount();
+      fetchUnreadCount()
       
-      // Listen for WebSocket updates
       if (webSocket.notifications && webSocket.notifications.length > 0) {
-        setNotifications(webSocket.notifications);
+        setNotifications(webSocket.notifications)
       }
       
-      // Only update count from WebSocket if it's explicitly provided
-      // Don't clear the count just because WebSocket doesn't have it yet
       if (webSocket.unreadCount !== undefined && webSocket.unreadCount !== null) {
-        setUnreadCount(webSocket.unreadCount);
+        setUnreadCount(webSocket.unreadCount)
       }
     }
-  }, [webSocket?.connected]);
+  }, [webSocket?.connected])
 
   // Listen for WebSocket messages directly
   useEffect(() => {
-    if (!webSocket?.service) return;
+    if (!webSocket?.service) return
     
-    // Add listener for notification updates
     const handleWebSocketMessage = (message) => {
-      console.log('WebSocket message received:', message);
+      console.log('WebSocket message received:', message)
       
-      // Handle count updates
       if (message.type === 'COUNT_UPDATE' || message.unreadCount !== undefined) {
-        setUnreadCount(message.unreadCount);
+        setUnreadCount(message.unreadCount)
       }
       
-      // Handle new notifications
       if (message.notification || message.eventType === 'NEW_NOTIFICATION') {
-        fetchUnreadCount(); // Refresh count from API
-        fetchNotifications(); // Refresh notification list
+        fetchUnreadCount()
+        fetchNotifications()
       }
-    };
+    }
     
-    const unsubscribe = webSocket.service.addEventListener('notification', handleWebSocketMessage);
-    const unsubscribeUpdate = webSocket.service.addEventListener('update', handleWebSocketMessage);
+    const unsubscribe = webSocket.service?.addEventListener?.('notification', handleWebSocketMessage)
+    const unsubscribeUpdate = webSocket.service?.addEventListener?.('update', handleWebSocketMessage)
     
     return () => {
-      if (unsubscribe) unsubscribe();
-      if (unsubscribeUpdate) unsubscribeUpdate();
-    };
-  }, [webSocket?.service]);
+      if (unsubscribe) unsubscribe()
+      if (unsubscribeUpdate) unsubscribeUpdate()
+    }
+  }, [webSocket?.service])
 
   // Separate polling effect - only when NOT connected
   useEffect(() => {
     if (!webSocket?.connected) {
       const interval = setInterval(() => {
-        fetchUnreadCount();
+        fetchUnreadCount()
         if (open) {
-          fetchNotifications();
+          fetchNotifications()
         }
-      }, 30000);
+      }, 30000)
       
-      return () => clearInterval(interval);
+      return () => clearInterval(interval)
     }
-  }, [webSocket?.connected, open]);
+  }, [webSocket?.connected, open])
 
-  // Also add periodic refresh as backup (every 30 seconds)
+  // Periodic refresh as backup
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchUnreadCount();
-    }, 30000);
+      fetchUnreadCount()
+    }, 30000)
     
-    return () => clearInterval(interval);
-  }, []);
+    return () => clearInterval(interval)
+  }, [])
 
   // Watch for notification count changes and play sound
   useEffect(() => {
     if (unreadCount > previousCountRef.current && previousCountRef.current > 0) {
-      playNotificationSound();
-      // Find the newest notification
+      playNotificationSound()
       if (notifications.length > 0 && notifications[0].status === 'UNREAD') {
-        showNotificationToast(notifications[0]);
+        showNotificationToast(notifications[0])
       }
     }
-    previousCountRef.current = unreadCount;
-  }, [unreadCount, notifications]);
+    previousCountRef.current = unreadCount
+  }, [unreadCount, notifications])
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await getUnreadNotificationCount();
-      setUnreadCount(response.data.count);
+      const response = await getUnreadNotificationCount()
+      setUnreadCount(response.data.count)
     } catch (err) {
-      console.error('Failed to fetch unread count:', err);
+      console.error('Failed to fetch unread count:', err)
     }
-  };
+  }
 
   const fetchNotifications = async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
     try {
       const response = await getNotifications({ 
         status: 'UNREAD', 
         page: 0, 
         size: 10 
-      });
-      setNotifications(response.data.content || []);
+      })
+      setNotifications(response.data.content || [])
     } catch (err) {
-      setError('Failed to load notifications');
-      console.error(err);
+      setError('Failed to load notifications')
+      console.error(err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const playNotificationSound = () => {
     if (audioRef.current) {
-      audioRef.current.play().catch(e => console.log('Could not play sound:', e));
+      audioRef.current.play().catch(e => console.log('Could not play sound:', e))
     }
-  };
+  }
 
   const showNotificationToast = (notification) => {
-    setNewNotification(notification);
-    setShowToast(true);
-  };
+    setNewNotification(notification)
+    setShowToast(true)
+  }
 
   const handleClick = async (event) => {
-    setAnchorEl(event.currentTarget);
+    setAnchorEl(event.currentTarget)
     if (!open) {
-      await fetchNotifications();
+      await fetchNotifications()
     }
-  };
+  }
 
   const handleClose = () => {
-    setAnchorEl(null);
-  };
+    setAnchorEl(null)
+  }
 
   const handleNotificationClick = async (notification) => {
     try {
-      // Mark as read
       if (webSocket?.connected && webSocket?.markAsRead) {
-        webSocket.markAsRead(notification.id);
+        webSocket.markAsRead(notification.id)
       } else {
-        await markNotificationAsRead(notification.id);
+        await markNotificationAsRead(notification.id)
       }
       
-      // Update local state
       setNotifications(prev => 
         prev.map(n => n.id === notification.id 
           ? { ...n, status: 'READ' } 
           : n
         )
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
       
-      // FIX: Always navigate to notifications page, not the actionUrl
-      handleClose(); // Close the menu first
-      navigate('/notifications'); // Go to main notifications page
+      if (notification.actionUrl) {
+        navigate(notification.actionUrl)
+      }
       
+      handleClose()
     } catch (err) {
-      console.error('Failed to mark notification as read:', err);
+      console.error('Failed to mark as read:', err)
     }
-  };
+  }
 
-  const handleMarkAllRead = async () => {
+  const handleMarkAllAsRead = async () => {
     try {
-      await markAllNotificationsAsRead();
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, status: 'read' }))
-      );
-      setUnreadCount(0);
+      await markAllNotificationsAsRead()
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'READ' })))
+      setUnreadCount(0)
+      fetchNotifications()
     } catch (err) {
-      console.error('Failed to mark all as read:', err);
+      console.error('Failed to mark all as read:', err)
     }
-  };
+  }
 
-  const handleDelete = async (e, notificationId) => {
-    e.stopPropagation();
-    try {
-      await deleteNotification(notificationId);
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Failed to delete notification:', err);
-    }
-  };
+  const handleViewAll = () => {
+    handleClose()
+    navigate('/notifications')
+  }
+
+  const handleSettings = () => {
+    handleClose()
+    navigate('/notification-preferences')
+  }
 
   const getPriorityIcon = (priority) => {
-    switch (priority) {
+    switch(priority) {
       case 'CRITICAL':
-        return <Error color="error" fontSize="small" />;
       case 'HIGH':
-        return <Warning color="warning" fontSize="small" />;
+        return <Error fontSize="small" sx={{ color: theme.palette.error.main }} />
       case 'MEDIUM':
-        return <Info color="info" fontSize="small" />;
+        return <Warning fontSize="small" sx={{ color: theme.palette.warning.main }} />
       case 'LOW':
+        return <Info fontSize="small" sx={{ color: theme.palette.info.main }} />
       default:
-        return <CheckCircle color="success" fontSize="small" />;
+        return <CheckCircle fontSize="small" sx={{ color: theme.palette.success.main }} />
     }
-  };
+  }
 
-  const renderConnectionStatus = () => {
-    if (!webSocket?.connected) {
-      return (
-        <Tooltip title="Real-time updates offline - using polling">
-          <Chip 
-            size="small" 
-            label="Offline" 
-            color="warning" 
-            sx={{ ml: 1 }}
-          />
-        </Tooltip>
-      );
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'CRITICAL':
+      case 'HIGH':
+        return theme.palette.error.main
+      case 'MEDIUM':
+        return theme.palette.warning.main
+      case 'LOW':
+        return theme.palette.info.main
+      default:
+        return theme.palette.success.main
     }
-    return null;
-  };
+  }
+
+  const getCategoryColor = (category) => {
+    const categoryColors = {
+      EXPIRY: theme.palette.warning.main,
+      STOCK: theme.palette.info.main,
+      QUARANTINE: theme.palette.error.main,
+      BATCH: theme.palette.primary.main,
+      USER: theme.palette.success.main,
+      SYSTEM: theme.palette.grey[600]
+    }
+    return categoryColors[category] || theme.palette.grey[600]
+  }
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
+    
+    if (diffInHours < 1) return 'Just now'
+    if (diffInHours < 24) return `${diffInHours}h ago`
+    if (diffInHours < 48) return 'Yesterday'
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
 
   return (
     <>
-      <IconButton
-        color="inherit"
-        onClick={handleClick}
-        aria-label={`${unreadCount} notifications`}
-      >
-        <Badge badgeContent={unreadCount} color="error">
-          <NotificationsIcon />
-        </Badge>
-      </IconButton>
-      
-      {renderConnectionStatus()}
-      
+      <Tooltip title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}>
+        <IconButton
+          onClick={handleClick}
+          sx={{
+            position: 'relative',
+            backgroundColor: unreadCount > 0 
+              ? alpha(theme.palette.primary.main, 0.1) 
+              : 'transparent',
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, 0.15),
+            }
+          }}
+        >
+          <Badge 
+            badgeContent={unreadCount} 
+            color="error"
+            max={99}
+            sx={{
+              '& .MuiBadge-badge': {
+                fontSize: '0.7rem',
+                height: 18,
+                minWidth: 18,
+                fontWeight: 600
+              }
+            }}
+          >
+            {unreadCount > 0 ? (
+              <NotificationsActive sx={{ color: theme.palette.primary.main }} />
+            ) : (
+              <NotificationsNone sx={{ color: theme.palette.text.secondary }} />
+            )}
+          </Badge>
+        </IconButton>
+      </Tooltip>
+
       <Menu
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
         PaperProps={{
-          elevation: 3,
+          elevation: 8,
           sx: {
-            width: 360,
-            maxHeight: 480,
-            overflow: 'visible',
-            mt: 1.5
+            mt: 1.5,
+            minWidth: 380,
+            maxWidth: 420,
+            borderRadius: 2,
+            overflow: 'hidden'
           }
         }}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <Box px={2} py={1.5}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Notifications</Typography>
-            {unreadCount > 0 && (
-              <Button 
-                size="small" 
-                onClick={handleMarkAllRead}
-                startIcon={<MarkEmailRead />}
-              >
-                Mark all read
-              </Button>
-            )}
-          </Box>
+        {/* Header */}
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            backgroundColor: alpha(theme.palette.primary.main, 0.05),
+            borderBottom: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <NotificationsIcon fontSize="small" sx={{ color: theme.palette.primary.main }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Notifications
+              </Typography>
+              {unreadCount > 0 && (
+                <Chip
+                  label={unreadCount}
+                  size="small"
+                  color="error"
+                  sx={{
+                    height: 20,
+                    fontSize: '0.7rem',
+                    fontWeight: 600
+                  }}
+                />
+              )}
+            </Stack>
+            <IconButton 
+              size="small" 
+              onClick={handleSettings}
+              sx={{
+                color: theme.palette.text.secondary,
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                }
+              }}
+            >
+              <Settings fontSize="small" />
+            </IconButton>
+          </Stack>
         </Box>
-        
-        <Divider />
-        
-        {loading && (
-          <Box p={3} textAlign="center">
-            <Typography>Loading...</Typography>
-          </Box>
-        )}
-        
-        {!loading && notifications.length === 0 && (
-          <Box p={3} textAlign="center">
-            <Typography color="textSecondary">
-              No new notifications
-            </Typography>
-          </Box>
-        )}
-        
-        {!loading && notifications.length > 0 && (
-          <List sx={{ p: 0, maxHeight: 350, overflow: 'auto' }}>
-            {notifications.map((notification) => (
-              <ListItem
+
+        {/* Notifications List */}
+        <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+          {loading ? (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Loading notifications...
+              </Typography>
+            </Box>
+          ) : notifications.length === 0 ? (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <NotificationsNone sx={{ fontSize: 48, color: theme.palette.grey[400], mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                No new notifications
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                You're all caught up!
+              </Typography>
+            </Box>
+          ) : (
+            notifications.map((notification) => (
+              <MenuItem
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
                 sx={{
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: 'action.hover' },
-                  bgcolor: notification.status === 'UNREAD' ? 'action.selected' : 'transparent'
+                  py: 2,
+                  px: 2,
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                  },
+                  display: 'block',
+                  whiteSpace: 'normal'
                 }}
               >
-                <ListItemIcon>
-                  {getPriorityIcon(notification.priority)}
-                </ListItemIcon>
-                <ListItemText
-                  primary={notification.title}
-                  secondary={
-                    <>
-                      <Typography variant="body2" component="span">
-                        {notification.message}
+                <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(getPriorityColor(notification.priority), 0.1),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    {getPriorityIcon(notification.priority)}
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          color: theme.palette.text.primary,
+                          lineHeight: 1.3
+                        }}
+                      >
+                        {notification.title}
                       </Typography>
-                      <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                        {new Date(notification.createdAt).toLocaleString()}
-                      </Typography>
-                    </>
-                  }
-                />
-                <IconButton
-                  size="small"
-                  onClick={(e) => handleDelete(e, notification.id)}
-                  edge="end"
-                >
-                  <DeleteIconMui fontSize="small" />
-                </IconButton>
-              </ListItem>
-            ))}
-          </List>
-        )}
-        
-        <Divider />
-        
-        <Box p={1}>
-          <Button 
-            fullWidth 
-            onClick={() => {
-              navigate('/notifications');
-              handleClose();
+                      <Chip
+                        label={notification.category}
+                        size="small"
+                        sx={{
+                          height: 16,
+                          fontSize: '0.65rem',
+                          backgroundColor: alpha(getCategoryColor(notification.category), 0.1),
+                          color: getCategoryColor(notification.category),
+                          fontWeight: 600,
+                          '& .MuiChip-label': {
+                            px: 0.75
+                          }
+                        }}
+                      />
+                    </Stack>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: theme.palette.text.secondary,
+                        display: 'block',
+                        lineHeight: 1.4,
+                        mb: 0.5
+                      }}
+                    >
+                      {notification.message}
+                    </Typography>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: theme.palette.text.disabled,
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      {formatTime(notification.createdAt)}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </MenuItem>
+            ))
+          )}
+        </Box>
+
+        {/* Footer */}
+        {notifications.length > 0 && (
+          <Box
+            sx={{
+              p: 1.5,
+              backgroundColor: alpha(theme.palette.background.default, 0.6),
+              borderTop: `1px solid ${theme.palette.divider}`
             }}
           >
-            View all notifications
-          </Button>
-        </Box>
+            <Stack direction="row" spacing={1}>
+              <Button
+                fullWidth
+                variant="text"
+                onClick={handleMarkAllAsRead}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  color: theme.palette.text.secondary,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                  }
+                }}
+              >
+                Mark all as read
+              </Button>
+              <Button
+                fullWidth
+                variant="text"
+                onClick={handleViewAll}
+                endIcon={<OpenInNew fontSize="small" />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  color: theme.palette.primary.main,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                  }
+                }}
+              >
+                View All
+              </Button>
+            </Stack>
+          </Box>
+        )}
       </Menu>
-      
+
+      {/* Toast Notification */}
       <Snackbar
         open={showToast}
         autoHideDuration={6000}
@@ -434,15 +570,20 @@ const NotificationBell = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert 
-          onClose={() => setShowToast(false)}
-          severity="info"
+          onClose={() => setShowToast(false)} 
+          severity={newNotification?.priority === 'HIGH' ? 'error' : 'info'}
           sx={{ width: '100%' }}
         >
-          {newNotification?.title}
+          <Typography variant="subtitle2" fontWeight={600}>
+            {newNotification?.title}
+          </Typography>
+          <Typography variant="caption">
+            {newNotification?.message}
+          </Typography>
         </Alert>
       </Snackbar>
     </>
-  );
-};
+  )
+}
 
-export default NotificationBell;
+export default NotificationBell
