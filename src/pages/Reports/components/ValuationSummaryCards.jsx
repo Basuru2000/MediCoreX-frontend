@@ -5,39 +5,24 @@ import {
   CardContent,
   Typography,
   Box,
-  Chip
+  Grow,
+  useTheme,
+  alpha
 } from '@mui/material'
 import {
+  AttachMoney,
   Inventory,
-  Warning,
-  Schedule,
-  Analytics,
   TrendingUp,
   TrendingDown,
-  Remove
+  ShoppingCart,
+  Category,
+  Warning,
+  Assessment,
+  ShowChart
 } from '@mui/icons-material'
 
 function ValuationSummaryCards({ summaryCards }) {
-  const getIcon = (iconName) => {
-    const icons = {
-      inventory: <Inventory />,
-      warning: <Warning />,
-      schedule: <Schedule />,
-      analytics: <Analytics />
-    }
-    return icons[iconName] || <Inventory />
-  }
-
-  const getTrendIcon = (trend) => {
-    switch (trend) {
-      case 'UP':
-        return <TrendingUp fontSize="small" />
-      case 'DOWN':
-        return <TrendingDown fontSize="small" />
-      default:
-        return <Remove fontSize="small" />
-    }
-  }
+  const theme = useTheme()
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
@@ -48,86 +33,165 @@ function ValuationSummaryCards({ summaryCards }) {
     }).format(value || 0)
   }
 
-  const getTrendColor = (trend) => {
-    switch (trend) {
-      case 'UP':
-        return 'success'
-      case 'DOWN':
-        return 'error'
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('en-US').format(value || 0)
+  }
+
+  const getIcon = (iconType, color) => {
+    const iconStyle = { fontSize: 24, color: theme.palette[color].main }
+    switch (iconType) {
+      case 'money':
+        return <AttachMoney sx={iconStyle} />
+      case 'inventory':
+        return <Inventory sx={iconStyle} />
+      case 'warning':
+        return <Warning sx={iconStyle} />
+      case 'chart':
+        return <ShowChart sx={iconStyle} />
+      case 'trending':
+        return <TrendingUp sx={iconStyle} />
+      case 'shopping':
+        return <ShoppingCart sx={iconStyle} />
+      case 'category':
+        return <Category sx={iconStyle} />
+      case 'assessment':
+        return <Assessment sx={iconStyle} />
       default:
-        return 'default'
+        return <AttachMoney sx={iconStyle} />
     }
+  }
+
+  const getColorFromType = (color) => {
+    return color || 'primary'
   }
 
   return (
     <Grid container spacing={3}>
-      {summaryCards.map((card, index) => (
-        <Grid item xs={12} sm={6} md={3} key={index}>
-          <Card
-            sx={{
-              height: '100%',
-              position: 'relative',
-              overflow: 'visible',
-              '&:hover': {
-                boxShadow: 4,
-                transform: 'translateY(-2px)',
-                transition: 'all 0.3s'
-              }
-            }}
-          >
-            <CardContent>
-              <Box display="flex" alignItems="flex-start" justifyContent="space-between">
-                <Box flex={1}>
-                  <Typography color="text.secondary" variant="caption" display="block">
-                    {card.label}
-                  </Typography>
-                  <Typography variant="h4" component="div" sx={{ my: 1 }}>
-                    {formatCurrency(card.value)}
-                  </Typography>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Typography variant="body2" color="text.secondary">
-                      {card.count} items
-                    </Typography>
-                    {card.percentageChange > 0 && (
-                      <Chip
-                        size="small"
-                        icon={getTrendIcon(card.trend)}
-                        label={`${card.percentageChange.toFixed(1)}%`}
-                        color={getTrendColor(card.trend)}
-                        sx={{ height: 20 }}
-                      />
-                    )}
-                  </Box>
-                </Box>
-                <Box
-                  sx={{
-                    backgroundColor: card.color,
-                    borderRadius: '50%',
-                    p: 1.5,
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  {React.cloneElement(getIcon(card.icon), { fontSize: 'medium' })}
-                </Box>
-              </Box>
-              <Typography 
-                variant="caption" 
-                color="text.secondary" 
+      {summaryCards.map((card, index) => {
+        const color = getColorFromType(card.color)
+        
+        return (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grow in={true} timeout={500 + (index * 100)}>
+              <Card 
                 sx={{ 
-                  display: 'block',
-                  mt: 2,
-                  fontSize: '0.7rem'
+                  height: '100%',
+                  minHeight: 160,
+                  boxShadow: 'none',
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    borderColor: theme.palette[color].main
+                  }
                 }}
               >
-                {card.description}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      ))}
+                <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  {/* Title Section */}
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      mb: 1.5
+                    }}
+                  >
+                    {card.title}
+                  </Typography>
+                  
+                  {/* Value Section */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Box>
+                      <Typography 
+                        variant="h4" 
+                        sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          mb: 0.5
+                        }}
+                      >
+                        {card.prefix === '$' 
+                          ? formatCurrency(card.value).replace('$', '') 
+                          : formatNumber(card.value)
+                        }
+                      </Typography>
+                      
+                      {/* Subtitle */}
+                      {card.subtitle && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: 'text.primary',
+                              fontWeight: 600,
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {card.subtitle}
+                          </Typography>
+                          
+                          {/* Change indicator */}
+                          {card.change !== undefined && card.change !== null && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              {card.changeType === 'increase' ? (
+                                <TrendingUp sx={{ fontSize: 16, color: 'success.main' }} />
+                              ) : (
+                                <TrendingDown sx={{ fontSize: 16, color: 'error.main' }} />
+                              )}
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: card.changeType === 'increase' ? 'success.main' : 'error.main',
+                                  fontWeight: 600
+                                }}
+                              >
+                                {Math.abs(card.change)}%
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                    
+                    {/* Icon */}
+                    <Box 
+                      sx={{ 
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        bgcolor: alpha(theme.palette[color].main, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {getIcon(card.icon, color)}
+                    </Box>
+                  </Box>
+
+                  {/* Description */}
+                  {card.description && (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: 'text.secondary',
+                        fontSize: '0.75rem',
+                        mt: 'auto'
+                      }}
+                    >
+                      {card.description}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grow>
+          </Grid>
+        )
+      })}
     </Grid>
   )
 }
