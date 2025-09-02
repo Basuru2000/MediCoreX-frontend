@@ -5,15 +5,10 @@ import {
   Typography,
   Chip,
   Collapse,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Tooltip,
   Paper,
   useTheme,
   alpha,
-  Badge,
   Fade
 } from '@mui/material'
 import {
@@ -23,13 +18,16 @@ import {
   Delete,
   FolderOutlined,
   FolderOpenOutlined,
-  Inventory2Outlined
+  Inventory2Outlined,
+  AccountTreeOutlined
 } from '@mui/icons-material'
+import { useAuth } from '../../context/AuthContext'
 
-function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, index = 0 }) {
+function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, index = 0, categoryChildrenCount }) {
   const theme = useTheme()
   const [open, setOpen] = React.useState(level === 0)
   const hasChildren = category.children && category.children.length > 0
+  const childrenCount = categoryChildrenCount?.[category.id] || 0
 
   const handleToggle = () => {
     setOpen(!open)
@@ -86,11 +84,14 @@ function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, in
             }
           }}
         >
-          <ListItem
+          <Box
             sx={{
-              py: level === 0 ? 1.25 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              py: level === 0 ? 1 : 0.75,  // REDUCED from 1.25 : 1
               px: level === 0 ? 2 : 1.5,
-              minHeight: level === 0 ? 52 : 44
+              minHeight: level === 0 ? 48 : 40,  // REDUCED from 52 : 44
+              position: 'relative'
             }}
           >
             <Box display="flex" alignItems="center" flex={1}>
@@ -118,9 +119,9 @@ function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, in
               {/* Folder Icon with level-based styling */}
               <Box
                 sx={{
-                  width: level === 0 ? 32 : 28,
-                  height: level === 0 ? 32 : 28,
-                  borderRadius: level === 0 ? '8px' : '6px',
+                  width: level === 0 ? 28 : 24,  // REDUCED from 32 : 28
+                  height: level === 0 ? 28 : 24,  // REDUCED from 32 : 28
+                  borderRadius: level === 0 ? '6px' : '4px',  // REDUCED from 8px : 6px
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -134,9 +135,9 @@ function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, in
                 }}
               >
                 {open && hasChildren ? (
-                  <FolderOpenOutlined sx={{ fontSize: level === 0 ? 18 : 16 }} />
+                  <FolderOpenOutlined sx={{ fontSize: level === 0 ? 16 : 14 }} />
                 ) : (
-                  <FolderOutlined sx={{ fontSize: level === 0 ? 18 : 16 }} />
+                  <FolderOutlined sx={{ fontSize: level === 0 ? 16 : 14 }} />
                 )}
               </Box>
               
@@ -146,177 +147,146 @@ function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, in
                   label={`L${level}`}
                   size="small"
                   sx={{
-                    height: 18,
+                    height: 16,  // REDUCED from 18
                     fontSize: '0.65rem',
                     fontWeight: 600,
                     mr: 0.75,
                     bgcolor: alpha(theme.palette.grey[400], 0.2),
                     color: theme.palette.text.secondary,
                     '& .MuiChip-label': {
-                      px: 0.75
+                      px: 0.5  // REDUCED from 0.75
                     }
                   }}
                 />
               )}
               
-              {/* Category Information */}
-              <ListItemText
-                primary={
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Typography 
-                      variant={level === 0 ? "body2" : "caption"}
-                      fontWeight={level === 0 ? 600 : 500}
-                      sx={{ 
-                        color: level === 0 
-                          ? theme.palette.text.primary 
-                          : theme.palette.text.secondary,
-                        fontSize: level === 0 ? '0.875rem' : '0.8125rem'
-                      }}
-                    >
-                      {category.name}
-                    </Typography>
-                    
-                    {/* Product Count Badge */}
-                    {category.productCount > 0 && (
-                      <Tooltip title={`${category.productCount} products in this category`}>
-                        <Chip
-                          icon={<Inventory2Outlined sx={{ fontSize: 12 }} />}
-                          label={category.productCount}
-                          size="small"
-                          sx={{
-                            height: 20,
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            bgcolor: alpha(theme.palette.success.main, 0.1),
-                            color: theme.palette.success.main,
-                            '& .MuiChip-icon': {
-                              color: theme.palette.success.main,
-                              ml: 0.25
-                            },
-                            '& .MuiChip-label': {
-                              px: 0.5
-                            }
-                          }}
-                        />
-                      </Tooltip>
-                    )}
-                    
-                    {/* Children Count */}
-                    {hasChildren && (
-                      <Tooltip title={`${category.children.length} subcategories`}>
-                        <Chip
-                          label={`${category.children.length}`}
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            height: 20,
-                            fontSize: '0.7rem',
-                            borderColor: theme.palette.divider,
-                            color: theme.palette.text.secondary,
-                            '& .MuiChip-label': {
-                              px: 0.75
-                            }
-                          }}
-                        />
-                      </Tooltip>
-                    )}
-                  </Box>
-                }
-                secondary={
-                  category.description && (
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary"
-                      sx={{ 
-                        mt: 0.25,
-                        display: 'block',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '350px',
-                        fontSize: '0.7rem'
-                      }}
-                    >
-                      {category.description}
-                    </Typography>
-                  )
-                }
-                sx={{
-                  '& .MuiListItemText-primary': {
-                    mb: 0
-                  },
-                  '& .MuiListItemText-secondary': {
-                    mt: 0.25
-                  }
-                }}
-              />
-            </Box>
-            
-            {/* Action Buttons */}
-            <ListItemSecondaryAction>
-              {isManager && (
-                <Box display="flex" gap={0.25}>
-                  <Tooltip title="Edit category">
-                    <IconButton
-                      size="small"
-                      onClick={() => onEdit(category)}
-                      sx={{ 
-                        padding: '6px',
-                        color: theme.palette.primary.main,
-                        bgcolor: alpha(theme.palette.primary.main, 0.08),
-                        '&:hover': {
-                          bgcolor: alpha(theme.palette.primary.main, 0.15)
-                        }
-                      }}
-                    >
-                      <Edit sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                  
-                  <Tooltip 
-                    title={
-                      (category.productCount > 0 || hasChildren)
-                        ? category.productCount > 0 
-                          ? `Cannot delete: ${category.productCount} products assigned`
-                          : `Cannot delete: Has ${category.children.length} subcategories`
-                        : 'Delete category'
-                    }
+              {/* Category Name and Description */}
+              <Box flex={1}>
+                <Typography 
+                  variant={level === 0 ? "body2" : "caption"}
+                  fontWeight={level === 0 ? 600 : 500}
+                  sx={{ 
+                    fontSize: level === 0 ? '0.875rem' : '0.813rem',
+                    color: theme.palette.text.primary
+                  }}
+                >
+                  {category.name}
+                </Typography>
+                {category.description && (
+                  <Typography 
+                    variant="caption" 
+                    color="text.secondary"
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      display: 'block',
+                      mt: 0.25,
+                      lineHeight: 1.3
+                    }}
                   >
-                    <span>
-                      <IconButton
-                        size="small"
-                        onClick={() => onDelete(category.id)}
-                        disabled={category.productCount > 0 || hasChildren}
-                        sx={{ 
-                          padding: '6px',
-                          color: theme.palette.error.main,
-                          bgcolor: alpha(theme.palette.error.main, 0.08),
-                          '&:hover': {
-                            bgcolor: alpha(theme.palette.error.main, 0.15)
-                          },
-                          '&:disabled': {
-                            color: theme.palette.action.disabled,
-                            bgcolor: theme.palette.action.disabledBackground
-                          }
-                        }}
-                      >
-                        <Delete sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </Box>
+                    {category.description}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
+            {/* Actions Section */}
+            <Box display="flex" alignItems="center" gap={0.5}>
+              {/* Subcategories Count - RESTORED */}
+              {childrenCount > 0 && (
+                <Tooltip title={`${childrenCount} subcategories`}>
+                  <Chip
+                    size="small"
+                    icon={<AccountTreeOutlined sx={{ fontSize: 14 }} />}
+                    label={childrenCount}
+                    sx={{
+                      height: 20,
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      bgcolor: alpha(theme.palette.info.main, 0.1),
+                      color: theme.palette.info.dark,
+                      '& .MuiChip-icon': {
+                        ml: 0.5,
+                        mr: -0.5
+                      }
+                    }}
+                  />
+                </Tooltip>
               )}
-            </ListItemSecondaryAction>
-          </ListItem>
+              
+              {/* Product Count Badge */}
+              {category.productCount > 0 && (
+                <Tooltip title={`${category.productCount} products`}>
+                  <Chip
+                    size="small"
+                    icon={<Inventory2Outlined sx={{ fontSize: 14 }} />}
+                    label={category.productCount}
+                    sx={{
+                      height: 20,  // REDUCED from 22
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      bgcolor: alpha(theme.palette.success.main, 0.1),
+                      color: theme.palette.success.dark,
+                      '& .MuiChip-icon': {
+                        ml: 0.5,
+                        mr: -0.5
+                      }
+                    }}
+                  />
+                </Tooltip>
+              )}
+              
+              {/* Edit Button - Only for managers */}
+              {isManager && onEdit && (
+                <Tooltip title="Edit">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(category)
+                    }}
+                    sx={{
+                      p: 0.5,  // REDUCED padding
+                      color: theme.palette.primary.main,
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.1)
+                      }
+                    }}
+                  >
+                    <Edit sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+              
+              {/* Delete Button - Only for managers */}
+              {isManager && onDelete && (
+                <Tooltip title="Delete">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(category.id)
+                    }}
+                    sx={{
+                      p: 0.5,  // REDUCED padding
+                      color: theme.palette.error.main,
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.error.main, 0.1)
+                      }
+                    }}
+                  >
+                    <Delete sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+          </Box>
         </Paper>
-        
-        {/* Children Categories */}
+
+        {/* Render children recursively */}
         {hasChildren && (
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ 
-              ml: 0.75,
-              mt: 0.25,
-              mb: level === 0 ? 0.5 : 0.25,
+              ml: level === 0 ? 0.5 : 0.25,
               borderLeft: `2px solid ${alpha(theme.palette.primary.main, 0.15)}`,
               pl: 0.75
             }}>
@@ -328,6 +298,7 @@ function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, in
                   onEdit={onEdit}
                   onDelete={onDelete}
                   isManager={isManager}
+                  categoryChildrenCount={categoryChildrenCount}
                   index={childIndex}
                 />
               ))}
@@ -339,8 +310,33 @@ function CategoryTreeItem({ category, level = 0, onEdit, onDelete, isManager, in
   )
 }
 
-function CategoryTreeView({ categories, onEdit, onDelete, isManager }) {
+function CategoryTreeView({ categories, onEdit, onDelete, searchQuery, categoryChildrenCount }) {
   const theme = useTheme()
+  const { isManager } = useAuth()
+  
+  // Helper function to highlight search text
+  const highlightText = (text, query) => {
+    if (!query || typeof text !== 'string') return text
+    
+    const parts = text.split(new RegExp(`(${query})`, 'gi'))
+    return parts.map((part, index) => 
+      part.toLowerCase() === query.toLowerCase() ? 
+        <span key={index} style={{ backgroundColor: alpha(theme.palette.warning.main, 0.3) }}>{part}</span> : 
+        part
+    )
+  }
+
+  // Apply search highlighting if needed
+  const processCategories = (cats) => {
+    if (!searchQuery) return cats
+    
+    return cats.map(cat => ({
+      ...cat,
+      name: highlightText(cat.name, searchQuery),
+      description: cat.description ? highlightText(cat.description, searchQuery) : cat.description,
+      children: cat.children ? processCategories(cat.children) : []
+    }))
+  }
   
   if (!categories || categories.length === 0) {
     return (
@@ -379,9 +375,11 @@ function CategoryTreeView({ categories, onEdit, onDelete, isManager }) {
     )
   }
 
+  const processedCategories = searchQuery ? processCategories(categories) : categories
+
   return (
-    <Box>
-      {categories.map((category, index) => (
+    <Box sx={{ listStyle: 'none' }}>  {/* Added to remove list dots */}
+      {processedCategories.map((category, index) => (
         <CategoryTreeItem
           key={category.id}
           category={category}
@@ -389,6 +387,7 @@ function CategoryTreeView({ categories, onEdit, onDelete, isManager }) {
           onEdit={onEdit}
           onDelete={onDelete}
           isManager={isManager}
+          categoryChildrenCount={categoryChildrenCount}
           index={index}
         />
       ))}
