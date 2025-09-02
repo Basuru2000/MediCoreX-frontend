@@ -9,28 +9,33 @@ import {
   Switch,
   FormControlLabel,
   Button,
-  Divider,
   Alert,
   CircularProgress,
   Grid,
   Card,
-  CardContent,
   IconButton,
   Tooltip,
   Snackbar,
-  Chip
+  Chip,
+  Container,
+  Fade,
+  Skeleton,
+  useTheme,
+  alpha
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
   Email as EmailIcon,
-  Sms as SmsIcon,
   VolumeUp as SoundIcon,
   DesktopWindows as DesktopIcon,
   RestartAlt as ResetIcon,
   Save as SaveIcon,
-  Info as InfoIcon,
-  CheckCircle as CheckIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Science as TestIcon,
+  CheckCircle as SuccessIcon,
+  Schedule as ScheduleIcon,
+  Category as CategoryIcon,
+  PriorityHigh as PriorityIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -45,6 +50,7 @@ import {
 } from '../services/api';
 
 const NotificationPreferencesPage = () => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -62,7 +68,6 @@ const NotificationPreferencesPage = () => {
   }, []);
 
   useEffect(() => {
-    // Check if preferences have changed
     if (originalPreferences && preferences) {
       const changed = JSON.stringify(preferences) !== JSON.stringify(originalPreferences);
       setHasChanges(changed);
@@ -145,269 +150,438 @@ const NotificationPreferencesPage = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <Skeleton variant="rectangular" height={60} sx={{ mb: 3 }} />
+          <Grid container spacing={3}>
+            {[1, 2, 3].map((i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      </Container>
     );
   }
 
   if (!preferences) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">Failed to load preferences</Alert>
-      </Box>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            borderRadius: 2,
+            boxShadow: `0 2px 4px ${alpha(theme.palette.error.main, 0.1)}`
+          }}
+        >
+          Failed to load preferences
+        </Alert>
+      </Container>
     );
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4">
-          Notification Preferences
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          {hasChanges && (
-            <Chip
-              label="Unsaved Changes"
-              color="warning"
-              icon={<WarningIcon />}
-              size="small"
-            />
-          )}
-          <Button
-            variant="outlined"
-            startIcon={<ResetIcon />}
-            onClick={handleReset}
-            disabled={saving}
-          >
-            Reset to Default
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            disabled={!hasChanges || saving}
-          >
-            Save Changes
-          </Button>
-        </Box>
-      </Box>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Header Section */}
+      <Fade in timeout={500}>
+        <Paper 
+          sx={{ 
+            p: 3, 
+            mb: 3,
+            borderRadius: 2,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+            boxShadow: 'none',
+            border: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box display="flex" alignItems="center" gap={2}>
+              <NotificationsIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />
+              <Box>
+                <Typography variant="h4" fontWeight={600}>
+                  Notification Preferences
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Customize how and when you receive notifications
+                </Typography>
+              </Box>
+            </Box>
+            
+            <Box display="flex" gap={2} alignItems="center">
+              {hasChanges && (
+                <Fade in>
+                  <Chip
+                    label="Unsaved Changes"
+                    color="warning"
+                    size="small"
+                    icon={<WarningIcon />}
+                    sx={{ fontWeight: 500 }}
+                  />
+                </Fade>
+              )}
+              <Button
+                variant="outlined"
+                startIcon={<ResetIcon />}
+                onClick={handleReset}
+                disabled={saving}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  borderColor: theme.palette.divider,
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                  }
+                }}
+              >
+                Reset to Default
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+                onClick={handleSave}
+                disabled={!hasChanges || saving}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 3,
+                  boxShadow: hasChanges ? 2 : 0,
+                  '&:disabled': {
+                    bgcolor: theme.palette.action.disabledBackground
+                  }
+                }}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </Box>
+          </Box>
+        </Paper>
+      </Fade>
 
-      {/* Global Settings Card */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Global Notification Settings
-          </Typography>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <FormControlLabel
-                control={
+      {/* Global Settings Grid */}
+      <Fade in timeout={600}>
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* In-App Notifications */}
+          <Grid item xs={12} md={4}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                borderRadius: 2,
+                boxShadow: 'none',
+                border: `1px solid ${theme.palette.divider}`,
+                transition: 'all 0.3s',
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
+                }
+              }}
+            >
+              <Box p={3}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box display="flex" alignItems="center" gap={1.5}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 1.5,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <NotificationsIcon sx={{ color: theme.palette.primary.main }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        In-App
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Application alerts
+                      </Typography>
+                    </Box>
+                  </Box>
                   <Switch
                     checked={preferences.inAppEnabled}
                     onChange={handleGlobalToggle('inAppEnabled')}
                     color="primary"
                   />
-                }
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <NotificationsIcon />
-                    In-App Notifications
-                  </Box>
-                }
-              />
-              <Typography variant="caption" display="block" sx={{ ml: 5, mt: 1 }}>
-                Show notifications within the application
-              </Typography>
-            </Grid>
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Show notifications within the application interface
+                </Typography>
+              </Box>
+            </Card>
+          </Grid>
 
-            <Grid item xs={12} md={4}>
-              <FormControlLabel
-                control={
+          {/* Email Notifications */}
+          <Grid item xs={12} md={4}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                borderRadius: 2,
+                boxShadow: 'none',
+                border: `1px solid ${theme.palette.divider}`,
+                opacity: 0.7,
+                position: 'relative'
+              }}
+            >
+              <Box p={3}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box display="flex" alignItems="center" gap={1.5}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 1.5,
+                        bgcolor: alpha(theme.palette.action.disabled, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <EmailIcon sx={{ color: theme.palette.action.disabled }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Email
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Email delivery
+                      </Typography>
+                    </Box>
+                  </Box>
                   <Switch
                     checked={preferences.emailEnabled}
                     onChange={handleGlobalToggle('emailEnabled')}
-                    color="primary"
                     disabled
-                  />
-                }
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EmailIcon />
-                    Email Notifications
-                  </Box>
-                }
-              />
-              <Typography variant="caption" display="block" sx={{ ml: 5, mt: 1 }}>
-                Coming in next release
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={preferences.smsEnabled}
-                    onChange={handleGlobalToggle('smsEnabled')}
                     color="primary"
-                    disabled
                   />
-                }
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SmsIcon />
-                    SMS Notifications
-                  </Box>
-                }
-              />
-              <Typography variant="caption" display="block" sx={{ ml: 5, mt: 1 }}>
-                Not available in current version
-              </Typography>
-            </Grid>
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Coming in the next release
+                </Typography>
+                <Chip 
+                  label="Coming Soon" 
+                  size="small" 
+                  sx={{ 
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    fontSize: '0.7rem'
+                  }}
+                />
+              </Box>
+            </Card>
           </Grid>
 
-          <Divider sx={{ my: 2 }} />
-
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={preferences.soundEnabled}
-                    onChange={handleGlobalToggle('soundEnabled')}
-                    color="primary"
-                  />
+          {/* Sound & Desktop */}
+          <Grid item xs={12} md={4}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                borderRadius: 2,
+                boxShadow: 'none',
+                border: `1px solid ${theme.palette.divider}`,
+                transition: 'all 0.3s',
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
                 }
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SoundIcon />
-                    Sound Alerts
+              }}
+            >
+              <Box p={3}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box display="flex" alignItems="center" gap={1.5}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 1.5,
+                        bgcolor: alpha(theme.palette.info.main, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <DesktopIcon sx={{ color: theme.palette.info.main }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Desktop
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Browser alerts
+                      </Typography>
+                    </Box>
                   </Box>
-                }
-              />
-              <Typography variant="caption" display="block" sx={{ ml: 5, mt: 1 }}>
-                Play sound for critical notifications
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
                   <Switch
                     checked={preferences.desktopNotifications}
                     onChange={handleGlobalToggle('desktopNotifications')}
                     color="primary"
                   />
-                }
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <DesktopIcon />
-                    Desktop Notifications
-                  </Box>
-                }
-              />
-              <Typography variant="caption" display="block" sx={{ ml: 5, mt: 1 }}>
-                Show browser desktop notifications
-              </Typography>
-            </Grid>
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Show browser desktop notifications
+                </Typography>
+              </Box>
+            </Card>
           </Grid>
-        </CardContent>
-      </Card>
+        </Grid>
+      </Fade>
 
       {/* Detailed Settings Tabs */}
-      <Paper>
-        <Tabs value={tabValue} onChange={handleTabChange}>
-          <Tab label="Categories" />
-          <Tab label="Priority & Filters" />
-          <Tab label="Quiet Hours" />
-          <Tab label="Digest Settings" />
-        </Tabs>
-
-        <Box sx={{ p: 3 }}>
-          {tabValue === 0 && (
-            <CategoryPreferences
-              preferences={preferences}
-              onChange={setPreferences}
-            />
-          )}
-          {tabValue === 1 && (
-            <PrioritySettings
-              preferences={preferences}
-              onChange={setPreferences}
-            />
-          )}
-          {tabValue === 2 && (
-            <QuietHoursSettings
-              preferences={preferences}
-              onChange={setPreferences}
-            />
-          )}
-          {tabValue === 3 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Digest Settings
-              </Typography>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={preferences.digestEnabled}
-                    onChange={(e) => setPreferences({
-                      ...preferences,
-                      digestEnabled: e.target.checked
-                    })}
-                  />
+      <Fade in timeout={700}>
+        <Paper 
+          sx={{ 
+            borderRadius: 2,
+            boxShadow: 'none',
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden'
+          }}
+        >
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            sx={{
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              bgcolor: alpha(theme.palette.primary.main, 0.02),
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                minHeight: 56,
+                '&.Mui-selected': {
+                  color: theme.palette.primary.main
                 }
-                label="Enable Daily Digest"
-              />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Receive a daily summary of notifications at your preferred time.
-              </Typography>
-              {preferences.digestEnabled && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography>Digest Time: {preferences.digestTime}</Typography>
-                </Box>
-              )}
-            </Box>
-          )}
-        </Box>
-      </Paper>
+              }
+            }}
+          >
+            <Tab icon={<CategoryIcon />} iconPosition="start" label="Categories" />
+            <Tab icon={<PriorityIcon />} iconPosition="start" label="Priority & Filters" />
+            <Tab icon={<ScheduleIcon />} iconPosition="start" label="Quiet Hours" />
+          </Tabs>
 
-      {/* Test Notification */}
-      <Card sx={{ mt: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Typography variant="h6">Test Your Settings</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Send a test notification with your current preferences
-              </Typography>
-            </Box>
-            <Button
-              variant="outlined"
-              onClick={handleTestNotification}
-            >
-              Send Test Notification
-            </Button>
+          <Box sx={{ p: 4 }}>
+            {tabValue === 0 && (
+              <CategoryPreferences
+                preferences={preferences}
+                onChange={setPreferences}
+              />
+            )}
+            {tabValue === 1 && (
+              <PrioritySettings
+                preferences={preferences}
+                onChange={setPreferences}
+              />
+            )}
+            {tabValue === 2 && (
+              <QuietHoursSettings
+                preferences={preferences}
+                onChange={setPreferences}
+              />
+            )}
           </Box>
-          {testResult && (
-            <Alert 
-              severity={testResult.shouldSend ? 'success' : 'warning'}
-              sx={{ mt: 2 }}
-            >
-              {testResult.reason}
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+        </Paper>
+      </Fade>
+
+      {/* Test Notification Card */}
+      <Fade in timeout={800}>
+        <Card 
+          sx={{ 
+            mt: 3,
+            borderRadius: 2,
+            boxShadow: 'none',
+            border: `1px solid ${theme.palette.divider}`,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)} 0%, transparent 100%)`
+          }}
+        >
+          <Box p={3}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box display="flex" alignItems="center" gap={2}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 1.5,
+                    bgcolor: alpha(theme.palette.info.main, 0.1),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <TestIcon sx={{ color: theme.palette.info.main }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    Test Your Settings
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Send a test notification with your current preferences
+                  </Typography>
+                </Box>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<NotificationsIcon />}
+                onClick={handleTestNotification}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  bgcolor: theme.palette.info.main,
+                  '&:hover': {
+                    bgcolor: theme.palette.info.dark
+                  }
+                }}
+              >
+                Send Test
+              </Button>
+            </Box>
+            
+            {testResult && (
+              <Fade in>
+                <Alert 
+                  severity={testResult.shouldSend ? 'success' : 'warning'}
+                  sx={{ 
+                    mt: 2,
+                    borderRadius: 1,
+                    '& .MuiAlert-icon': {
+                      fontSize: 24
+                    }
+                  }}
+                  icon={testResult.shouldSend ? <SuccessIcon /> : <WarningIcon />}
+                >
+                  <Typography variant="body2" fontWeight={500}>
+                    {testResult.reason}
+                  </Typography>
+                </Alert>
+              </Fade>
+            )}
+          </Box>
+        </Card>
+      </Fade>
 
       {/* Success/Error Snackbars */}
       <Snackbar
         open={success}
         autoHideDuration={3000}
         onClose={() => setSuccess(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert severity="success" onClose={() => setSuccess(false)}>
+        <Alert 
+          severity="success" 
+          onClose={() => setSuccess(false)}
+          sx={{ 
+            borderRadius: 1,
+            boxShadow: 3,
+            '& .MuiAlert-icon': {
+              fontSize: 24
+            }
+          }}
+        >
           Preferences saved successfully!
         </Alert>
       </Snackbar>
@@ -416,12 +590,23 @@ const NotificationPreferencesPage = () => {
         open={!!error}
         autoHideDuration={5000}
         onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert severity="error" onClose={() => setError(null)}>
+        <Alert 
+          severity="error" 
+          onClose={() => setError(null)}
+          sx={{ 
+            borderRadius: 1,
+            boxShadow: 3,
+            '& .MuiAlert-icon': {
+              fontSize: 24
+            }
+          }}
+        >
           {error}
         </Alert>
       </Snackbar>
-    </Box>
+    </Container>
   );
 };
 
