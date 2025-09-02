@@ -1,3 +1,4 @@
+// src/pages/NotificationsPage.jsx
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -27,7 +28,12 @@ import {
   Select,
   Pagination,
   Collapse,
-  Badge
+  Badge,
+  Stack,
+  InputAdornment,
+  Fade,
+  useTheme,
+  alpha
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
@@ -48,6 +54,8 @@ import {
   FolderOpen as EmptyIcon,
   BugReport as BugReportIcon,
   Settings as SettingsIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
   // Category icons
   Block as QuarantineIcon,
   Inventory as StockIcon,
@@ -72,128 +80,143 @@ import {
   deleteNotification,
   sendTestNotification
 } from '../services/api.js';
-import api from '../services/api.js';
 
 const NotificationsPage = () => {
+  const theme = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
+  
   const [notifications, setNotifications] = useState([]);
-  const [groupedNotifications, setGroupedNotifications] = useState({});
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const [filteredNotifications, setFilteredNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tabValue, setTabValue] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedPriority, setSelectedPriority] = useState('');
+  const [filter, setFilter] = useState({
+    category: 'ALL',
+    priority: 'ALL',
+    search: ''
+  });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [summary, setSummary] = useState(null);
+  const [groupByDate, setGroupByDate] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState({});
   const [selectedNotifications, setSelectedNotifications] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const statuses = ['UNREAD', 'read', 'ARCHIVED'];
-  const categories = [
-    'QUARANTINE', 'STOCK', 'EXPIRY', 'BATCH', 
-    'USER', 'SYSTEM', 'APPROVAL', 'REPORT', 'PROCUREMENT'
-  ];
-  const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
   useEffect(() => {
     fetchNotifications();
     fetchSummary();
-  }, [tabValue, selectedCategory, selectedPriority, page]);
+  }, [tabValue, page]);
 
-  // Auto-refresh every 60 seconds
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!loading && !refreshing) {
-        fetchNotifications(true);
-      }
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [loading, refreshing]);
+    // Apply client-side filtering for search, category, and priority
+    let filtered = [...notifications];
 
-  const fetchNotifications = async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    
-    setError(null);
+    // Apply search filter
+    if (filter.search) {
+      const searchLower = filter.search.toLowerCase();
+      filtered = filtered.filter(notification => 
+        notification.title?.toLowerCase().includes(searchLower) ||
+        notification.message?.toLowerCase().includes(searchLower) ||
+        notification.category?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply category filter
+    if (filter.category !== 'ALL') {
+      filtered = filtered.filter(notification => 
+        notification.category === filter.category
+      );
+    }
+
+    // Apply priority filter  
+    if (filter.priority !== 'ALL') {
+      filtered = filtered.filter(notification => 
+        notification.priority === filter.priority
+      );
+    }
+
+    setFilteredNotifications(filtered);
+
+    // Update expanded groups for filtered notifications
+    if (groupByDate) {
+      const groups = {};
+      filtered.forEach(notification => {
+        const date = format(new Date(notification.createdAt), 'yyyy-MM-dd');
+        groups[date] = true;
+      });
+      setExpandedGroups(groups);
+    }
+  }, [filter, notifications, groupByDate]);
+
+  const fetchNotifications = async () => {
     try {
+      setLoading(true);
+      setError(null);
+      
       const params = {
-        status: statuses[tabValue],
+        status: tabValue === 0 ? 'UNREAD' : tabValue === 1 ? 'READ' : 'ARCHIVED',
         page: page - 1,
-        size: 20
+        size: 20 // Increased size to allow for client-side filtering
       };
-      
-      if (selectedCategory) params.category = selectedCategory;
-      if (selectedPriority) params.priority = selectedPriority;
-      
+
       const response = await getNotifications(params);
-      const fetchedNotifications = response.data.content || [];
-      
-      setNotifications(fetchedNotifications);
+      setNotifications(response.data.content || []);
       setTotalPages(response.data.totalPages || 1);
       
-      // Group notifications by type and date
-      groupNotifications(fetchedNotifications);
+      // Expand all groups by default
+      if (groupByDate) {
+        const groups = {};
+        response.data.content?.forEach(notification => {
+          const date = format(new Date(notification.createdAt), 'yyyy-MM-dd');
+          groups[date] = true;
+        });
+        setExpandedGroups(groups);
+      }
     } catch (err) {
+      console.error('Error fetching notifications:', err);
       setError('Failed to load notifications');
-      console.error(err);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  };
-
-  const groupNotifications = (notificationList) => {
-    const grouped = {};
-    
-    notificationList.forEach(notification => {
-      const date = format(new Date(notification.createdAt), 'yyyy-MM-dd');
-      const groupKey = `${notification.category}_${date}`;
-      
-      if (!grouped[groupKey]) {
-        grouped[groupKey] = {
-          category: notification.category,
-          date: date,
-          displayDate: format(new Date(notification.createdAt), 'MMM dd, yyyy'),
-          notifications: []
-        };
-      }
-      
-      grouped[groupKey].notifications.push(notification);
-    });
-    
-    setGroupedNotifications(grouped);
   };
 
   const fetchSummary = async () => {
     try {
       const response = await getNotificationSummary();
-      setSummary(response.data);
+      const summaryData = response.data;
+      
+      // Calculate archived count if not provided by the API
+      if (!summaryData.archivedCount && summaryData.archivedCount !== 0) {
+        // If the API doesn't provide archived count, calculate it
+        // Total - (Unread + Read) = Archived
+        const unread = summaryData.unreadCount || 0;
+        const read = summaryData.readCount || 0;
+        const total = summaryData.totalCount || 0;
+        summaryData.archivedCount = Math.max(0, total - unread - read);
+      }
+      
+      setSummary(summaryData);
     } catch (err) {
-      console.error('Failed to fetch summary:', err);
+      console.error('Error fetching summary:', err);
+      // Set default summary values if fetch fails
+      setSummary({
+        totalCount: 0,
+        unreadCount: 0,
+        readCount: 0,
+        archivedCount: 0,
+        criticalCount: 0
+      });
     }
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-    setPage(1);
-    setSelectedNotifications([]);
   };
 
   const handleMarkAsRead = async (notificationId) => {
     try {
       await markNotificationAsRead(notificationId);
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId 
-          ? { ...n, status: 'read' } 
-          : n
-        )
-      );
+      fetchNotifications();
       fetchSummary();
     } catch (err) {
-      console.error('Failed to mark as read:', err);
+      console.error('Error marking as read:', err);
     }
   };
 
@@ -203,144 +226,150 @@ const NotificationsPage = () => {
       fetchNotifications();
       fetchSummary();
     } catch (err) {
-      console.error('Failed to mark all as read:', err);
+      console.error('Error marking all as read:', err);
     }
   };
 
   const handleArchive = async (notificationId) => {
     try {
       await archiveNotification(notificationId);
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      fetchNotifications();
       fetchSummary();
     } catch (err) {
-      console.error('Failed to archive:', err);
+      console.error('Error archiving:', err);
     }
   };
 
   const handleDelete = async (notificationId) => {
     try {
       await deleteNotification(notificationId);
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      fetchNotifications();
       fetchSummary();
     } catch (err) {
-      console.error('Failed to delete:', err);
+      console.error('Error deleting:', err);
     }
   };
 
   const handleTestNotification = async () => {
     try {
       await sendTestNotification();
-      setTimeout(fetchNotifications, 1000);
-    } catch (err) {
-      console.error('Failed to send test notification:', err);
-    }
-  };
-
-  const handleEnhancedTest = async () => {
-    try {
-      // First, check the system
-      const systemCheck = await api.get('/notifications/debug/check-system');
-      console.log('System Check:', systemCheck.data);
-      
-      // Then run the regular test
-      const testResult = await sendTestNotification();
-      console.log('Test Result:', testResult.data);
-      
-      // Show results
-      const message = `
-        System Status:
-        - Templates: ${systemCheck.data.totalTemplates}
-        - BATCH_CREATED: ${systemCheck.data.requiredTemplates.BATCH_CREATED ? '✓' : '✗'}
-        - QUARANTINE_CREATED: ${systemCheck.data.requiredTemplates.QUARANTINE_CREATED ? '✓' : '✗'}
-        - USER_REGISTERED: ${systemCheck.data.requiredTemplates.USER_REGISTERED ? '✓' : '✗'}
-        
-        Test Results:
-        - ${testResult.data.SUMMARY}
-      `;
-      
-      alert(message);
-      
-      // Refresh notifications after test
       setTimeout(() => {
         fetchNotifications();
         fetchSummary();
       }, 1000);
-      
-    } catch (error) {
-      console.error('Enhanced test failed:', error);
-      alert('Test failed. Check console for details.');
+    } catch (err) {
+      console.error('Error sending test notification:', err);
     }
   };
 
-  const toggleGroupExpansion = (groupKey) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupKey]: !prev[groupKey]
-    }));
-  };
-
-  const getPriorityIcon = (priority) => {
-    switch (priority) {
-      case 'CRITICAL':
-        return <ErrorIcon color="error" />;
-      case 'HIGH':
-        return <WarningIcon color="warning" />;
-      case 'MEDIUM':
-        return <InfoIcon color="info" />;
-      default:
-        return <CheckCircleIcon color="success" />;
-    }
+  const handleClearSearch = () => {
+    setFilter({ ...filter, search: '' });
   };
 
   const getCategoryIcon = (category) => {
+    const iconProps = { fontSize: 'small' };
     switch (category) {
-      case 'QUARANTINE': return <QuarantineIcon />;
-      case 'STOCK': return <StockIcon />;
-      case 'EXPIRY': return <ExpiryIcon />;
-      case 'BATCH': return <BatchIcon />;
-      case 'USER': return <UserIcon />;
-      case 'SYSTEM': return <SystemIcon />;
-      case 'APPROVAL': return <ApprovalIcon />;
-      case 'REPORT': return <ReportIcon />;
-      case 'PROCUREMENT': return <ProcurementIcon />;
-      default: return <NotificationsIcon />;
+      case 'STOCK': return <StockIcon {...iconProps} />;
+      case 'EXPIRY': return <ExpiryIcon {...iconProps} />;
+      case 'BATCH': return <BatchIcon {...iconProps} />;
+      case 'QUARANTINE': return <QuarantineIcon {...iconProps} />;
+      case 'USER': return <UserIcon {...iconProps} />;
+      case 'SYSTEM': return <SystemIcon {...iconProps} />;
+      case 'APPROVAL': return <ApprovalIcon {...iconProps} />;
+      case 'REPORT': return <ReportIcon {...iconProps} />;
+      case 'PROCUREMENT': return <ProcurementIcon {...iconProps} />;
+      default: return <NotificationsIcon {...iconProps} />;
+    }
+  };
+
+  const getPriorityIcon = (priority) => {
+    const iconProps = { fontSize: 'small' };
+    switch (priority) {
+      case 'CRITICAL': return <ErrorIcon {...iconProps} sx={{ color: 'error.main' }} />;
+      case 'HIGH': return <WarningIcon {...iconProps} sx={{ color: 'warning.main' }} />;
+      case 'MEDIUM': return <InfoIcon {...iconProps} sx={{ color: 'info.main' }} />;
+      case 'LOW': return <CheckCircleIcon {...iconProps} sx={{ color: 'success.main' }} />;
+      default: return null;
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'CRITICAL': return 'error';
+      case 'HIGH': return 'warning';
+      case 'MEDIUM': return 'info';
+      case 'LOW': return 'success';
+      default: return 'default';
     }
   };
 
   const getCategoryColor = (category) => {
-    const colors = {
-      QUARANTINE: 'error',
-      STOCK: 'warning',
-      EXPIRY: 'error',
-      BATCH: 'info',
-      USER: 'primary',
-      SYSTEM: 'default',
-      APPROVAL: 'secondary',
-      REPORT: 'success',
-      PROCUREMENT: 'info'
-    };
-    return colors[category] || 'default';
+    switch (category) {
+      case 'QUARANTINE': return 'error';
+      case 'EXPIRY': return 'warning';
+      case 'STOCK': return 'info';
+      default: return 'default';
+    }
+  };
+
+  const groupNotificationsByDate = () => {
+    const grouped = {};
+    filteredNotifications.forEach(notification => {
+      const date = format(new Date(notification.createdAt), 'EEEE, MMMM d, yyyy');
+      const key = format(new Date(notification.createdAt), 'yyyy-MM-dd');
+      if (!grouped[key]) {
+        grouped[key] = {
+          date,
+          notifications: []
+        };
+      }
+      grouped[key].notifications.push(notification);
+    });
+    return grouped;
+  };
+
+  const toggleGroupExpansion = (key) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
   };
 
   const EmptyState = () => (
-    <Box sx={{ p: 6, textAlign: 'center' }}>
-      <EmptyIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-      <Typography variant="h5" color="text.secondary" gutterBottom>
-        No Notifications
+    <Box sx={{ 
+      textAlign: 'center', 
+      py: 8, 
+      px: 3 
+    }}>
+      <EmptyIcon sx={{ 
+        fontSize: 64, 
+        color: 'text.disabled', 
+        mb: 2 
+      }} />
+      <Typography variant="h6" color="text.secondary" gutterBottom>
+        {filter.search || filter.category !== 'ALL' || filter.priority !== 'ALL' 
+          ? 'No Matching Notifications' 
+          : 'No Notifications'}
       </Typography>
-      <Typography variant="body1" color="text.disabled">
-        {tabValue === 0 
-          ? "You're all caught up! No new notifications."
-          : tabValue === 1 
-          ? "No read notifications to display."
-          : "No archived notifications."}
+      <Typography variant="body2" color="text.secondary">
+        {filter.search || filter.category !== 'ALL' || filter.priority !== 'ALL'
+          ? 'Try adjusting your search or filters'
+          : tabValue === 0 
+            ? "You're all caught up! No new notifications."
+            : tabValue === 1 
+            ? "No read notifications to display."
+            : "No archived notifications."}
       </Typography>
-      {user?.role === 'HOSPITAL_MANAGER' && tabValue === 0 && (
+      {user?.role === 'HOSPITAL_MANAGER' && tabValue === 0 && !filter.search && filter.category === 'ALL' && filter.priority === 'ALL' && (
         <Button
           variant="outlined"
           startIcon={<NotificationsIcon />}
           onClick={handleTestNotification}
-          sx={{ mt: 3 }}
+          sx={{ 
+            mt: 3,
+            borderRadius: '8px',
+            textTransform: 'none'
+          }}
         >
           Send Test Notification
         </Button>
@@ -351,325 +380,591 @@ const NotificationsPage = () => {
   const NotificationItem = ({ notification, grouped = false }) => (
     <ListItem
       sx={{
-        borderLeft: notification.status === 'UNREAD' ? 4 : 0,
-        borderColor: 'primary.main',
-        bgcolor: notification.status === 'UNREAD' ? 'action.hover' : 'transparent',
+        borderRadius: '8px',
+        mb: 1,
+        bgcolor: notification.status === 'UNREAD' 
+          ? alpha(theme.palette.primary.main, 0.05) 
+          : 'background.paper',
+        border: `1px solid ${
+          notification.status === 'UNREAD' 
+            ? alpha(theme.palette.primary.main, 0.2)
+            : theme.palette.divider
+        }`,
         '&:hover': {
-          bgcolor: 'action.selected'
+          bgcolor: alpha(theme.palette.primary.main, 0.08),
+          transform: 'translateY(-1px)',
+          boxShadow: theme.shadows[2]
         },
+        transition: 'all 0.2s ease',
         pl: grouped ? 4 : 2
       }}
     >
-      <ListItemIcon sx={{ minWidth: 40 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+      <ListItemIcon sx={{ minWidth: 48 }}>
+        <Box sx={{ 
+          width: 40,
+          height: 40,
+          borderRadius: '8px',
+          bgcolor: alpha(theme.palette.primary.main, 0.1),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
           {getCategoryIcon(notification.category)}
-          {getPriorityIcon(notification.priority)}
         </Box>
       </ListItemIcon>
+      
       <ListItemText
         primary={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle1">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
               {notification.title}
             </Typography>
             <Chip
               label={notification.category}
               size="small"
-              color={getCategoryColor(notification.category)}
+              sx={{
+                height: 20,
+                fontSize: '0.75rem',
+                borderRadius: '6px'
+              }}
             />
-            {notification.actionUrl && (
-              <Button
-                size="small"
-                variant="text"
-                onClick={() => window.location.href = notification.actionUrl}
-              >
-                View Details
-              </Button>
-            )}
+            {getPriorityIcon(notification.priority)}
           </Box>
         }
         secondary={
-          <>
-            <Typography variant="body2" sx={{ my: 1 }}>
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               {notification.message}
             </Typography>
-            <Typography variant="caption" color="text.disabled">
-              {format(new Date(notification.createdAt), 'PPpp')}
-            </Typography>
-          </>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="caption" color="text.disabled">
+                {format(new Date(notification.createdAt), 'MMM d, yyyy h:mm a')}
+              </Typography>
+              {notification.actionUrl && (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => navigate(notification.actionUrl)}
+                  sx={{ 
+                    minWidth: 'auto',
+                    textTransform: 'none',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  View Details
+                </Button>
+              )}
+            </Box>
+          </Box>
         }
       />
+      
       <ListItemSecondaryAction>
-        {notification.status === 'UNREAD' && (
-          <Tooltip title="Mark as read">
-            <IconButton onClick={() => handleMarkAsRead(notification.id)}>
-              <MarkReadIcon />
+        <Stack direction="row" spacing={0.5}>
+          {notification.status === 'UNREAD' && (
+            <Tooltip title="Mark as read">
+              <IconButton 
+                size="small" 
+                onClick={() => handleMarkAsRead(notification.id)}
+                sx={{ 
+                  '&:hover': { 
+                    bgcolor: alpha(theme.palette.success.main, 0.1) 
+                  }
+                }}
+              >
+                <MarkReadIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {notification.status !== 'ARCHIVED' && (
+            <Tooltip title="Archive">
+              <IconButton 
+                size="small" 
+                onClick={() => handleArchive(notification.id)}
+                sx={{ 
+                  '&:hover': { 
+                    bgcolor: alpha(theme.palette.info.main, 0.1) 
+                  }
+                }}
+              >
+                <ArchiveIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Delete">
+            <IconButton 
+              size="small" 
+              onClick={() => handleDelete(notification.id)}
+              sx={{ 
+                '&:hover': { 
+                  bgcolor: alpha(theme.palette.error.main, 0.1) 
+                }
+              }}
+            >
+              <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-        )}
-        {notification.status !== 'ARCHIVED' && (
-          <Tooltip title="Archive">
-            <IconButton onClick={() => handleArchive(notification.id)}>
-              <ArchiveIcon />
-            </IconButton>
-          </Tooltip>
-        )}
-        <Tooltip title="Delete">
-          <IconButton onClick={() => handleDelete(notification.id)}>
-            <DeleteIcon />
-          </IconButton>
-        </Tooltip>
+        </Stack>
       </ListItemSecondaryAction>
     </ListItem>
   );
 
   return (
     <ErrorBoundary>
-      <Box>
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h4">
-            Notifications
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {user?.role === 'HOSPITAL_MANAGER' && (
-              <>
-                <Button
-                  variant="outlined"
-                  startIcon={<NotificationsIcon />}
-                  onClick={handleTestNotification}
-                >
-                  Test Notification
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={handleEnhancedTest}
-                  startIcon={<BugReportIcon />}
-                >
-                  Debug Test
-                </Button>
-              </>
-            )}
-            <IconButton 
-              onClick={() => navigate('/notification-preferences')} 
-              color="primary" 
-              title="Notification Settings" 
-            > 
-              <SettingsIcon /> 
-            </IconButton>
-            <IconButton 
-              onClick={() => fetchNotifications()}
-              disabled={loading || refreshing}
-            >
-              {refreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
-            </IconButton>
-          </Box>
-        </Box>
-
-        {/* Summary Cards */}
-        {summary && (
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="textSecondary" gutterBottom>
-                    Total Notifications
-                  </Typography>
-                  <Typography variant="h4">
-                    {summary.totalCount || 0}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="textSecondary" gutterBottom>
-                    Unread
-                  </Typography>
-                  <Typography variant="h4" color="primary">
-                    {summary.unreadCount || 0}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="textSecondary" gutterBottom>
-                    Critical
-                  </Typography>
-                  <Typography variant="h4" color="error">
-                    {summary.criticalCount || 0}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="textSecondary" gutterBottom>
-                    High Priority
-                  </Typography>
-                  <Typography variant="h4" color="warning.main">
-                    {summary.highPriorityCount || 0}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        )}
-
-        <Paper>
-          {/* Tabs */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={handleTabChange}>
-              <Tab 
-                label={
-                  <Badge badgeContent={summary?.unreadCount || 0} color="error">
-                    Unread
-                  </Badge>
-                } 
-              />
-              <Tab label="Read" />
-              <Tab label="Archived" />
-            </Tabs>
-          </Box>
-
-          {/* Filters */}
-          <Box sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Category</InputLabel>
-              <Select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                label="Category"
-              >
-                <MenuItem value="">All</MenuItem>
-                {categories.map(cat => (
-                  <MenuItem key={cat} value={cat}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {getCategoryIcon(cat)}
-                      {cat}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Priority</InputLabel>
-              <Select
-                value={selectedPriority}
-                onChange={(e) => setSelectedPriority(e.target.value)}
-                label="Priority"
-              >
-                <MenuItem value="">All</MenuItem>
-                {priorities.map(pri => (
-                  <MenuItem key={pri} value={pri}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {getPriorityIcon(pri)}
-                      {pri}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {tabValue === 0 && notifications.length > 0 && (
+      <Fade in={true}>
+        <Box sx={{ p: 3 }}>
+          {/* Page Header */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'flex-start',
+            mb: 4
+          }}>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
+                Notifications
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Manage and review all your system notifications
+              </Typography>
+            </Box>
+            
+            <Stack direction="row" spacing={2}>
               <Button
                 variant="outlined"
-                startIcon={<MarkAllReadIcon />}
-                onClick={handleMarkAllAsRead}
-                sx={{ ml: 'auto' }}
+                startIcon={<SettingsIcon />}
+                onClick={() => navigate('/notification-preferences')}
+                sx={{
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  borderColor: theme.palette.divider,
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                  }
+                }}
               >
-                Mark All Read
+                Preferences
               </Button>
-            )}
+              {tabValue === 0 && notifications.length > 0 && (
+                <Button
+                  variant="contained"
+                  startIcon={<MarkAllReadIcon />}
+                  onClick={handleMarkAllAsRead}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                    '&:hover': {
+                      boxShadow: theme.shadows[2]
+                    }
+                  }}
+                >
+                  Mark All Read
+                </Button>
+              )}
+              <IconButton
+                onClick={fetchNotifications}
+                sx={{
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: '8px',
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                  }
+                }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Stack>
           </Box>
 
-          <Divider />
-
-          {/* Notifications List */}
-          {loading ? (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <CircularProgress />
-            </Box>
-          ) : error ? (
-            <Box sx={{ p: 2 }}>
-              <Alert severity="error">{error}</Alert>
-            </Box>
-          ) : notifications.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <>
-              <List>
-                {/* Show grouped notifications if more than 5 of same category */}
-                {Object.keys(groupedNotifications).length > 0 && 
-                 Object.values(groupedNotifications).some(g => g.notifications.length > 2) ? (
-                  Object.entries(groupedNotifications).map(([key, group]) => (
-                    <Box key={key}>
-                      <ListItem
-                        button
-                        onClick={() => toggleGroupExpansion(key)}
-                        sx={{ bgcolor: 'grey.50' }}
-                      >
-                        <ListItemIcon>
-                          {getCategoryIcon(group.category)}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="subtitle1">
-                                {group.category} Notifications
-                              </Typography>
-                              <Chip
-                                label={group.notifications.length}
-                                size="small"
-                                color="primary"
-                              />
-                            </Box>
-                          }
-                          secondary={group.displayDate}
-                        />
-                        {expandedGroups[key] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                      </ListItem>
-                      <Collapse in={expandedGroups[key]} timeout="auto" unmountOnExit>
-                        {group.notifications.map(notification => (
-                          <NotificationItem 
-                            key={notification.id} 
-                            notification={notification} 
-                            grouped 
-                          />
-                        ))}
-                      </Collapse>
+          {/* Summary Cards */}
+          {summary && (
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  borderRadius: '12px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: 'none',
+                  height: '100%'
+                }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '10px',
+                        bgcolor: alpha(theme.palette.info.main, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <NotificationsIcon sx={{ color: 'info.main' }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                          {summary.totalCount || 0}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Total
+                        </Typography>
+                      </Box>
                     </Box>
-                  ))
-                ) : (
-                  // Show individual notifications
-                  notifications.map(notification => (
-                    <NotificationItem 
-                      key={notification.id} 
-                      notification={notification} 
-                    />
-                  ))
-                )}
-              </List>
-
-              {totalPages > 1 && (
-                <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-                  <Pagination
-                    count={totalPages}
-                    page={page}
-                    onChange={(e, value) => setPage(value)}
-                    color="primary"
-                  />
-                </Box>
-              )}
-            </>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  borderRadius: '12px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: 'none',
+                  height: '100%'
+                }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '10px',
+                        bgcolor: alpha(theme.palette.warning.main, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <ActiveIcon sx={{ color: 'warning.main' }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                          {summary.unreadCount || 0}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Unread
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  borderRadius: '12px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: 'none',
+                  height: '100%'
+                }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '10px',
+                        bgcolor: alpha(theme.palette.error.main, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <ErrorIcon sx={{ color: 'error.main' }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                          {summary.criticalCount || 0}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Critical
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ 
+                  borderRadius: '12px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: 'none',
+                  height: '100%'
+                }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '10px',
+                        bgcolor: alpha(theme.palette.success.main, 0.1),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <ArchiveIcon sx={{ color: 'success.main' }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                          {summary.archivedCount || 0}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Archived
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           )}
-        </Paper>
-      </Box>
+
+          {/* Main Content */}
+          <Paper sx={{ 
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: 'none',
+            overflow: 'hidden'
+          }}>
+            {/* Tabs */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs 
+                value={tabValue} 
+                onChange={(e, newValue) => {
+                  setTabValue(newValue);
+                  setPage(1);
+                  // Reset filters when changing tabs
+                  setFilter({
+                    category: 'ALL',
+                    priority: 'ALL',
+                    search: ''
+                  });
+                }}
+                sx={{
+                  '& .MuiTab-root': {
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    fontSize: '0.875rem',
+                    minHeight: 48
+                  }
+                }}
+              >
+                <Tab 
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Badge badgeContent={summary?.unreadCount || 0} color="error">
+                        <ActiveIcon fontSize="small" />
+                      </Badge>
+                      <span>Unread</span>
+                    </Box>
+                  } 
+                />
+                <Tab 
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <MarkReadIcon fontSize="small" />
+                      <span>Read</span>
+                    </Box>
+                  } 
+                />
+                <Tab 
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ArchiveIcon fontSize="small" />
+                      <span>Archived</span>
+                    </Box>
+                  } 
+                />
+              </Tabs>
+            </Box>
+
+            {/* Filters */}
+            <Box sx={{ 
+              p: 2, 
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              bgcolor: alpha(theme.palette.grey[100], 0.5)
+            }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search notifications..."
+                    value={filter.search}
+                    onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: filter.search && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            onClick={handleClearSearch}
+                          >
+                            <ClearIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                      sx: {
+                        borderRadius: '8px',
+                        '& fieldset': {
+                          borderColor: theme.palette.divider
+                        }
+                      }
+                    }}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Category</InputLabel>
+                    <Select
+                      value={filter.category}
+                      onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+                      label="Category"
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      <MenuItem value="ALL">All Categories</MenuItem>
+                      <MenuItem value="STOCK">Stock</MenuItem>
+                      <MenuItem value="EXPIRY">Expiry</MenuItem>
+                      <MenuItem value="BATCH">Batch</MenuItem>
+                      <MenuItem value="QUARANTINE">Quarantine</MenuItem>
+                      <MenuItem value="USER">User</MenuItem>
+                      <MenuItem value="SYSTEM">System</MenuItem>
+                      <MenuItem value="APPROVAL">Approval</MenuItem>
+                      <MenuItem value="REPORT">Report</MenuItem>
+                      <MenuItem value="PROCUREMENT">Procurement</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Priority</InputLabel>
+                    <Select
+                      value={filter.priority}
+                      onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
+                      label="Priority"
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      <MenuItem value="ALL">All Priorities</MenuItem>
+                      <MenuItem value="CRITICAL">Critical</MenuItem>
+                      <MenuItem value="HIGH">High</MenuItem>
+                      <MenuItem value="MEDIUM">Medium</MenuItem>
+                      <MenuItem value="LOW">Low</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} md={2}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={groupByDate ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    onClick={() => setGroupByDate(!groupByDate)}
+                    sx={{
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      borderColor: theme.palette.divider,
+                      '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                        bgcolor: alpha(theme.palette.primary.main, 0.05)
+                      }
+                    }}
+                  >
+                    {groupByDate ? 'Ungroup' : 'Group'}
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+
+            {/* Notifications List */}
+            {loading ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              <Alert severity="error" sx={{ m: 2 }}>
+                {error}
+              </Alert>
+            ) : filteredNotifications.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <>
+                <List sx={{ p: 2 }}>
+                  {groupByDate ? (
+                    Object.entries(groupNotificationsByDate()).map(([key, group]) => (
+                      <Box key={key}>
+                        <ListItem
+                          button
+                          onClick={() => toggleGroupExpansion(key)}
+                          sx={{
+                            borderRadius: '8px',
+                            mb: 1,
+                            bgcolor: alpha(theme.palette.grey[100], 0.5),
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.grey[200], 0.5)
+                            }
+                          }}
+                        >
+                          <ListItemText
+                            primary={
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                {group.date}
+                              </Typography>
+                            }
+                            secondary={`${group.notifications.length} notifications`}
+                          />
+                          {expandedGroups[key] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        </ListItem>
+                        <Collapse in={expandedGroups[key]} timeout="auto" unmountOnExit>
+                          <Box sx={{ pl: 2 }}>
+                            {group.notifications.map(notification => (
+                              <NotificationItem 
+                                key={notification.id} 
+                                notification={notification} 
+                                grouped 
+                              />
+                            ))}
+                          </Box>
+                        </Collapse>
+                      </Box>
+                    ))
+                  ) : (
+                    filteredNotifications.map(notification => (
+                      <NotificationItem 
+                        key={notification.id} 
+                        notification={notification} 
+                      />
+                    ))
+                  )}
+                </List>
+
+                {totalPages > 1 && (
+                  <Box sx={{ 
+                    p: 2, 
+                    display: 'flex', 
+                    justifyContent: 'center',
+                    borderTop: `1px solid ${theme.palette.divider}`
+                  }}>
+                    <Pagination
+                      count={totalPages}
+                      page={page}
+                      onChange={(e, value) => setPage(value)}
+                      color="primary"
+                      sx={{
+                        '& .MuiPaginationItem-root': {
+                          borderRadius: '8px'
+                        }
+                      }}
+                    />
+                  </Box>
+                )}
+              </>
+            )}
+          </Paper>
+        </Box>
+      </Fade>
     </ErrorBoundary>
   );
 };
