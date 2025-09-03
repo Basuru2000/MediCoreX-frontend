@@ -1,225 +1,345 @@
+import React, { useState, useEffect } from 'react'
 import {
   Box,
-  Paper,
   Typography,
+  Paper,
   Grid,
   Card,
   CardContent,
-  Divider,
+  Stack,
   Chip,
-  LinearProgress
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  useTheme,
+  alpha,
+  LinearProgress,
+  Divider,
+  Alert
 } from '@mui/material'
 import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid
-} from 'recharts'
+  Warning,
+  Error,
+  Info,
+  CheckCircle,
+  TrendingUp,
+  Category,
+  LocalOffer
+} from '@mui/icons-material'
+import { getExpiryAlerts, getExpiringBatches } from '../../services/api'
 
-function AlertGenerationReport({ checkResult }) {
-  if (!checkResult || checkResult.status !== 'COMPLETED') {
+function AlertGenerationReport({ checkResult, onRefresh }) {
+  const theme = useTheme()
+  const [alerts, setAlerts] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (checkResult?.checkLogId) {
+      fetchAlerts()
+    }
+  }, [checkResult])
+
+  const fetchAlerts = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      try {
+        // Try primary endpoint first
+        const response = await getExpiryAlerts({ 
+          status: 'PENDING', 
+          page: 0, 
+          size: 20 
+        })
+        setAlerts(response.data.content || [])
+      } catch (primaryError) {
+        console.warn('Primary alerts endpoint failed, using fallback:', primaryError)
+        
+        // Fallback to expiring batches
+        try {
+          const expiringRes = await getExpiringBatches(90)
+          // Transform to alert format
+          const transformedAlerts = (expiringRes.data || []).map((batch, index) => ({
+            id: batch.id || index,
+            productName: batch.productName || 'Unknown Product',
+            productCode: batch.productCode || '',
+            batchNumber: batch.batchNumber || 'N/A',
+            severity: batch.daysUntilExpiry <= 7 ? 'CRITICAL' : 
+                     batch.daysUntilExpiry <= 30 ? 'WARNING' : 
+                     batch.daysUntilExpiry <= 60 ? 'INFO' : 'LOW',
+            expiryDate: batch.expiryDate,
+            daysUntilExpiry: batch.daysUntilExpiry || 0,
+            quantityAffected: batch.quantity || 0
+          }))
+          setAlerts(transformedAlerts)
+        } catch (fallbackError) {
+          console.error('Both endpoints failed:', fallbackError)
+          setError('Unable to load alert data')
+          setAlerts([])
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch alerts:', error)
+      setError('Failed to load alerts')
+      setAlerts([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getSeverityIcon = (severity) => {
+    const icons = {
+      CRITICAL: <Error sx={{ fontSize: 16, color: theme.palette.error.main }} />,
+      WARNING: <Warning sx={{ fontSize: 16, color: theme.palette.warning.main }} />,
+      INFO: <Info sx={{ fontSize: 16, color: theme.palette.info.main }} />,
+      LOW: <CheckCircle sx={{ fontSize: 16, color: theme.palette.success.main }} />
+    }
+    return icons[severity] || icons.INFO
+  }
+
+  const getSeverityColor = (severity) => {
+    const colors = {
+      CRITICAL: theme.palette.error.main,
+      WARNING: theme.palette.warning.main,
+      INFO: theme.palette.info.main,
+      LOW: theme.palette.success.main
+    }
+    return colors[severity] || theme.palette.grey[500]
+  }
+
+  const alertStats = {
+    critical: alerts.filter(a => a.severity === 'CRITICAL').length,
+    warning: alerts.filter(a => a.severity === 'WARNING').length,
+    info: alerts.filter(a => a.severity === 'INFO').length,
+    low: alerts.filter(a => a.severity === 'LOW').length
+  }
+
+  if (!checkResult) {
     return (
-      <Box p={4} textAlign="center">
-        <Typography color="text.secondary">
-          No completed check report available.
+      <Box sx={{ textAlign: 'center', py: 4 }}>
+        <Typography variant="body2" color="text.secondary">
+          No check results available. Run an expiry check to generate alerts.
         </Typography>
       </Box>
     )
   }
 
-  const SEVERITY_COLORS = {
-    'CRITICAL': '#d32f2f',
-    'WARNING': '#f57c00',
-    'INFO': '#1976d2'
-  }
-
-  const DAYS_COLORS = {
-    '0-7 days': '#d32f2f',
-    '8-30 days': '#f57c00',
-    '31-60 days': '#fbc02d',
-    '61-90 days': '#388e3c',
-    '91+ days': '#1976d2'
-  }
-
-  // Prepare chart data
-  const severityData = checkResult.alertsBySeverity ? 
-    Object.entries(checkResult.alertsBySeverity).map(([severity, count]) => ({
-      name: severity,
-      value: count
-    })) : []
-
-  const daysData = checkResult.alertsByDaysRange ?
-    Object.entries(checkResult.alertsByDaysRange).map(([range, count]) => ({
-      name: range,
-      value: count
-    })) : []
-
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
         Alert Generation Report
       </Typography>
 
-      <Grid container spacing={3}>
-        {/* Summary Cards */}
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Total Products
-              </Typography>
-              <Typography variant="h4">
-                {checkResult.productsChecked}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+      {error && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 3, borderRadius: '8px' }}
+          onClose={() => setError(null)}
+        >
+          {error}
+        </Alert>
+      )}
 
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Alerts Generated
-              </Typography>
-              <Typography variant="h4" color="warning.main">
-                {checkResult.alertsGenerated}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Alert Rate
-              </Typography>
-              <Typography variant="h4">
-                {checkResult.productsChecked > 0 
-                  ? `${((checkResult.alertsGenerated / checkResult.productsChecked) * 100).toFixed(1)}%`
-                  : '0%'}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Processing Time
-              </Typography>
-              <Typography variant="h4">
-                {(checkResult.executionTimeMs / 1000).toFixed(1)}s
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Charts */}
-        {severityData.length > 0 && (
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Alerts by Severity
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={severityData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label
-                  >
-                    {severityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={SEVERITY_COLORS[entry.name]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </Paper>
-          </Grid>
-        )}
-
-        {daysData.length > 0 && (
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Alerts by Days Until Expiry
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={daysData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value">
-                    {daysData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={DAYS_COLORS[entry.name]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Paper>
-          </Grid>
-        )}
-
-        {/* Performance Metrics */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Performance Metrics
-            </Typography>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} md={4}>
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: '12px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.05)} 0%, ${alpha(theme.palette.error.main, 0.02)} 100%)`
+            }}
+          >
+            <CardContent sx={{ p: 2.5 }}>
+              <Stack spacing={1} alignItems="center">
+                <Error sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
+                  {alertStats.critical}
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Products/Second
+                  Critical Alerts
                 </Typography>
-                <Typography variant="h6">
-                  {checkResult.executionTimeMs > 0 
-                    ? (checkResult.productsChecked / (checkResult.executionTimeMs / 1000)).toFixed(1)
-                    : '0'}
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: '12px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.05)} 0%, ${alpha(theme.palette.warning.main, 0.02)} 100%)`
+            }}
+          >
+            <CardContent sx={{ p: 2.5 }}>
+              <Stack spacing={1} alignItems="center">
+                <Warning sx={{ color: theme.palette.warning.main, fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>
+                  {alertStats.warning}
                 </Typography>
-              </Grid>
-              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="text.secondary">
-                  Average Time per Product
+                  Warning Alerts
                 </Typography>
-                <Typography variant="h6">
-                  {checkResult.productsChecked > 0
-                    ? `${(checkResult.executionTimeMs / checkResult.productsChecked).toFixed(1)}ms`
-                    : '0ms'}
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: '12px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)} 0%, ${alpha(theme.palette.info.main, 0.02)} 100%)`
+            }}
+          >
+            <CardContent sx={{ p: 2.5 }}>
+              <Stack spacing={1} alignItems="center">
+                <Info sx={{ color: theme.palette.info.main, fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.info.main }}>
+                  {alertStats.info}
                 </Typography>
-              </Grid>
-              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="text.secondary">
-                  Check Efficiency
+                  Info Alerts
                 </Typography>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <LinearProgress
-                    variant="determinate"
-                    value={checkResult.productsChecked > 0 ? 100 : 0}
-                    sx={{ flexGrow: 1, height: 8, borderRadius: 4 }}
-                  />
-                  <Typography variant="body2">100%</Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card 
+            sx={{ 
+              borderRadius: '12px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.05)} 0%, ${alpha(theme.palette.success.main, 0.02)} 100%)`
+            }}
+          >
+            <CardContent sx={{ p: 2.5 }}>
+              <Stack spacing={1} alignItems="center">
+                <CheckCircle sx={{ color: theme.palette.success.main, fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.success.main }}>
+                  {alertStats.low}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Low Priority
+                </Typography>
+              </Stack>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
+
+      {/* Alert Details Table */}
+      <Paper 
+        sx={{ 
+          borderRadius: '12px',
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: 'none',
+          overflow: 'hidden'
+        }}
+      >
+        <Box sx={{ p: 2.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            Generated Alerts Details
+          </Typography>
+        </Box>
+
+        {loading ? (
+          <LinearProgress />
+        ) : alerts.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              No alerts to display
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                  <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Batch</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Severity</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Expiry Date</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Days Until</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>Quantity</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {alerts.slice(0, 20).map((alert, index) => (
+                  <TableRow 
+                    key={alert.id || index}
+                    sx={{ 
+                      '&:hover': { 
+                        bgcolor: alpha(theme.palette.primary.main, 0.02) 
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {alert.productName}
+                        </Typography>
+                        {alert.productCode && (
+                          <Typography variant="caption" color="text.secondary">
+                            {alert.productCode}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {alert.batchNumber}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        icon={getSeverityIcon(alert.severity)}
+                        label={alert.severity}
+                        size="small"
+                        sx={{
+                          bgcolor: alpha(getSeverityColor(alert.severity), 0.1),
+                          color: getSeverityColor(alert.severity),
+                          fontWeight: 500,
+                          borderRadius: '6px'
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {new Date(alert.expiryDate).toLocaleDateString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={`${alert.daysUntilExpiry} days`}
+                        size="small"
+                        color={alert.daysUntilExpiry <= 7 ? 'error' : alert.daysUntilExpiry <= 30 ? 'warning' : 'default'}
+                        sx={{ fontWeight: 500 }}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {alert.quantityAffected}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
     </Box>
   )
 }

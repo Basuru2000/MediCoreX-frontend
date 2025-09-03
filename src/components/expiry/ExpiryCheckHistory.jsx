@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Table,
@@ -7,131 +7,273 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Paper,
+  Typography,
   Chip,
   IconButton,
   Tooltip,
-  Typography
+  Stack,
+  useTheme,
+  alpha
 } from '@mui/material'
 import {
   CheckCircle,
   Error,
   Schedule,
   Visibility,
-  Refresh
+  AccessTime,
+  Speed,
+  Computer,
+  Person
 } from '@mui/icons-material'
+import { format } from 'date-fns'
 
-function ExpiryCheckHistory({ history, onRefresh }) {
+function ExpiryCheckHistory({ history = [], onRefresh }) {
+  const theme = useTheme()
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage)
+  }
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10))
+    setPage(0)
+  }
+
   const getStatusChip = (status) => {
     const config = {
-      'COMPLETED': { color: 'success', icon: <CheckCircle fontSize="small" /> },
-      'FAILED': { color: 'error', icon: <Error fontSize="small" /> },
-      'RUNNING': { color: 'primary', icon: <Schedule fontSize="small" /> }
+      COMPLETED: {
+        icon: <CheckCircle sx={{ fontSize: 16 }} />,
+        color: 'success',
+        label: 'Completed'
+      },
+      FAILED: {
+        icon: <Error sx={{ fontSize: 16 }} />,
+        color: 'error',
+        label: 'Failed'
+      },
+      RUNNING: {
+        icon: <Schedule sx={{ fontSize: 16 }} />,
+        color: 'info',
+        label: 'Running'
+      }
+    }
+
+    const statusConfig = config[status] || config.COMPLETED
+
+    return (
+      <Chip
+        size="small"
+        icon={statusConfig.icon}
+        label={statusConfig.label}
+        color={statusConfig.color}
+        sx={{
+          fontWeight: 500,
+          borderRadius: '6px'
+        }}
+      />
+    )
+  }
+
+  const getScheduleTypeChip = (check) => {
+    // Determine if it's scheduled based on multiple factors:
+    // 1. Check if createdBy field indicates system/scheduled
+    // 2. Check if there's a scheduleType field
+    // 3. Check if the start time is at the scheduled time (02:00:00)
+    // 4. Check if executionType field exists
+    
+    let isScheduled = false;
+    
+    // Check various possible indicators
+    if (check.createdBy) {
+      const createdByLower = check.createdBy.toLowerCase();
+      isScheduled = createdByLower === 'system' || 
+                    createdByLower === 'scheduled' || 
+                    createdByLower === 'scheduler' ||
+                    createdByLower === 'cron';
     }
     
-    const statusConfig = config[status] || config['COMPLETED']
+    // Check if there's a specific scheduleType or type field
+    if (!isScheduled && check.scheduleType) {
+      isScheduled = check.scheduleType.toLowerCase() === 'scheduled';
+    }
+    
+    if (!isScheduled && check.type) {
+      isScheduled = check.type.toLowerCase() === 'scheduled';
+    }
+    
+    if (!isScheduled && check.executionType) {
+      isScheduled = check.executionType.toLowerCase() === 'scheduled';
+    }
+    
+    // Check if start time matches the scheduled cron time (02:00:00)
+    if (!isScheduled && check.startTime) {
+      const startTimeStr = check.startTime.toString();
+      // Check if it starts with 02:00 (2 AM scheduled task)
+      if (startTimeStr.includes('02:00:00') || startTimeStr.includes('T02:00')) {
+        isScheduled = true;
+      }
+    }
+    
+    // If still not determined and createdBy is null/undefined, check the time pattern
+    if (!isScheduled && !check.createdBy && check.startTime) {
+      const hour = new Date(check.startTime).getHours();
+      // Scheduled tasks typically run at 2 AM
+      if (hour === 2) {
+        isScheduled = true;
+      }
+    }
     
     return (
       <Chip
-        label={status}
-        color={statusConfig.color}
-        icon={statusConfig.icon}
         size="small"
+        icon={isScheduled ? <Computer sx={{ fontSize: 16 }} /> : <Person sx={{ fontSize: 16 }} />}
+        label={isScheduled ? 'Scheduled' : 'Manual'}
+        color={isScheduled ? 'primary' : 'default'}
+        variant={isScheduled ? 'filled' : 'outlined'}
+        sx={{
+          fontWeight: 500,
+          borderRadius: '6px'
+        }}
       />
     )
   }
 
   const formatDuration = (ms) => {
-    if (!ms) return '-'
-    if (ms < 1000) return `${ms}ms`
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
-    return `${(ms / 60000).toFixed(1)}min`
-  }
-
-  const formatDateTime = (dateTimeStr) => {
-    if (!dateTimeStr) return '-'
-    const date = new Date(dateTimeStr)
-    return date.toLocaleString()
-  }
-
-  if (history.length === 0) {
-    return (
-      <Box p={4} textAlign="center">
-        <Typography color="text.secondary">
-          No expiry checks have been performed yet.
-        </Typography>
-      </Box>
-    )
+    if (!ms) return 'N/A'
+    const seconds = (ms / 1000).toFixed(2)
+    return `${seconds}s`
   }
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6">Check History</Typography>
-        <IconButton onClick={onRefresh} size="small">
-          <Refresh />
-        </IconButton>
-      </Box>
+      <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+        Expiry Check History
+      </Typography>
 
-      <TableContainer component={Paper}>
+      <TableContainer 
+        component={Paper} 
+        variant="outlined"
+        sx={{ 
+          borderRadius: '12px',
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: 'none'
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell>Check Date</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Products</TableCell>
-              <TableCell align="right">Alerts</TableCell>
-              <TableCell>Start Time</TableCell>
-              <TableCell>Duration</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Actions</TableCell>
+            <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+              <TableCell sx={{ fontWeight: 600 }}>Check Date</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Schedule Type</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600 }}>Products</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600 }}>Alerts</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600 }}>Duration</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Start Time</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>End Time</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {history.map((check) => (
-              <TableRow key={check.checkLogId}>
-                <TableCell>
-                  {new Date(check.checkDate).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  {getStatusChip(check.status)}
-                </TableCell>
-                <TableCell align="right">
-                  {check.productsChecked || 0}
-                </TableCell>
-                <TableCell align="right">
-                  <Typography
-                    color={check.alertsGenerated > 0 ? 'warning.main' : 'text.primary'}
-                    fontWeight={check.alertsGenerated > 0 ? 'bold' : 'normal'}
-                  >
-                    {check.alertsGenerated || 0}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  {formatDateTime(check.startTime)}
-                </TableCell>
-                <TableCell>
-                  {formatDuration(check.executionTimeMs)}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={check.startTime?.includes('02:00') ? 'Scheduled' : 'Manual'}
-                    size="small"
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Tooltip title="View Details">
-                    <IconButton size="small">
-                      <Visibility />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
+            {history
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((check) => (
+                <TableRow 
+                  key={check.id}
+                  sx={{ 
+                    '&:hover': { 
+                      bgcolor: alpha(theme.palette.primary.main, 0.02) 
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {format(new Date(check.checkDate), 'MMM dd, yyyy')}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {getScheduleTypeChip(check)}
+                  </TableCell>
+                  <TableCell>{getStatusChip(check.status)}</TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                      <Typography variant="body2">
+                        {check.productsChecked || 0}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={check.alertsGenerated || 0}
+                      size="small"
+                      sx={{
+                        bgcolor: check.alertsGenerated > 0 
+                          ? alpha(theme.palette.warning.main, 0.1)
+                          : alpha(theme.palette.success.main, 0.1),
+                        color: check.alertsGenerated > 0 
+                          ? theme.palette.warning.main
+                          : theme.palette.success.main,
+                        fontWeight: 600,
+                        minWidth: 40
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                      <Speed sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        {formatDuration(check.executionTimeMs)}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {check.startTime ? format(new Date(check.startTime), 'HH:mm:ss') : 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {check.endTime ? format(new Date(check.endTime), 'HH:mm:ss') : 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="View Details" arrow>
+                      <IconButton 
+                        size="small"
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.primary.main, 0.1)
+                          }
+                        }}
+                      >
+                        <Visibility fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
       </TableContainer>
+
+      <TablePagination
+        component="div"
+        count={history.length}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        sx={{ 
+          borderTop: `1px solid ${theme.palette.divider}`,
+          '.MuiTablePagination-toolbar': { 
+            minHeight: 56 
+          }
+        }}
+      />
     </Box>
   )
 }
