@@ -28,13 +28,16 @@ import {
   Search,
   Refresh,
   Download,
-  FilterList
+  FilterList,
+  Visibility
 } from '@mui/icons-material'
+import { useAuth } from '../context/AuthContext'
 import { getUsers, createUser, updateUser, deleteUser, toggleUserStatus } from '../services/api'
 import UserForm from '../components/users/UserForm'
 
 function Users() {
   const theme = useTheme()
+  const { user, isManager, isStaff } = useAuth() // Get user role info
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [openDialog, setOpenDialog] = useState(false)
@@ -59,6 +62,11 @@ function Users() {
   }
 
   const handleOpenDialog = (user = null) => {
+    // Only managers can open the dialog
+    if (!isManager) {
+      showSnackbar('You do not have permission to perform this action', 'warning')
+      return
+    }
     setEditingUser(user)
     setOpenDialog(true)
   }
@@ -85,6 +93,11 @@ function Users() {
   }
 
   const handleDelete = async (id) => {
+    if (!isManager) {
+      showSnackbar('You do not have permission to delete users', 'warning')
+      return
+    }
+    
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         await deleteUser(id)
@@ -97,6 +110,11 @@ function Users() {
   }
 
   const handleToggleStatus = async (id) => {
+    if (!isManager) {
+      showSnackbar('You do not have permission to change user status', 'warning')
+      return
+    }
+    
     try {
       await toggleUserStatus(id)
       showSnackbar('User status updated', 'success')
@@ -112,9 +130,9 @@ function Users() {
 
   const getGenderColor = (gender) => {
     const colors = {
-      'MALE': '#64B5F6',    // Light Blue
-      'FEMALE': '#F06292',  // Light Pink
-      'NOT_SPECIFIED': '#BDBDBD' // Gray
+      'MALE': '#64B5F6',
+      'FEMALE': '#F06292',
+      'NOT_SPECIFIED': '#BDBDBD'
     }
     return colors[gender] || colors.NOT_SPECIFIED
   }
@@ -162,82 +180,70 @@ function Users() {
           }}
         >
           {params.row.profileImageUrl ? null : 
-            (params.row.fullName ? params.row.fullName[0] : <Person />)}
+            (params.row.fullName ? 
+              params.row.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() :
+              params.row.username ? params.row.username.slice(0, 2).toUpperCase() : 'U')}
         </Avatar>
       )
     },
-    {
-      field: 'username',
-      headerName: 'Username',
-      width: 130,
-      headerAlign: 'left',
-      renderCell: (params) => (
-        <Typography variant="body2" fontWeight={500}>
-          {params.value}
-        </Typography>
-      )
+    { 
+      field: 'username', 
+      headerName: 'Username', 
+      flex: 1,
+      minWidth: 130
     },
     { 
-      field: 'fullName',
-      headerName: 'Full Name',
-      flex: 1,
-      minWidth: 180,
-      headerAlign: 'left',
-      renderCell: (params) => (
-        <Typography variant="body2">
-          {params.value}
-        </Typography>
-      )
+      field: 'fullName', 
+      headerName: 'Full Name', 
+      flex: 1.2,
+      minWidth: 150
     },
     { 
-      field: 'email',
-      headerName: 'Email',
-      flex: 1,
-      minWidth: 200,
-      headerAlign: 'left',
-      renderCell: (params) => (
-        <Typography variant="body2" color="text.secondary">
-          {params.value}
-        </Typography>
-      )
-    },
-    {
-      field: 'role',
-      headerName: 'Role',
-      width: 180,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params) => (
-        <Chip
-          label={params.value.replace(/_/g, ' ')}
-          color={getRoleChipColor(params.value)}
-          size="small"
-          sx={{ 
-            fontWeight: 500,
-            borderRadius: '8px',
-            height: '28px'
-          }}
-        />
-      )
+      field: 'email', 
+      headerName: 'Email', 
+      flex: 1.3,
+      minWidth: 180
     },
     {
       field: 'gender',
       headerName: 'Gender',
-      width: 100,
+      width: 110,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params) => {
+        const genderDisplay = {
+          'MALE': 'Male',
+          'FEMALE': 'Female',
+          'NOT_SPECIFIED': '-'
+        }
+        return (
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: params.row.gender === 'NOT_SPECIFIED' ? 'text.secondary' : 'text.primary',
+              fontWeight: params.row.gender !== 'NOT_SPECIFIED' ? 500 : 400
+            }}
+          >
+            {genderDisplay[params.row.gender] || '-'}
+          </Typography>
+        )
+      }
+    },
+    {
+      field: 'role',
+      headerName: 'Role',
+      width: 160,
       headerAlign: 'center',
       align: 'center',
       renderCell: (params) => (
-        <Box
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            bgcolor: getGenderColor(params.value),
-            border: `2px solid ${alpha(getGenderColor(params.value), 0.3)}`,
-            boxShadow: `0 0 0 4px ${alpha(getGenderColor(params.value), 0.1)}`
+        <Chip
+          label={params.row.role?.replace(/_/g, ' ')}
+          color={getRoleChipColor(params.row.role)}
+          size="small"
+          sx={{ 
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            textTransform: 'capitalize'
           }}
         />
       )
@@ -250,14 +256,13 @@ function Users() {
       align: 'center',
       renderCell: (params) => (
         <Chip
-          label={params.value ? 'Active' : 'Inactive'}
-          color={params.value ? 'success' : 'default'}
+          label={params.row.active ? 'Active' : 'Inactive'}
+          color={params.row.active ? 'success' : 'default'}
           size="small"
+          variant={params.row.active ? 'filled' : 'outlined'}
           sx={{ 
-            fontWeight: 500,
-            borderRadius: '8px',
-            height: '24px',
-            fontSize: '0.75rem'
+            fontSize: '0.75rem',
+            fontWeight: 500
           }}
         />
       )
@@ -265,56 +270,76 @@ function Users() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 140,
+      width: isManager ? 140 : 80,
       sortable: false,
       headerAlign: 'center',
       align: 'center',
       renderCell: (params) => (
         <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Tooltip title="Edit" arrow placement="top">
-            <IconButton
-              size="small"
-              onClick={() => handleOpenDialog(params.row)}
-              sx={{
-                color: 'primary.main',
-                '&:hover': { 
-                  bgcolor: alpha(theme.palette.primary.main, 0.08)
-                }
-              }}
-            >
-              <Edit fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={params.row.active ? 'Deactivate' : 'Activate'} arrow placement="top">
-            <IconButton
-              size="small"
-              onClick={() => handleToggleStatus(params.row.id)}
-              sx={{
-                color: params.row.active ? 'warning.main' : 'success.main',
-                '&:hover': { 
-                  bgcolor: params.row.active 
-                    ? alpha(theme.palette.warning.main, 0.08)
-                    : alpha(theme.palette.success.main, 0.08)
-                }
-              }}
-            >
-              {params.row.active ? <Block fontSize="small" /> : <CheckCircle fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete" arrow placement="top">
-            <IconButton
-              size="small"
-              onClick={() => handleDelete(params.row.id)}
-              sx={{
-                color: 'error.main',
-                '&:hover': { 
-                  bgcolor: alpha(theme.palette.error.main, 0.08)
-                }
-              }}
-            >
-              <Delete fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {isManager ? (
+            // Managers see all action buttons
+            <>
+              <Tooltip title="Edit" arrow placement="top">
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenDialog(params.row)}
+                  sx={{
+                    color: 'primary.main',
+                    '&:hover': { 
+                      bgcolor: alpha(theme.palette.primary.main, 0.08)
+                    }
+                  }}
+                >
+                  <Edit fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={params.row.active ? 'Deactivate' : 'Activate'} arrow placement="top">
+                <IconButton
+                  size="small"
+                  onClick={() => handleToggleStatus(params.row.id)}
+                  sx={{
+                    color: params.row.active ? 'warning.main' : 'success.main',
+                    '&:hover': { 
+                      bgcolor: params.row.active 
+                        ? alpha(theme.palette.warning.main, 0.08)
+                        : alpha(theme.palette.success.main, 0.08)
+                    }
+                  }}
+                >
+                  {params.row.active ? <Block fontSize="small" /> : <CheckCircle fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Delete" arrow placement="top">
+                <IconButton
+                  size="small"
+                  onClick={() => handleDelete(params.row.id)}
+                  sx={{
+                    color: 'error.main',
+                    '&:hover': { 
+                      bgcolor: alpha(theme.palette.error.main, 0.08)
+                    }
+                  }}
+                >
+                  <Delete fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            // Staff only see view button
+            <Tooltip title="View Details" arrow placement="top">
+              <IconButton
+                size="small"
+                sx={{
+                  color: 'info.main',
+                  '&:hover': { 
+                    bgcolor: alpha(theme.palette.info.main, 0.08)
+                  }
+                }}
+              >
+                <Visibility fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       )
     }
@@ -347,7 +372,9 @@ function Users() {
               variant="body2" 
               sx={{ color: 'text.secondary' }}
             >
-              Manage system users and their access permissions
+              {isManager 
+                ? 'Manage system users and their access permissions'
+                : 'View system users and their information'}
             </Typography>
           </Box>
           
@@ -358,33 +385,49 @@ function Users() {
                 sx={{
                   bgcolor: 'background.paper',
                   border: `1px solid ${theme.palette.divider}`,
-                  '&:hover': { bgcolor: 'action.hover' }
+                  '&:hover': { 
+                    bgcolor: 'background.paper',
+                    borderColor: theme.palette.primary.main
+                  }
                 }}
               >
                 <Refresh />
               </IconButton>
             </Tooltip>
-            
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleOpenDialog()}
-              sx={{
-                height: 40,
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontWeight: 500,
-                px: 3,
-                boxShadow: theme.shadows[2],
-                '&:hover': {
-                  boxShadow: theme.shadows[4]
-                }
-              }}
-            >
-              Add User
-            </Button>
+
+            {/* Only show Add User button for managers */}
+            {isManager && (
+              <Grow in={true}>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => handleOpenDialog()}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    boxShadow: theme.shadows[2],
+                    '&:hover': {
+                      boxShadow: theme.shadows[4]
+                    }
+                  }}
+                >
+                  Add User
+                </Button>
+              </Grow>
+            )}
           </Box>
         </Box>
+
+        {/* Info Alert for Staff */}
+        {isStaff && (
+          <Alert 
+            severity="info" 
+            sx={{ mb: 3, borderRadius: '8px' }}
+          >
+            You have read-only access to user information. Contact a Hospital Manager to make changes.
+          </Alert>
+        )}
 
         {/* Search Bar */}
         <Paper 
@@ -392,100 +435,71 @@ function Users() {
             p: 2, 
             mb: 3,
             borderRadius: '12px',
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: 'none'
+            boxShadow: 'none',
+            border: `1px solid ${theme.palette.divider}`
           }}
         >
           <TextField
             fullWidth
             variant="outlined"
-            placeholder="Search by name, username or email..."
+            placeholder="Search by name, username, or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search sx={{ color: 'text.secondary' }} />
+                  <Search />
                 </InputAdornment>
               ),
               sx: {
-                borderRadius: '8px',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: theme.palette.divider
-                }
+                borderRadius: '8px'
               }
             }}
-            sx={{ 
-              '& .MuiInputBase-input': {
-                fontSize: '0.875rem'
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.background.default
               }
             }}
           />
         </Paper>
 
-        {/* Data Table */}
-        <Grow in={true}>
-          <Paper 
-            sx={{ 
-              height: 600,
-              width: '100%',
-              borderRadius: '12px',
-              border: `1px solid ${theme.palette.divider}`,
-              overflow: 'hidden',
-              boxShadow: theme.shadows[1],
-              '& .MuiDataGrid-root': {
-                border: 'none'
+        {/* Data Grid */}
+        <Paper 
+          sx={{ 
+            borderRadius: '12px',
+            boxShadow: 'none',
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden'
+          }}
+        >
+          <DataGrid
+            rows={filteredUsers}
+            columns={columns}
+            pageSize={10}
+            rowsPerPageOptions={[5, 10, 20, 50]}
+            autoHeight
+            disableSelectionOnClick
+            loading={loading}
+            sx={{
+              border: 'none',
+              '& .MuiDataGrid-cell': {
+                borderBottom: `1px solid ${theme.palette.divider}`
               },
               '& .MuiDataGrid-columnHeaders': {
-                bgcolor: '#FAFAFA',
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                '& .MuiDataGrid-columnHeaderTitle': {
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  color: theme.palette.text.secondary
-                }
+                backgroundColor: theme.palette.grey[50],
+                borderBottom: `2px solid ${theme.palette.divider}`,
+                fontSize: '0.875rem',
+                fontWeight: 600
               },
-              '& .MuiDataGrid-row': {
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.02)
-                },
-                '&.Mui-selected': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.06)
-                  }
-                }
-              },
-              '& .MuiDataGrid-cell': {
-                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-                fontSize: '0.875rem'
-              },
-              '& .MuiDataGrid-footerContainer': {
-                borderTop: `1px solid ${theme.palette.divider}`,
-                bgcolor: '#FAFAFA'
+              '& .MuiDataGrid-row:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.04)
               }
             }}
-          >
-            <DataGrid
-              rows={filteredUsers}
-              columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              loading={loading}
-              disableSelectionOnClick
-              disableColumnMenu={false}
-              density="comfortable"
-              sx={{
-                '& .MuiDataGrid-virtualScroller': {
-                  bgcolor: 'background.paper'
-                }
-              }}
-            />
-          </Paper>
-        </Grow>
+          />
+        </Paper>
 
-        {/* User Form Dialog */}
-        {openDialog && (
+        {/* User Form Dialog - Only rendered for managers */}
+        {isManager && (
           <UserForm
             open={openDialog}
             onClose={handleCloseDialog}
@@ -494,23 +508,17 @@ function Users() {
           />
         )}
 
-        {/* Snackbar Notifications */}
+        {/* Snackbar */}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={6000}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          TransitionComponent={Grow}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert
+          <Alert 
             onClose={() => setSnackbar({ ...snackbar, open: false })}
             severity={snackbar.severity}
-            variant="filled"
-            sx={{ 
-              width: '100%',
-              borderRadius: '8px',
-              boxShadow: theme.shadows[4]
-            }}
+            sx={{ width: '100%' }}
           >
             {snackbar.message}
           </Alert>

@@ -138,7 +138,7 @@ function Layout() {
       text: 'Users',
       icon: <People />,
       path: '/users',
-      roles: ['HOSPITAL_MANAGER']
+      roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
     },
     {
       text: 'Products',
