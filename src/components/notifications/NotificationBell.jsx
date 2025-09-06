@@ -58,17 +58,68 @@ const NotificationBell = () => {
   const [error, setError] = useState(null)
   const [showToast, setShowToast] = useState(false)
   const [newNotification, setNewNotification] = useState(null)
+  const [preferences, setPreferences] = useState({
+    soundEnabled: true,
+    desktopNotifications: true,
+    priorityThreshold: 'LOW'
+  })
   
   const open = Boolean(anchorEl)
   const audioRef = useRef(null)
-  const previousCountRef = useRef(0)
+  const previousCountRef = useRef(null)
+  const hasPlayedInitialSound = useRef(false)
 
   // Initialize audio
   useEffect(() => {
     try {
-      audioRef.current = new Audio('/notification-sound.mp3')
+      // Try multiple audio formats for better compatibility
+      const audio = new Audio()
+      
+      // Check which format is supported
+      const canPlayMP3 = audio.canPlayType('audio/mpeg') !== ''
+      const canPlayWAV = audio.canPlayType('audio/wav') !== ''
+      const canPlayOGG = audio.canPlayType('audio/ogg') !== ''
+      
+      if (canPlayMP3) {
+        audio.src = '/notification-sound.mp3'
+      } else if (canPlayWAV) {
+        audio.src = '/notification-sound.wav'
+      } else if (canPlayOGG) {
+        audio.src = '/notification-sound.ogg'
+      } else {
+        // Fallback: create a simple beep sound programmatically
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+        audioRef.current = {
+          play: () => {
+            const osc = audioContext.createOscillator()
+            const gain = audioContext.createGain()
+            
+            osc.connect(gain)
+            gain.connect(audioContext.destination)
+            
+            osc.frequency.value = 800
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime)
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2)
+            
+            osc.start(audioContext.currentTime)
+            osc.stop(audioContext.currentTime + 0.2)
+          }
+        }
+        console.log('Using programmatic sound as fallback')
+        return
+      }
+      
+      // Set volume
+      audio.volume = 0.5
+      
+      // Preload the audio
+      audio.load()
+      
+      audioRef.current = audio
+      console.log('Notification sound initialized')
+      
     } catch (err) {
-      console.log('Could not load notification sound')
+      console.warn('Could not initialize notification sound:', err)
     }
   }, [])
 
@@ -77,9 +128,15 @@ const NotificationBell = () => {
     const checkPreferences = async () => {
       try {
         const response = await getNotificationPreferences()
-        // Handle preferences
+        if (response.data) {
+          setPreferences({
+            soundEnabled: response.data.soundEnabled !== false,
+            desktopNotifications: response.data.desktopNotifications !== false,
+            priorityThreshold: response.data.priorityThreshold || 'LOW'
+          })
+        }
       } catch (err) {
-        console.error('Failed to load preferences:', err)
+        console.log('Using default notification preferences')
       }
     }
     
@@ -108,15 +165,39 @@ const NotificationBell = () => {
     if (!webSocket?.service) return
     
     const handleWebSocketMessage = (message) => {
-      console.log('WebSocket message received:', message)
+      console.log('WebSocket notification received:', message)
       
+      // Handle different message types
       if (message.type === 'COUNT_UPDATE' || message.unreadCount !== undefined) {
-        setUnreadCount(message.unreadCount)
+        const newCount = message.unreadCount || 0
+        
+        // Play sound if count increased (not on first load)
+        if (previousCountRef.current !== null && newCount > previousCountRef.current) {
+          playNotificationSound('MEDIUM')
+        }
+        
+        previousCountRef.current = newCount
+        setUnreadCount(newCount)
       }
       
+      // Handle new notification
       if (message.notification || message.eventType === 'NEW_NOTIFICATION') {
+        const notification = message.notification || message
+        
+        // Play sound for new notification
+        playNotificationSound(notification.priority)
+        
+        // Show desktop notification
+        showDesktopNotification(notification)
+        
+        // Show toast
+        showNotificationToast(notification)
+        
+        // Refresh notifications
         fetchUnreadCount()
-        fetchNotifications()
+        if (open) {
+          fetchNotifications()
+        }
       }
     }
     
@@ -152,21 +233,22 @@ const NotificationBell = () => {
     return () => clearInterval(interval)
   }, [])
 
-  // Watch for notification count changes and play sound
-  useEffect(() => {
-    if (unreadCount > previousCountRef.current && previousCountRef.current > 0) {
-      playNotificationSound()
-      if (notifications.length > 0 && notifications[0].status === 'UNREAD') {
-        showNotificationToast(notifications[0])
-      }
-    }
-    previousCountRef.current = unreadCount
-  }, [unreadCount, notifications])
-
   const fetchUnreadCount = async () => {
     try {
       const response = await getUnreadNotificationCount()
-      setUnreadCount(response.data.count)
+      const newCount = response.data.count || 0
+      
+      // Only play sound if count increased (not on first load)
+      if (previousCountRef.current !== null && newCount > previousCountRef.current) {
+        playNotificationSound('MEDIUM')
+      } else if (previousCountRef.current === null) {
+        // First load - just set the reference
+        previousCountRef.current = newCount
+      }
+      
+      setUnreadCount(newCount)
+      previousCountRef.current = newCount
+      
     } catch (err) {
       console.error('Failed to fetch unread count:', err)
     }
@@ -190,9 +272,59 @@ const NotificationBell = () => {
     }
   }
 
-  const playNotificationSound = () => {
-    if (audioRef.current) {
-      audioRef.current.play().catch(e => console.log('Could not play sound:', e))
+  const playNotificationSound = (priority = 'MEDIUM') => {
+    // Check if sound is enabled in preferences
+    if (!preferences.soundEnabled) {
+      console.log('Sound disabled in preferences')
+      return
+    }
+    
+    // Check priority threshold
+    const priorityLevels = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 }
+    const thresholdLevel = priorityLevels[preferences.priorityThreshold] || 1
+    const notificationLevel = priorityLevels[priority] || 2
+    
+    if (notificationLevel < thresholdLevel) {
+      console.log('Notification priority below threshold')
+      return
+    }
+    
+    // Play the sound
+    if (audioRef.current && audioRef.current.play) {
+      audioRef.current.play()
+        .then(() => console.log('Notification sound played'))
+        .catch(err => {
+          // Handle autoplay restrictions
+          console.log('Could not play sound (autoplay restriction):', err.message)
+          // Try to play after user interaction
+          document.addEventListener('click', () => {
+            audioRef.current?.play?.().catch(() => {})
+          }, { once: true })
+        })
+    }
+  }
+
+  const showDesktopNotification = (notification) => {
+    if (!preferences.desktopNotifications) return
+    
+    if (!('Notification' in window)) {
+      console.log('Browser does not support notifications')
+      return
+    }
+    
+    if (Notification.permission === 'granted') {
+      new Notification(notification.title || 'New Notification', {
+        body: notification.message || 'You have a new notification',
+        icon: '/favicon.ico',
+        tag: `notification-${notification.id}`,
+        requireInteraction: notification.priority === 'CRITICAL'
+      })
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          showDesktopNotification(notification)
+        }
+      })
     }
   }
 
@@ -241,7 +373,7 @@ const NotificationBell = () => {
   const handleMarkAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, status: 'READ' })))
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })))
       setUnreadCount(0)
       fetchNotifications()
     } catch (err) {

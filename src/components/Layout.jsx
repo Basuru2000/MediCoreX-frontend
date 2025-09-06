@@ -52,7 +52,7 @@ import {
   WarningAmber,
   EventNote,
   Person
-} from '@mui/icons-material'
+} from "@mui/icons-material";
 import NotificationBell from './notifications/NotificationBell'
 import WebSocketStatus from './notifications/WebSocketStatus'
 
@@ -98,6 +98,10 @@ function Layout() {
     setAnchorEl(event.currentTarget)
   }
 
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget)
+  }
+
   const handleClose = () => {
     setAnchorEl(null)
   }
@@ -114,6 +118,10 @@ function Layout() {
       return user.fullName.split(' ').map(n => n[0]).join('').toUpperCase()
     }
     return user?.username ? user.username[0].toUpperCase() : 'U'
+  }
+
+  const getInitials = () => {
+    return getUserInitials()
   }
 
   // Get avatar background color based on role
@@ -637,64 +645,64 @@ function Layout() {
                 </Typography>
               </Box>
             </Button>
-            
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorEl}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-              PaperProps={{
-                elevation: 3,
-                sx: {
-                  mt: 1.5,
-                  minWidth: 200,
-                  borderRadius: 2,
-                  '& .MuiMenuItem-root': {
-                    borderRadius: 1,
-                    mx: 1,
-                    my: 0.5
-                  }
-                }
-              }}
-            >
-              <Box sx={{ px: 2, py: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
-                <Typography variant="caption" color="text.secondary">
-                  Signed in as
-                </Typography>
-                <Typography variant="body2" fontWeight={600}>
-                  {user?.email}
-                </Typography>
-              </Box>
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <Person fontSize="small" />
-                </ListItemIcon>
-                Profile
-              </MenuItem>
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <Settings fontSize="small" />
-                </ListItemIcon>
-                Settings
-              </MenuItem>
-              <Divider sx={{ my: 1 }} />
-              <MenuItem onClick={handleLogout}>
-                <ListItemIcon>
-                  <Logout fontSize="small" sx={{ color: theme.palette.error.main }} />
-                </ListItemIcon>
-                <Typography color="error">Logout</Typography>
-              </MenuItem>
-            </Menu>
           </Stack>
+            
+          <Menu
+            id="menu-appbar"
+            anchorEl={anchorEl}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            keepMounted
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            open={Boolean(anchorEl)}
+            onClose={handleClose}
+            PaperProps={{
+              elevation: 3,
+              sx: {
+                mt: 1.5,
+                minWidth: 200,
+                borderRadius: 2,
+                '& .MuiMenuItem-root': {
+                  borderRadius: 1,
+                  mx: 1,
+                  my: 0.5
+                }
+              }
+            }}
+          >
+            <Box sx={{ px: 2, py: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
+              <Typography variant="caption" color="text.secondary">
+                Signed in as
+              </Typography>
+              <Typography variant="body2" fontWeight={600}>
+                {user?.email}
+              </Typography>
+            </Box>
+            <MenuItem onClick={handleClose}>
+              <ListItemIcon>
+                <Person fontSize="small" />
+              </ListItemIcon>
+              Profile
+            </MenuItem>
+            <MenuItem onClick={handleClose}>
+              <ListItemIcon>
+                <Settings fontSize="small" />
+              </ListItemIcon>
+              Settings
+            </MenuItem>
+            <Divider sx={{ my: 1 }} />
+            <MenuItem onClick={handleLogout}>
+              <ListItemIcon>
+                <Logout fontSize="small" sx={{ color: theme.palette.error.main }} />
+              </ListItemIcon>
+              <Typography color="error">Logout</Typography>
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
       
