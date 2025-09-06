@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
-  Grid,
-  Paper,
-  Typography,
   Box,
-  Card,
-  CardContent,
-  CardActions,
+  Typography,
   Button,
   CircularProgress,
   Alert,
-  Container
+  IconButton,
+  Tooltip,
+  Grid,
+  Card,
+  Paper,
+  Fade,
+  Grow,
+  Skeleton,
+  Chip,
+  Stack,
+  useTheme,
+  alpha,
+  Divider
 } from '@mui/material'
 import {
   People,
@@ -19,7 +26,24 @@ import {
   ShoppingCart,
   Assessment,
   Warning,
-  TrendingUp
+  TrendingUp,
+  Refresh,
+  ArrowForward,
+  CalendarMonth,
+  Visibility,
+  VisibilityOff,
+  DashboardCustomize,
+  Analytics,
+  EventNote,
+  Add,
+  LocalShipping,
+  WarningAmber,
+  CheckCircle,
+  Category as CategoryIcon,
+  ManageAccounts,
+  QrCodeScanner,
+  Block,
+  RemoveRedEye
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -29,18 +53,17 @@ import {
   getExpiringProducts,
   getCategories
 } from '../services/api'
-// Import the Critical Alerts Widget
+// Import the updated widgets
 import CriticalAlertsWidget from '../components/expiry/CriticalAlertsWidget'
-// Import Expiry Trends Analysis
 import ExpiryTrendsAnalysis from '../components/expiry/ExpiryTrendsAnalysis'
-// Import Expiry Calendar Widget
 import ExpiryCalendarWidget from '../components/expiry/ExpiryCalendarWidget'
 
 function Home() {
+  const theme = useTheme()
   const { user, isManager, isStaff, isProcurement } = useAuth()
   const navigate = useNavigate()
   
-  // State for dynamic data
+  // State management
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [dashboardData, setDashboardData] = useState({
@@ -51,33 +74,34 @@ function Home() {
     pendingOrders: 0,
     totalCategories: 0
   })
-
-  // Control visibility of Critical Alerts Widget
+  
+  // Widget visibility states - matching original defaults
+  const [widgetVisibility, setWidgetVisibility] = useState({
+    criticalAlerts: true,
+    expiryCalendar: true,
+    expiryTrends: false
+  })
+  
+  // Control visibility based on roles
   const canViewCriticalAlerts = ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'].includes(user?.role)
-
-  // Add state for trends analysis visibility
-  const [showTrendsAnalysis, setShowTrendsAnalysis] = useState(false)
-
-  // Add state for calendar visibility
-  const [showCalendar, setShowCalendar] = useState(true)
-
+  
   useEffect(() => {
     fetchDashboardData()
   }, [])
-
+  
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       setError(null)
-
+      
       const results = await Promise.allSettled([
         isManager ? getUsers() : Promise.resolve(null),
-        getProducts({ page: 0, size: 1 }), // Just get the total count
+        getProducts({ page: 0, size: 1 }),
         getLowStockProducts(),
         getExpiringProducts(30),
         getCategories()
       ])
-
+      
       const newData = {
         totalUsers: results[0].status === 'fulfilled' && results[0].value ? 
           results[0].value.data.length : 0,
@@ -87,11 +111,11 @@ function Home() {
           results[2].value.data.length : 0,
         expiringCount: results[3].status === 'fulfilled' ? 
           results[3].value.data.length : 0,
-        pendingOrders: 0, // This will be implemented in Week 6-7
+        pendingOrders: 0,
         totalCategories: results[4].status === 'fulfilled' ? 
           results[4].value.data.length : 0
       }
-
+      
       setDashboardData(newData)
     } catch (err) {
       console.error('Error fetching dashboard data:', err)
@@ -100,317 +124,624 @@ function Home() {
       setLoading(false)
     }
   }
-
+  
+  const handleRefresh = () => {
+    fetchDashboardData()
+  }
+  
+  const toggleWidget = (widget) => {
+    setWidgetVisibility(prev => ({
+      ...prev,
+      [widget]: !prev[widget]
+    }))
+  }
+  
+  // Dashboard cards configuration
   const dashboardCards = [
     {
       title: 'Total Users',
       value: dashboardData.totalUsers,
-      icon: <People />,
-      color: '#1976d2',
+      icon: <People sx={{ fontSize: 28 }} />,
+      color: theme.palette.primary.main,
+      bgColor: alpha(theme.palette.primary.main, 0.1),
       path: '/users',
       roles: ['HOSPITAL_MANAGER'],
-      show: isManager
+      show: isManager,
+      trend: 'stable'
     },
     {
       title: 'Products',
       value: dashboardData.totalProducts,
-      icon: <Inventory />,
-      color: '#388e3c',
+      icon: <Inventory sx={{ fontSize: 28 }} />,
+      color: theme.palette.success.main,
+      bgColor: alpha(theme.palette.success.main, 0.1),
       path: '/products',
       roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'],
-      show: isManager || isStaff
+      show: isManager || isStaff,
+      trend: 'up'
     },
     {
-      title: 'Low Stock Items',
+      title: 'Low Stock',
       value: dashboardData.lowStockCount,
-      icon: <Warning />,
-      color: '#f57c00',
+      icon: <WarningAmber sx={{ fontSize: 28 }} />,
+      color: theme.palette.warning.main,
+      bgColor: alpha(theme.palette.warning.main, 0.1),
       path: '/products',
       roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'],
-      show: true
-    },
-    {
-      title: 'Pending Orders',
-      value: dashboardData.pendingOrders,
-      icon: <ShoppingCart />,
-      color: '#d32f2f',
-      path: '/procurement',
-      roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
-      show: isManager || isProcurement
+      show: true,
+      alert: true
     },
     {
       title: 'Expiring Soon',
       value: dashboardData.expiringCount,
-      icon: <TrendingUp />,
-      color: '#7b1fa2',
-      path: '/products',
+      icon: <EventNote sx={{ fontSize: 28 }} />,
+      color: theme.palette.error.main,
+      bgColor: alpha(theme.palette.error.main, 0.1),
+      path: '/expiry-calendar',
       roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF'],
-      show: isManager || isStaff
+      show: isManager || isStaff,
+      alert: dashboardData.expiringCount > 0
+    },
+    {
+      title: 'Pending Orders',
+      value: dashboardData.pendingOrders,
+      icon: <LocalShipping sx={{ fontSize: 28 }} />,
+      color: theme.palette.info.main,
+      bgColor: alpha(theme.palette.info.main, 0.1),
+      path: '/procurement',
+      roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
+      show: isManager || isProcurement,
+      trend: 'stable'
     },
     {
       title: 'Categories',
       value: dashboardData.totalCategories,
-      icon: <Assessment />,
-      color: '#0288d1',
+      icon: <CategoryIcon sx={{ fontSize: 28 }} />,
+      color: '#9c27b0',
+      bgColor: alpha('#9c27b0', 0.1),
       path: '/categories',
       roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF', 'PROCUREMENT_OFFICER'],
-      show: true
+      show: true,
+      trend: 'stable'
     }
   ]
-
+  
   const visibleCards = dashboardCards.filter(card => 
     card.roles.includes(user?.role) && card.show
   )
-
-  const handleRefresh = () => {
-    fetchDashboardData()
-  }
-
+  
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="400px">
-        <CircularProgress />
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          height: '400px',
+          gap: 2
+        }}
+      >
+        <CircularProgress size={40} thickness={4} />
+        <Typography variant="body2" color="text.secondary">
+          Loading dashboard...
+        </Typography>
       </Box>
     )
   }
-
+  
   return (
-    <Box>
-      {/* Welcome Section */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Welcome, {user?.fullName}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" gutterBottom>
-            Role: {user?.role?.replace('_', ' ')}
-          </Typography>
-        </Box>
-        <Button 
-          variant="outlined" 
-          onClick={handleRefresh}
-          disabled={loading}
+    <Box sx={{ animation: 'fadeIn 0.5s ease-in-out' }}>
+      {/* Page Header */}
+      <Fade in timeout={600}>
+        <Box 
+          sx={{ 
+            mb: 4,
+            p: 3,
+            borderRadius: '12px',
+            bgcolor: 'background.paper',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.shadows[0]
+          }}
         >
-          Refresh Data
-        </Button>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Critical Alerts Widget - Full Width at Top */}
-      {canViewCriticalAlerts && (
-        <Box sx={{ mb: 4 }}>
-          <CriticalAlertsWidget refreshInterval={60000} />
-        </Box>
-      )}
-
-      {/* NEW: Expiry Trends Analysis Section */}
-      {canViewCriticalAlerts && (
-        <Box sx={{ mb: 4 }}>
-          <Paper sx={{ p: 2 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Typography variant="h6">
-                Expiry Trends Analysis
-              </Typography>
-              <Button
-                variant="outlined"
-                onClick={() => setShowTrendsAnalysis(!showTrendsAnalysis)}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box>
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  fontWeight: 700,
+                  color: 'text.primary',
+                  mb: 1
+                }}
               >
-                {showTrendsAnalysis ? 'Hide' : 'Show'} Trends
-              </Button>
+                Welcome back, {user?.fullName || user?.username}
+              </Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Chip
+                  label={user?.role?.replace(/_/g, ' ')}
+                  size="small"
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    color: theme.palette.primary.main,
+                    fontWeight: 500,
+                    px: 1
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </Typography>
+              </Stack>
             </Box>
-            {showTrendsAnalysis && (
-              <Box mt={2}>
-                <ExpiryTrendsAnalysis />
-              </Box>
-            )}
-          </Paper>
+            <Tooltip title="Refresh Dashboard" arrow>
+              <IconButton
+                onClick={handleRefresh}
+                sx={{
+                  bgcolor: 'background.default',
+                  border: `1px solid ${theme.palette.divider}`,
+                  '&:hover': {
+                    bgcolor: 'background.paper',
+                    transform: 'rotate(180deg)',
+                    transition: 'transform 0.5s ease'
+                  }
+                }}
+              >
+                <Refresh />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
+      </Fade>
+      
+      {/* Error Alert */}
+      {error && (
+        <Fade in>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 3, 
+              borderRadius: '8px',
+              '& .MuiAlert-message': { width: '100%' }
+            }}
+          >
+            {error}
+          </Alert>
+        </Fade>
       )}
-
-      {/* Grid container for calendar - ONLY CHANGE: Added viewMode and dashboardView props */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        {/* Expiry Calendar - Week View for Dashboard */}
-        {showCalendar && (
-          <Grid item xs={12}>
+      
+      {/* Stats Cards Grid */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {visibleCards.map((card, index) => (
+          <Grid item xs={12} sm={6} md={4} key={index}>
+            <Grow in timeout={800 + index * 100}>
+              <Card
+                sx={{
+                  p: 3,
+                  height: 140,
+                  borderRadius: '12px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: theme.shadows[0],
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    boxShadow: theme.shadows[4],
+                    transform: 'translateY(-4px)',
+                    borderColor: card.color,
+                    '& .hover-arrow': {
+                      opacity: 1,
+                      transform: 'translateX(0)'
+                    }
+                  }
+                }}
+                onClick={() => navigate(card.path)}
+              >
+                {/* Background Pattern */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: -20,
+                    right: -20,
+                    width: 100,
+                    height: 100,
+                    borderRadius: '50%',
+                    bgcolor: card.bgColor,
+                    opacity: 0.3
+                  }}
+                />
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
+                  <Box>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: 'text.secondary',
+                        fontWeight: 500,
+                        mb: 1,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      {card.title}
+                    </Typography>
+                    <Typography 
+                      variant="h3" 
+                      sx={{ 
+                        fontWeight: 700,
+                        color: card.alert && card.value > 0 ? card.color : 'text.primary',
+                        mb: 1
+                      }}
+                    >
+                      {card.value}
+                    </Typography>
+                    {card.alert && card.value > 0 && (
+                      <Chip
+                        label="Action Required"
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          bgcolor: alpha(card.color, 0.1),
+                          color: card.color,
+                          fontWeight: 600
+                        }}
+                      />
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: card.bgColor,
+                      color: card.color
+                    }}
+                  >
+                    {card.icon}
+                  </Box>
+                </Box>
+                
+                {/* Hover Arrow */}
+                <ArrowForward
+                  className="hover-arrow"
+                  sx={{
+                    position: 'absolute',
+                    bottom: 12,
+                    right: 12,
+                    fontSize: 20,
+                    color: card.color,
+                    opacity: 0,
+                    transform: 'translateX(-10px)',
+                    transition: 'all 0.3s ease'
+                  }}
+                />
+              </Card>
+            </Grow>
+          </Grid>
+        ))}
+      </Grid>
+      
+      {/* Widget Controls */}
+      <Fade in timeout={1200}>
+        <Paper
+          sx={{
+            p: 2,
+            mb: 3,
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.shadows[0]
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}
+            >
+              <DashboardCustomize sx={{ fontSize: 20 }} />
+              Dashboard Widgets
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              {canViewCriticalAlerts && (
+                <Chip
+                  label="Critical Alerts"
+                  icon={widgetVisibility.criticalAlerts ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
+                  onClick={() => toggleWidget('criticalAlerts')}
+                  sx={{
+                    cursor: 'pointer',
+                    bgcolor: widgetVisibility.criticalAlerts 
+                      ? alpha(theme.palette.error.main, 0.1)
+                      : 'background.default',
+                    color: widgetVisibility.criticalAlerts 
+                      ? theme.palette.error.main
+                      : 'text.secondary',
+                    '&:hover': {
+                      bgcolor: widgetVisibility.criticalAlerts
+                        ? alpha(theme.palette.error.main, 0.2)
+                        : alpha(theme.palette.action.hover, 0.1)
+                    }
+                  }}
+                />
+              )}
+              <Chip
+                label="Expiry Calendar"
+                icon={widgetVisibility.expiryCalendar ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
+                onClick={() => toggleWidget('expiryCalendar')}
+                sx={{
+                  cursor: 'pointer',
+                  bgcolor: widgetVisibility.expiryCalendar 
+                    ? alpha(theme.palette.primary.main, 0.1)
+                    : 'background.default',
+                  color: widgetVisibility.expiryCalendar 
+                    ? theme.palette.primary.main
+                    : 'text.secondary',
+                  '&:hover': {
+                    bgcolor: widgetVisibility.expiryCalendar
+                      ? alpha(theme.palette.primary.main, 0.2)
+                      : alpha(theme.palette.action.hover, 0.1)
+                  }
+                }}
+              />
+              <Chip
+                label="Expiry Trends"
+                icon={widgetVisibility.expiryTrends ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
+                onClick={() => toggleWidget('expiryTrends')}
+                sx={{
+                  cursor: 'pointer',
+                  bgcolor: widgetVisibility.expiryTrends 
+                    ? alpha(theme.palette.info.main, 0.1)
+                    : 'background.default',
+                  color: widgetVisibility.expiryTrends 
+                    ? theme.palette.info.main
+                    : 'text.secondary',
+                  '&:hover': {
+                    bgcolor: widgetVisibility.expiryTrends
+                      ? alpha(theme.palette.info.main, 0.2)
+                      : alpha(theme.palette.action.hover, 0.1)
+                  }
+                }}
+              />
+            </Stack>
+          </Box>
+        </Paper>
+      </Fade>
+      
+      {/* Critical Alerts Widget */}
+      {canViewCriticalAlerts && widgetVisibility.criticalAlerts && (
+        <Fade in timeout={1400}>
+          <Box sx={{ mb: 4 }}>
+            <CriticalAlertsWidget />
+          </Box>
+        </Fade>
+      )}
+      
+      {/* Expiry Calendar Widget */}
+      {widgetVisibility.expiryCalendar && (
+        <Fade in timeout={1600}>
+          <Box sx={{ mb: 4 }}>
             <ExpiryCalendarWidget 
               viewMode="week"
               dashboardView={true}
               compact={false}
               showSummary={false}
               onEventClick={(event, date) => {
-                console.log('Calendar event clicked:', event, date);
-                // The navigation is now handled inside the widget
+                console.log('Calendar event clicked:', event, date)
               }}
             />
-          </Grid>
-        )}
-      </Grid>
-
-      {/* Dashboard Cards Grid */}
-      <Grid container spacing={3}>
-        {visibleCards.map((card, index) => (
-          <Grid item xs={12} sm={6} md={4} key={index}>
-            <Card
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: 4
-                }
-              }}
-              onClick={() => navigate(card.path)}
-            >
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <Box
-                    sx={{
-                      backgroundColor: card.color,
-                      borderRadius: '50%',
-                      p: 1,
-                      mr: 2,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    {React.cloneElement(card.icon, { 
-                      sx: { color: 'white', fontSize: 30 } 
-                    })}
-                  </Box>
-                  <Typography variant="h6" component="div">
-                    {card.title}
-                  </Typography>
-                </Box>
-                <Typography 
-                  variant="h3" 
-                  component="div" 
-                  align="center"
-                  sx={{ 
-                    color: card.value === 0 ? 'text.secondary' : 'text.primary' 
+          </Box>
+        </Fade>
+      )}
+      
+      {/* Expiry Trends Analysis - Now appears last */}
+      {widgetVisibility.expiryTrends && (
+        <Fade in timeout={1800}>
+          <Box sx={{ mb: 4 }}>
+            <ExpiryTrendsAnalysis />
+          </Box>
+        </Fade>
+      )}
+      
+      {/* Quick Actions - Now at the bottom as requested */}
+      <Fade in timeout={2000}>
+        <Paper
+          sx={{
+            p: 3,
+            mt: 4,
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.shadows[0]
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600,
+              mb: 2.5
+            }}
+          >
+            Quick Actions
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {/* Manage Users - for managers only */}
+            {isManager && (
+              <Button
+                variant="outlined"
+                startIcon={<ManageAccounts />}
+                onClick={() => navigate('/users')}
+                sx={{
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  borderColor: theme.palette.divider,
+                  color: 'text.primary',
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                  }
+                }}
+              >
+                Manage Users
+              </Button>
+            )}
+            
+            {/* View Products - for managers and staff */}
+            {(isManager || isStaff) && (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<Inventory />}
+                  onClick={() => navigate('/products')}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    borderColor: theme.palette.divider,
+                    color: 'text.primary',
+                    '&:hover': {
+                      borderColor: theme.palette.success.main,
+                      bgcolor: alpha(theme.palette.success.main, 0.05)
+                    }
                   }}
                 >
-                  {loading ? '...' : card.value}
-                </Typography>
-                {card.title === 'Low Stock Items' && card.value > 0 && (
-                  <Typography 
-                    variant="caption" 
-                    color="warning.main" 
-                    align="center" 
-                    display="block"
-                    sx={{ mt: 1 }}
-                  >
-                    Action required
-                  </Typography>
-                )}
-                {card.title === 'Expiring Soon' && card.value > 0 && (
-                  <Typography 
-                    variant="caption" 
-                    color="error.main" 
-                    align="center" 
-                    display="block"
-                    sx={{ mt: 1 }}
-                  >
-                    Within 30 days
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Quick Actions Section */}
-      <Paper sx={{ p: 3, mt: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Quick Actions
-        </Typography>
-        <Box display="flex" flexWrap="wrap" gap={2}>
-          {isManager && (
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/users')}
-            >
-              Manage Users
-            </Button>
-          )}
-          {(isManager || isStaff) && (
-            <>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/products')}
-              >
-                View Products
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/batch-tracking')}
-              >
-                Batch Tracking
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/quarantine')}
-              >
-                Quarantine Management
-              </Button>
-              {dashboardData.lowStockCount > 0 && (
-                <Button
-                  variant="contained"
-                  color="warning"
-                  onClick={() => navigate('/products')}
-                >
-                  View Low Stock Items ({dashboardData.lowStockCount})
+                  View Products
                 </Button>
-              )}
-              {dashboardData.expiringCount > 0 && (
+                
                 <Button
-                  variant="contained"
-                  color="error"
-                  onClick={() => navigate('/products')}
+                  variant="outlined"
+                  startIcon={<QrCodeScanner />}
+                  onClick={() => navigate('/batch-tracking')}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    borderColor: theme.palette.divider,
+                    color: 'text.primary',
+                    '&:hover': {
+                      borderColor: theme.palette.info.main,
+                      bgcolor: alpha(theme.palette.info.main, 0.05)
+                    }
+                  }}
                 >
-                  View Expiring Items ({dashboardData.expiringCount})
+                  Batch Tracking
                 </Button>
-              )}
-            </>
-          )}
-          {(isManager || isProcurement) && (
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/procurement')}
-              disabled
-            >
-              Procurement (Coming Soon)
-            </Button>
-          )}
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/reports/stock-valuation')}
-          >
-            Stock Valuation Report
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/reports/category-valuation')}
-          >
-            Category Report
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/expiry-monitoring')}
-          >
-            Expiry Monitoring
-          </Button>
-        </Box>
-      </Paper>
+                
+                <Button
+                  variant="outlined"
+                  startIcon={<Block />}
+                  onClick={() => navigate('/quarantine')}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    borderColor: theme.palette.divider,
+                    color: 'text.primary',
+                    '&:hover': {
+                      borderColor: theme.palette.warning.main,
+                      bgcolor: alpha(theme.palette.warning.main, 0.05)
+                    }
+                  }}
+                >
+                  Quarantine Management
+                </Button>
+                
+                {/* View Low Stock Items - shown if there are low stock items */}
+                {dashboardData.lowStockCount > 0 && (
+                  <Button
+                    variant="contained"
+                    startIcon={<Warning />}
+                    onClick={() => navigate('/products')}
+                    sx={{
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: theme.palette.warning.main,
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: theme.palette.warning.dark,
+                        transform: 'translateY(-1px)',
+                        boxShadow: theme.shadows[4]
+                      }
+                    }}
+                  >
+                    View Low Stock Items ({dashboardData.lowStockCount})
+                  </Button>
+                )}
+                
+                {/* View Expiring Items - shown if there are expiring items */}
+                {dashboardData.expiringCount > 0 && (
+                  <Button
+                    variant="contained"
+                    startIcon={<EventNote />}
+                    onClick={() => navigate('/expiry-calendar')}
+                    sx={{
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: theme.palette.error.main,
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: theme.palette.error.dark,
+                        transform: 'translateY(-1px)',
+                        boxShadow: theme.shadows[4]
+                      }
+                    }}
+                  >
+                    View Expiring Items ({dashboardData.expiringCount})
+                  </Button>
+                )}
+              </>
+            )}
+            
+            {/* View Reports - for managers */}
+            {isManager && (
+              <Button
+                variant="outlined"
+                startIcon={<Analytics />}
+                onClick={() => navigate('/reports/stock-valuation')}
+                sx={{
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  borderColor: theme.palette.divider,
+                  color: 'text.primary',
+                  '&:hover': {
+                    borderColor: '#9c27b0',
+                    bgcolor: alpha('#9c27b0', 0.05)
+                  }
+                }}
+              >
+                View Reports
+              </Button>
+            )}
+          </Box>
+        </Paper>
+      </Fade>
+      
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </Box>
   )
 }
