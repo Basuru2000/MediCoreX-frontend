@@ -32,6 +32,11 @@ import {
   Upload
 } from '@mui/icons-material'
 import { format } from 'date-fns'
+import { 
+  uploadSupplierDocument, 
+  deleteSupplierDocument, 
+  downloadSupplierDocument 
+} from '../../services/api'
 
 function SupplierDocumentManager({ supplierId, documents, canEdit, onUpdate }) {
   const [openDialog, setOpenDialog] = useState(false)
@@ -85,15 +90,15 @@ function SupplierDocumentManager({ supplierId, documents, canEdit, onUpdate }) {
       setUploading(true)
       setError('')
       
-      // Note: Document upload endpoint needs to be implemented
-      // This is a placeholder for the upload logic
       const formDataToSend = new FormData()
       formDataToSend.append('file', formData.file)
       formDataToSend.append('documentType', formData.documentType)
       formDataToSend.append('documentName', formData.documentName)
-      formDataToSend.append('expiryDate', formData.expiryDate)
+      if (formData.expiryDate) {
+        formDataToSend.append('expiryDate', formData.expiryDate)
+      }
       
-      // await uploadSupplierDocument(supplierId, formDataToSend)
+      await uploadSupplierDocument(supplierId, formDataToSend)
       
       setOpenDialog(false)
       onUpdate()
@@ -107,10 +112,11 @@ function SupplierDocumentManager({ supplierId, documents, canEdit, onUpdate }) {
   const handleDelete = async (documentId) => {
     if (window.confirm('Are you sure you want to delete this document?')) {
       try {
-        // await deleteSupplierDocument(documentId)
+        await deleteSupplierDocument(documentId)
         onUpdate()
       } catch (error) {
         console.error('Error deleting document:', error)
+        alert('Failed to delete document')
       }
     }
   }
@@ -210,7 +216,12 @@ function SupplierDocumentManager({ supplierId, documents, canEdit, onUpdate }) {
                     <Tooltip title="Download">
                       <IconButton
                         size="small"
-                        onClick={() => window.open(doc.filePath, '_blank')}
+                        onClick={() => {
+                          const downloadUrl = downloadSupplierDocument(doc.id)
+                          // Add token to download URL
+                          const token = localStorage.getItem('token')
+                          window.open(`${downloadUrl}?token=${token}`, '_blank')
+                        }}
                       >
                         <Download fontSize="small" />
                       </IconButton>

@@ -449,4 +449,22 @@ export const updateSupplierStatus = (id, status) => api.put(`/suppliers/${id}/st
 export const addSupplierContact = (supplierId, data) => api.post(`/suppliers/${supplierId}/contacts`, data)
 export const deleteSupplierContact = (contactId) => api.delete(`/suppliers/contacts/${contactId}`)
 
+// Document management endpoints
+export const uploadSupplierDocument = (supplierId, formData) => {
+  return api.post(`/suppliers/${supplierId}/documents`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+export const getSupplierDocuments = (supplierId) => {
+  return api.get(`/suppliers/${supplierId}/documents`)
+}
+export const deleteSupplierDocument = (documentId) => {
+  return api.delete(`/suppliers/documents/${documentId}`)
+}
+export const downloadSupplierDocument = (documentId) => {
+  return `${API_URL}/suppliers/documents/${documentId}/download`
+}
+
 export default api

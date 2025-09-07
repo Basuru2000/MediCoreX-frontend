@@ -52,7 +52,10 @@ import {
   WarningAmber,
   EventNote,
   Person,
-  Business
+  Business,
+  LocalShipping,
+  RequestQuote,
+  Receipt
 } from "@mui/icons-material";
 import NotificationBell from './notifications/NotificationBell'
 import WebSocketStatus from './notifications/WebSocketStatus'
@@ -71,6 +74,7 @@ function Layout() {
   const [expiryOpen, setExpiryOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [reportsOpen, setReportsOpen] = useState(false)
+  const [procurementOpen, setProcurementOpen] = useState(false)
   
   // Determine user role for menu filtering
   const isManager = user?.role === 'HOSPITAL_MANAGER'
@@ -88,6 +92,9 @@ function Layout() {
     }
     if (path.includes('/reports/')) {
       setReportsOpen(true)
+    }
+    if (path.includes('/suppliers') || path.includes('/purchase-orders') || path.includes('/receiving')) {
+      setProcurementOpen(true)
     }
   }, [location.pathname])
 
@@ -162,12 +169,6 @@ function Layout() {
       roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
     },
     {
-      text: 'Suppliers',
-      icon: <Business />,
-      path: '/suppliers',
-      roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER']
-    },
-    {
       text: 'Batch Tracking',
       icon: <QrCodeScanner />,
       path: '/batch-tracking',
@@ -177,6 +178,35 @@ function Layout() {
 
   // Grouped navigation sections
   const groupedSections = [
+    {
+      title: 'Procurement',
+      icon: <LocalShipping />,
+      open: procurementOpen,
+      toggle: () => setProcurementOpen(!procurementOpen),
+      roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
+      items: [
+        {
+          text: 'Suppliers',
+          icon: <Business />,
+          path: '/suppliers',
+          roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER']
+        },
+        {
+          text: 'Purchase Orders',
+          icon: <RequestQuote />,
+          path: '/purchase-orders',
+          roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
+          disabled: true
+        },
+        {
+          text: 'Receiving',
+          icon: <Receipt />,
+          path: '/receiving',
+          roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
+          disabled: true
+        }
+      ]
+    },
     {
       title: 'Expiry Management',
       icon: <Warning />,
@@ -255,13 +285,6 @@ function Layout() {
       icon: <Block />,
       path: '/quarantine',
       roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
-    },
-    {
-      text: 'Procurement',
-      icon: <ShoppingCart />,
-      path: '/procurement',
-      roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
-      disabled: true
     }
   ]
 
@@ -422,6 +445,7 @@ function Layout() {
                           <ListItemButton
                             component={Link}
                             to={item.path}
+                            disabled={item.disabled}
                             sx={{
                               borderRadius: 2,
                               backgroundColor: isItemActive(item.path) 
@@ -461,6 +485,18 @@ function Layout() {
                                   : theme.palette.text.secondary
                               }}
                             />
+                            {item.disabled && (
+                              <Chip
+                                label="Soon"
+                                size="small"
+                                sx={{
+                                  height: 18,
+                                  fontSize: '0.6rem',
+                                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                                  color: theme.palette.warning.dark
+                                }}
+                              />
+                            )}
                           </ListItemButton>
                         </ListItem>
                       ))}
