@@ -51,7 +51,8 @@ import {
   TrendingUp,
   WarningAmber,
   EventNote,
-  Person
+  Person,
+  Business
 } from "@mui/icons-material";
 import NotificationBell from './notifications/NotificationBell'
 import WebSocketStatus from './notifications/WebSocketStatus'
@@ -159,6 +160,12 @@ function Layout() {
       icon: <Category />,
       path: '/categories',
       roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
+    },
+    {
+      text: 'Suppliers',
+      icon: <Business />,
+      path: '/suppliers',
+      roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER']
     },
     {
       text: 'Batch Tracking',

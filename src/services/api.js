@@ -422,4 +422,31 @@ export const resetNotificationPreferences = () => api.post('/notification-prefer
 export const testNotificationPreferences = (params) => api.post('/notification-preferences/test', params)
 export const getUserNotificationPreferences = (userId) => api.get(`/notification-preferences/user/${userId}`)
 
+// Supplier endpoints
+export const getSuppliers = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    page: params.page || 0,
+    size: params.size || 10,
+    sortBy: params.sortBy || 'name',
+    sortDirection: params.sortDirection || 'ASC'
+  }).toString();
+  return api.get(`/suppliers?${queryParams}`)
+}
+export const searchSuppliers = (query, params = {}) => {
+  const queryParams = new URLSearchParams({
+    query: query,
+    page: params.page || 0,
+    size: params.size || 10
+  }).toString();
+  return api.get(`/suppliers/search?${queryParams}`)
+}
+export const getActiveSuppliers = () => api.get('/suppliers/active')
+export const getSupplierById = (id) => api.get(`/suppliers/${id}`)
+export const createSupplier = (data) => api.post('/suppliers', data)
+export const updateSupplier = (id, data) => api.put(`/suppliers/${id}`, data)
+export const deleteSupplier = (id) => api.delete(`/suppliers/${id}`)
+export const updateSupplierStatus = (id, status) => api.put(`/suppliers/${id}/status?status=${status}`)
+export const addSupplierContact = (supplierId, data) => api.post(`/suppliers/${supplierId}/contacts`, data)
+export const deleteSupplierContact = (contactId) => api.delete(`/suppliers/contacts/${contactId}`)
+
 export default api
