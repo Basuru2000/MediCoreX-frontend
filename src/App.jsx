@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Users from './pages/Users'
 import Products from './pages/Products'
 import Categories from './pages/Categories'
+import Suppliers from './pages/Suppliers'
 import BatchTracking from './pages/BatchTracking'
 import QuarantineManagement from './pages/Quarantine'
 import NotificationsPage from './pages/NotificationsPage'
@@ -31,6 +32,7 @@ function App() {
               <Route path="/products" element={<Products />} />
               <Route path="/products/:id" element={<Products />} /> {/* Add after the /products route */}
               <Route path="/categories" element={<Categories />} />
+              <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/batch-tracking" element={<BatchTracking />} />
               <Route path="/quarantine" element={<QuarantineManagement />} />
               <Route path="/notifications" element={<NotificationsPage />} />
