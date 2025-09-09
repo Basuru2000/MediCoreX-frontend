@@ -23,7 +23,11 @@ import {
   Stack,
   Divider,
   Avatar,
-  LinearProgress
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import {
@@ -44,7 +48,8 @@ import {
   TrendingUp,
   ErrorOutline,
   CheckCircle,
-  Close
+  Close,
+  LocalShipping
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
@@ -68,6 +73,7 @@ import BarcodeScanner from '../components/products/BarcodeScanner'
 import BarcodePrintDialog from '../components/products/BarcodePrintDialog'
 import BarcodeScanOptions from '../components/products/BarcodeScanOptions'
 import BatchManagementDialog from '../components/batch/BatchManagementDialog'
+import ProductSupplierOptions from '../components/products/ProductSupplierOptions'
 
 function Products() {
   const theme = useTheme()
@@ -86,6 +92,7 @@ function Products() {
   const [openScanOptions, setOpenScanOptions] = useState(false)
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
   const [selectedProductForBatch, setSelectedProductForBatch] = useState(null)
+  const [selectedProductForSuppliers, setSelectedProductForSuppliers] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [tabValue, setTabValue] = useState(0)
@@ -450,10 +457,22 @@ function Products() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 160,
+      width: 200,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={0.5}>
+          <Tooltip title="Suppliers">
+            <IconButton
+              size="small"
+              onClick={() => setSelectedProductForSuppliers(params.row)}
+              sx={{ 
+                color: theme.palette.secondary.main,
+                '&:hover': { bgcolor: alpha(theme.palette.secondary.main, 0.1) }
+              }}
+            >
+              <LocalShipping sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Batches">
             <IconButton
               size="small"
@@ -1083,6 +1102,28 @@ function Products() {
             onBatchUpdate={fetchProducts}
           />
         )}
+
+        <Dialog
+          open={!!selectedProductForSuppliers}
+          onClose={() => setSelectedProductForSuppliers(null)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            Supplier Options - {selectedProductForSuppliers?.name}
+          </DialogTitle>
+          <DialogContent>
+            <ProductSupplierOptions
+              productId={selectedProductForSuppliers?.id}
+              productName={selectedProductForSuppliers?.name}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSelectedProductForSuppliers(null)}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Snackbar */}
         <Snackbar
