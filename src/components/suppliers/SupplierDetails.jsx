@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material'
 import SupplierContactManager from './SupplierContactManager'
 import SupplierDocumentManager from './SupplierDocumentManager'
+import SupplierProductCatalog from './catalog/SupplierProductCatalog'
 import { getSupplierById } from '../../services/api'
 
 function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
@@ -101,10 +102,11 @@ function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
 
       <DialogContent>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
-            <Tab label="General Information" />
+          <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
+            <Tab label="Overview" />
             <Tab label="Contacts" />
             <Tab label="Documents" />
+            <Tab label="Product Catalog" />
           </Tabs>
         </Box>
 
@@ -301,6 +303,16 @@ function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
               documents={supplierData.documents || []}
               canEdit={canEdit}
               onUpdate={fetchSupplierDetails}
+            />
+          </Box>
+        )}
+
+        {/* Tab Panel 4: Product Catalog */}
+        {tabValue === 3 && (
+          <Box sx={{ mt: 3 }}>
+            <SupplierProductCatalog
+              supplierId={supplierData.id}
+              canEdit={canEdit}
             />
           </Box>
         )}

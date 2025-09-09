@@ -467,4 +467,32 @@ export const downloadSupplierDocument = (documentId) => {
   return `${API_URL}/suppliers/documents/${documentId}/download`
 }
 
+// Supplier Product Catalog endpoints
+export const getSupplierCatalog = (supplierId, params = {}) => {
+  const queryParams = new URLSearchParams({
+    page: params.page || 0,
+    size: params.size || 10
+  }).toString()
+  return api.get(`/supplier-products/supplier/${supplierId}?${queryParams}`)
+}
+export const getProductSuppliers = (productId) => {
+  return api.get(`/supplier-products/product/${productId}`)
+}
+export const addProductToSupplier = (supplierId, data) => {
+  return api.post(`/supplier-products/supplier/${supplierId}`, data)
+}
+export const updateSupplierProduct = (id, data) => {
+  return api.put(`/supplier-products/${id}`, data)
+}
+export const removeProductFromCatalog = (id) => {
+  return api.delete(`/supplier-products/${id}`)
+}
+export const compareSupplierPrices = (productId, quantity) => {
+  const params = quantity ? `?quantity=${quantity}` : ''
+  return api.get(`/supplier-products/compare/${productId}${params}`)
+}
+export const setPreferredSupplier = (supplierId, productId) => {
+  return api.put(`/supplier-products/set-preferred/${supplierId}/${productId}`)
+}
+
 export default api
