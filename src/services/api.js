@@ -495,4 +495,38 @@ export const setPreferredSupplier = (supplierId, productId) => {
   return api.put(`/supplier-products/set-preferred/${supplierId}/${productId}`)
 }
 
+// Supplier Metrics endpoints
+export const getSupplierMetrics = (supplierId) => {
+  return api.get(`/supplier-metrics/supplier/${supplierId}/current`)
+}
+export const getSupplierMetricsForMonth = (supplierId, month) => {
+  return api.get(`/supplier-metrics/supplier/${supplierId}/month?month=${month}`)
+}
+export const getSupplierMetricsHistory = (supplierId, months = 12) => {
+  return api.get(`/supplier-metrics/supplier/${supplierId}/history?months=${months}`)
+}
+export const getSupplierComparison = (month) => {
+  const params = month ? `?month=${month}` : ''
+  return api.get(`/supplier-metrics/comparison${params}`)
+}
+export const getMetricsSummary = () => {
+  return api.get('/supplier-metrics/summary')
+}
+export const updateDeliveryMetrics = (supplierId, onTime) => {
+  return api.post(`/supplier-metrics/supplier/${supplierId}/delivery?onTime=${onTime}`)
+}
+export const updateQualityMetrics = (supplierId, itemsReceived, itemsAccepted) => {
+  return api.post(`/supplier-metrics/supplier/${supplierId}/quality`, null, {
+    params: { itemsReceived, itemsAccepted }
+  })
+}
+export const updatePricingMetrics = (supplierId, orderAmount, marketPrice) => {
+  const params = { orderAmount }
+  if (marketPrice) params.marketPrice = marketPrice
+  return api.post(`/supplier-metrics/supplier/${supplierId}/pricing`, null, { params })
+}
+export const calculateSupplierMetrics = (supplierId, month) => {
+  return api.post(`/supplier-metrics/supplier/${supplierId}/calculate?month=${month}`)
+}
+
 export default api

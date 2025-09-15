@@ -28,6 +28,8 @@ import {
 import SupplierContactManager from './SupplierContactManager'
 import SupplierDocumentManager from './SupplierDocumentManager'
 import SupplierProductCatalog from './catalog/SupplierProductCatalog'
+import SupplierScorecard from './metrics/SupplierScorecard'
+import PerformanceChart from './metrics/PerformanceChart'
 import { getSupplierById } from '../../services/api'
 
 function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
@@ -102,11 +104,12 @@ function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
 
       <DialogContent>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-            <Tab label="Overview" />
+          <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+            <Tab label="General Info" />
             <Tab label="Contacts" />
             <Tab label="Documents" />
             <Tab label="Product Catalog" />
+            <Tab label="Performance Metrics" />
           </Tabs>
         </Box>
 
@@ -314,6 +317,27 @@ function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
               supplierId={supplierData.id}
               canEdit={canEdit}
             />
+          </Box>
+        )}
+
+        {/* Tab Panel 5: Performance Metrics */}
+        {tabValue === 4 && (
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <SupplierScorecard
+                  supplierId={supplierData.id}
+                  supplierName={supplierData.name}
+                  onRefresh={fetchSupplierDetails}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <PerformanceChart
+                  supplierId={supplierData.id}
+                  supplierName={supplierData.name}
+                />
+              </Grid>
+            </Grid>
           </Box>
         )}
       </DialogContent>
