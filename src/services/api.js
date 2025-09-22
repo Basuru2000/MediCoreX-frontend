@@ -449,7 +449,7 @@ export const updateSupplierStatus = (id, status) => api.put(`/suppliers/${id}/st
 export const addSupplierContact = (supplierId, data) => api.post(`/suppliers/${supplierId}/contacts`, data)
 export const deleteSupplierContact = (contactId) => api.delete(`/suppliers/contacts/${contactId}`)
 
-// Document management endpoints
+// Document management endpoints - COMPLETE REPLACEMENT
 export const uploadSupplierDocument = (supplierId, formData) => {
   return api.post(`/suppliers/${supplierId}/documents`, formData, {
     headers: {
@@ -463,8 +463,12 @@ export const getSupplierDocuments = (supplierId) => {
 export const deleteSupplierDocument = (documentId) => {
   return api.delete(`/suppliers/documents/${documentId}`)
 }
-export const downloadSupplierDocument = (documentId) => {
+// Keep this simple - just return the URL
+export const getDocumentDownloadUrl = (documentId) => {
   return `${API_URL}/suppliers/documents/${documentId}/download`
+}
+export const getExpiringDocuments = (days = 30) => {
+  return api.get(`/suppliers/documents/expiring?days=${days}`)
 }
 
 // Supplier Product Catalog endpoints
