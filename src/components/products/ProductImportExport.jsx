@@ -69,6 +69,7 @@ function ProductImportExport({ open, onClose, currentFilter = 'all', onImportSuc
       setSelectedFile(file)
       setError(null)
       setImportResult(null)
+      setSnackbar({ open: false, message: '', severity: 'info' })
     }
   }
 
@@ -81,25 +82,35 @@ function ProductImportExport({ open, onClose, currentFilter = 'all', onImportSuc
     setError(null)
     try {
       const response = await importProducts(selectedFile)
-      
+
       if (response.data) {
-        setImportResult(response.data)
-        
+        // Map backend field names to frontend expected names
+        const importData = {
+          ...response.data,
+          successCount: response.data.successfulImports || response.data.successCount || 0,
+          failedCount: response.data.failedImports || response.data.failedCount || 0,
+          totalRows: response.data.totalRows || 0,
+          errors: response.data.errors || []
+        }
+
+        setImportResult(importData)
+
         // Check if any products were successfully imported
-        if (response.data.successCount > 0) {
+        if (importData.successCount > 0) {
           // Important: Call the success callback if provided
           if (typeof onImportSuccess === 'function') {
             console.log('Import successful, calling refresh callback')
             onImportSuccess()
           }
-          
+
           // Clear the file selection
           setSelectedFile(null)
-          
+
           // Show success message in the dialog
           setSnackbar({
             open: true,
-            message: `Successfully imported ${response.data.successCount} products`,
+            message: `Successfully imported ${importData.successCount} products` +
+                    (importData.failedCount > 0 ? ` (${importData.failedCount} failed)` : ''),
             severity: 'success'
           })
         } else {
@@ -113,12 +124,58 @@ function ProductImportExport({ open, onClose, currentFilter = 'all', onImportSuc
       }
     } catch (err) {
       console.error('Import error:', err)
-      setError(err.response?.data?.message || 'Import failed')
-      setSnackbar({
-        open: true,
-        message: 'Import failed. Please check your file format.',
-        severity: 'error'
-      })
+
+      // Handle 400 responses which may contain partial success data
+      if (err.response?.status === 400 && err.response?.data) {
+        const errorData = err.response.data
+
+        // Map backend field names to frontend expected names
+        const importData = {
+          ...errorData,
+          successCount: errorData.successfulImports || errorData.successCount || 0,
+          failedCount: errorData.failedImports || errorData.failedCount || 0,
+          totalRows: errorData.totalRows || 0,
+          errors: errorData.errors || []
+        }
+
+        setImportResult(importData)
+
+        // If there were any successful imports, still call the success callback
+        if (importData.successCount > 0) {
+          if (typeof onImportSuccess === 'function') {
+            console.log('Partial import success, calling refresh callback')
+            onImportSuccess()
+          }
+
+          setSelectedFile(null)
+
+          setSnackbar({
+            open: true,
+            message: `Partially successful: ${importData.successCount} imported, ${importData.failedCount} failed`,
+            severity: 'warning'
+          })
+        } else {
+          // All imports failed
+          setSnackbar({
+            open: true,
+            message: `Import failed: All ${importData.failedCount || importData.totalRows || 'items'} failed to import`,
+            severity: 'error'
+          })
+        }
+
+        // Show detailed error if available
+        if (errorData.message) {
+          setError(errorData.message)
+        }
+      } else {
+        // Handle other error types
+        setError(err.response?.data?.message || 'Import failed')
+        setSnackbar({
+          open: true,
+          message: 'Import failed. Please check your file format.',
+          severity: 'error'
+        })
+      }
     } finally {
       setImporting(false)
     }
@@ -372,19 +429,65 @@ function ProductImportExport({ open, onClose, currentFilter = 'all', onImportSuc
 
             {/* Import Result */}
             {importResult && (
-              <Alert 
-                severity="success"
-                icon={<CheckCircle />}
-                sx={{ borderRadius: '8px' }}
-              >
-                <Typography variant="body2" fontWeight={500}>
-                  Import Successful!
-                </Typography>
-                <Typography variant="caption">
-                  {importResult.successCount} products imported successfully
-                  {importResult.failedCount > 0 && `, ${importResult.failedCount} failed`}
-                </Typography>
-              </Alert>
+              <Stack spacing={2}>
+                <Alert
+                  severity={
+                    importResult.successCount > 0 && importResult.failedCount === 0 ? 'success' :
+                    importResult.successCount > 0 && importResult.failedCount > 0 ? 'warning' :
+                    'error'
+                  }
+                  icon={
+                    importResult.successCount > 0 && importResult.failedCount === 0 ? <CheckCircle /> :
+                    importResult.successCount > 0 && importResult.failedCount > 0 ? <Info /> :
+                    <Error />
+                  }
+                  sx={{ borderRadius: '8px' }}
+                >
+                  <Typography variant="body2" fontWeight={500}>
+                    {importResult.successCount > 0 && importResult.failedCount === 0 ? 'Import Successful!' :
+                     importResult.successCount > 0 && importResult.failedCount > 0 ? 'Import Partially Successful' :
+                     'Import Failed'}
+                  </Typography>
+                  <Typography variant="caption" component="div">
+                    {importResult.totalRows && (
+                      <div>Total rows processed: {importResult.totalRows}</div>
+                    )}
+                    <div>
+                      {importResult.successCount > 0 && `✓ ${importResult.successCount} products imported successfully`}
+                      {importResult.successCount > 0 && importResult.failedCount > 0 && <br />}
+                      {importResult.failedCount > 0 && `✗ ${importResult.failedCount} products failed to import`}
+                    </div>
+                  </Typography>
+                </Alert>
+
+                {/* Show error details if available */}
+                {importResult.errors && importResult.errors.length > 0 && (
+                  <Paper
+                    sx={{
+                      p: 2,
+                      borderRadius: '8px',
+                      bgcolor: alpha(theme.palette.error.main, 0.05),
+                      border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                      maxHeight: 200,
+                      overflowY: 'auto'
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={500} gutterBottom color="error">
+                      Import Errors:
+                    </Typography>
+                    {importResult.errors.slice(0, 10).map((error, index) => (
+                      <Typography key={index} variant="caption" component="div" color="text.secondary">
+                        {typeof error === 'string' ? error : error.message || JSON.stringify(error)}
+                      </Typography>
+                    ))}
+                    {importResult.errors.length > 10 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                        ... and {importResult.errors.length - 10} more errors
+                      </Typography>
+                    )}
+                  </Paper>
+                )}
+              </Stack>
             )}
 
             {/* Import Progress */}
