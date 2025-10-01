@@ -609,5 +609,18 @@ export const getPendingApprovals = (params = {}) => {
 export const requestPurchaseOrderApproval = (id) => {
   return api.post(`/purchase-orders/${id}/request-approval`)
 }
+// Get status history for a purchase order
+export const getStatusHistory = (id) => {
+  return api.get(`/purchase-orders/${id}/status-history`)
+}
+// Update purchase order status with comments
+export const updatePurchaseOrderStatusWithComments = (id, status, comments) => {
+  const params = new URLSearchParams()
+  params.append('status', status)
+  if (comments) {
+    params.append('comments', comments)
+  }
+  return api.put(`/purchase-orders/${id}/status-with-comments?${params.toString()}`)
+}
 
 export default api
