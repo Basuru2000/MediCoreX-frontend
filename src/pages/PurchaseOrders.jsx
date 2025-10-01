@@ -18,10 +18,14 @@ import { useAuth } from '../context/AuthContext'
 import POList from '../components/purchase-orders/POList'
 import POForm from '../components/purchase-orders/POForm'
 import PODetails from '../components/purchase-orders/PODetails'
+import PendingApprovalsList from '../components/purchase-orders/PendingApprovalsList'
+import POApproval from '../components/purchase-orders/POApproval'
 import {
   createPurchaseOrder,
   updatePurchaseOrder,
-  getPurchaseOrderSummary
+  getPurchaseOrderSummary,
+  approvePurchaseOrder,
+  rejectPurchaseOrder
 } from '../services/api'
 
 function PurchaseOrders() {
@@ -33,6 +37,8 @@ function PurchaseOrders() {
   const [loading, setLoading] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [summary, setSummary] = useState(null)
+  const [openApproval, setOpenApproval] = useState(false)
+  const [selectedForApproval, setSelectedForApproval] = useState(null)
 
   const canCreate = user?.role === 'HOSPITAL_MANAGER' || user?.role === 'PROCUREMENT_OFFICER'
   const canEdit = user?.role === 'HOSPITAL_MANAGER' || user?.role === 'PROCUREMENT_OFFICER'
@@ -88,6 +94,43 @@ function PurchaseOrders() {
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1)
+  }
+
+  const handleApproveClick = (order) => {
+    setSelectedForApproval(order)
+    setOpenApproval(true)
+  }
+
+  const handleApprove = async (id, comments) => {
+    try {
+      setLoading(true)
+      await approvePurchaseOrder(id, comments)
+      setOpenApproval(false)
+      setSelectedForApproval(null)
+      setRefreshTrigger(prev => prev + 1)
+      // Show success message if you have a snackbar
+    } catch (error) {
+      console.error('Error approving PO:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReject = async (id, comments) => {
+    try {
+      setLoading(true)
+      await rejectPurchaseOrder(id, comments)
+      setOpenApproval(false)
+      setSelectedForApproval(null)
+      setRefreshTrigger(prev => prev + 1)
+      // Show success message if you have a snackbar
+    } catch (error) {
+      console.error('Error rejecting PO:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -195,6 +238,20 @@ function PurchaseOrders() {
         </Grid>
       )}
 
+      {/* Pending Approvals Section - Only for Managers */}
+      {user?.role === 'HOSPITAL_MANAGER' && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Pending Approvals
+          </Typography>
+          <PendingApprovalsList
+            onView={handleView}
+            onApprove={handleApproveClick}
+            refreshTrigger={refreshTrigger}
+          />
+        </Paper>
+      )}
+
       {/* Purchase Orders List */}
       <Paper sx={{ p: 3 }}>
         <POList
@@ -231,6 +288,21 @@ function PurchaseOrders() {
         order={selectedOrder}
         open={openDetails}
         onClose={() => setOpenDetails(false)}
+        onApprove={handleApproveClick}
+        onReject={handleApproveClick}
+      />
+
+      {/* Approval Dialog */}
+      <POApproval
+        order={selectedForApproval}
+        open={openApproval}
+        onClose={() => {
+          setOpenApproval(false)
+          setSelectedForApproval(null)
+        }}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        loading={loading}
       />
     </Box>
   )

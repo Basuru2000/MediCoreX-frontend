@@ -179,11 +179,23 @@ function POList({ onView, onEdit, canEdit, canDelete, refreshTrigger }) {
                       : '-'}
                   </TableCell>
                   <TableCell align="center">
-                    <Chip 
-                      label={order.status} 
-                      color={getStatusColor(order.status)}
-                      size="small"
-                    />
+                    <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                      <Chip 
+                        label={order.status} 
+                        color={getStatusColor(order.status)}
+                        size="small"
+                      />
+                      {order.status === 'DRAFT' && (
+                        <Tooltip title="Pending Approval">
+                          <Chip 
+                            label="!" 
+                            size="small" 
+                            color="warning"
+                            sx={{ width: 24, minWidth: 24 }}
+                          />
+                        </Tooltip>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell align="right">
                     {formatCurrency(order.totalAmount)}
