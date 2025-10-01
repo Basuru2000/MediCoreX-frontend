@@ -20,6 +20,8 @@ import {
 } from '@mui/material'
 import { Close, CheckCircle, Cancel } from '@mui/icons-material'
 import { useAuth } from '../../context/AuthContext'
+import BasicOrderTimeline from './BasicOrderTimeline'
+import OrderStatusBadge from './OrderStatusBadge'
 
 function PODetails({ order, open, onClose, onApprove, onReject }) {
   const { user } = useAuth()
@@ -53,10 +55,7 @@ function PODetails({ order, open, onClose, onApprove, onReject }) {
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Purchase Order Details</Typography>
-          <Chip 
-            label={order.status} 
-            color={getStatusColor(order.status)}
-          />
+          <OrderStatusBadge status={order.status} size="medium" />
         </Box>
       </DialogTitle>
       
@@ -214,6 +213,12 @@ function PODetails({ order, open, onClose, onApprove, onReject }) {
               <Typography variant="h6">Total:</Typography>
               <Typography variant="h6">{formatCurrency(order.totalAmount)}</Typography>
             </Box>
+          </Grid>
+          
+          {/* Status Timeline */}
+          <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <BasicOrderTimeline orderId={order.id} />
           </Grid>
         </Grid>
       </DialogContent>

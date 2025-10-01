@@ -29,8 +29,9 @@ import {
   Send
 } from '@mui/icons-material'
 import { searchPurchaseOrders, deletePurchaseOrder } from '../../services/api'
+import OrderStatusBadge from './OrderStatusBadge'
 
-function POList({ onView, onEdit, canEdit, canDelete, refreshTrigger }) {
+function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTrigger }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({
@@ -76,17 +77,6 @@ function POList({ onView, onEdit, canEdit, canDelete, refreshTrigger }) {
         console.error('Error deleting PO:', error)
         alert('Failed to delete purchase order')
       }
-    }
-  }
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'DRAFT': return 'default'
-      case 'APPROVED': return 'info'
-      case 'SENT': return 'primary'
-      case 'RECEIVED': return 'success'
-      case 'CANCELLED': return 'error'
-      default: return 'default'
     }
   }
 
@@ -180,11 +170,7 @@ function POList({ onView, onEdit, canEdit, canDelete, refreshTrigger }) {
                   </TableCell>
                   <TableCell align="center">
                     <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
-                      <Chip 
-                        label={order.status} 
-                        color={getStatusColor(order.status)}
-                        size="small"
-                      />
+                      <OrderStatusBadge status={order.status} />
                       {order.status === 'DRAFT' && (
                         <Tooltip title="Pending Approval">
                           <Chip 
@@ -224,6 +210,17 @@ function POList({ onView, onEdit, canEdit, canDelete, refreshTrigger }) {
                           onClick={() => handleDelete(order.id)}
                         >
                           <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {(order.status === 'APPROVED' || order.status === 'SENT') && (
+                      <Tooltip title="Update Status">
+                        <IconButton 
+                          size="small" 
+                          color="primary"
+                          onClick={() => onStatusUpdate && onStatusUpdate(order)}
+                        >
+                          <Send fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     )}

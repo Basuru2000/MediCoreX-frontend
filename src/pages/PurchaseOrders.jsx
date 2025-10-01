@@ -20,12 +20,14 @@ import POForm from '../components/purchase-orders/POForm'
 import PODetails from '../components/purchase-orders/PODetails'
 import PendingApprovalsList from '../components/purchase-orders/PendingApprovalsList'
 import POApproval from '../components/purchase-orders/POApproval'
+import StatusUpdateModal from '../components/purchase-orders/StatusUpdateModal'
 import {
   createPurchaseOrder,
   updatePurchaseOrder,
   getPurchaseOrderSummary,
   approvePurchaseOrder,
-  rejectPurchaseOrder
+  rejectPurchaseOrder,
+  updatePurchaseOrderStatusWithComments
 } from '../services/api'
 
 function PurchaseOrders() {
@@ -39,6 +41,8 @@ function PurchaseOrders() {
   const [summary, setSummary] = useState(null)
   const [openApproval, setOpenApproval] = useState(false)
   const [selectedForApproval, setSelectedForApproval] = useState(null)
+  const [openStatusModal, setOpenStatusModal] = useState(false)
+  const [selectedForStatusUpdate, setSelectedForStatusUpdate] = useState(null)
 
   const canCreate = user?.role === 'HOSPITAL_MANAGER' || user?.role === 'PROCUREMENT_OFFICER'
   const canEdit = user?.role === 'HOSPITAL_MANAGER' || user?.role === 'PROCUREMENT_OFFICER'
@@ -127,6 +131,26 @@ function PurchaseOrders() {
       // Show success message if you have a snackbar
     } catch (error) {
       console.error('Error rejecting PO:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStatusUpdate = (order) => {
+    setSelectedForStatusUpdate(order)
+    setOpenStatusModal(true)
+  }
+
+  const handleStatusUpdateSubmit = async (orderId, newStatus, comments) => {
+    try {
+      setLoading(true)
+      await updatePurchaseOrderStatusWithComments(orderId, newStatus, comments)
+      setRefreshTrigger(prev => prev + 1)
+      setOpenStatusModal(false)
+      setSelectedForStatusUpdate(null)
+    } catch (error) {
+      console.error('Error updating status:', error)
       throw error
     } finally {
       setLoading(false)
@@ -257,6 +281,7 @@ function PurchaseOrders() {
         <POList
           onView={handleView}
           onEdit={handleEdit}
+          onStatusUpdate={handleStatusUpdate}
           canEdit={canEdit}
           canDelete={canDelete}
           refreshTrigger={refreshTrigger}
@@ -302,6 +327,18 @@ function PurchaseOrders() {
         }}
         onApprove={handleApprove}
         onReject={handleReject}
+        loading={loading}
+      />
+
+      {/* Status Update Modal */}
+      <StatusUpdateModal
+        order={selectedForStatusUpdate}
+        open={openStatusModal}
+        onClose={() => {
+          setOpenStatusModal(false)
+          setSelectedForStatusUpdate(null)
+        }}
+        onUpdate={handleStatusUpdateSubmit}
         loading={loading}
       />
     </Box>
