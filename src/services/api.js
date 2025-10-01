@@ -533,4 +533,57 @@ export const calculateSupplierMetrics = (supplierId, month) => {
   return api.post(`/supplier-metrics/supplier/${supplierId}/calculate?month=${month}`)
 }
 
+// ============================================
+// PURCHASE ORDER ENDPOINTS
+// ============================================
+// Create new purchase order
+export const createPurchaseOrder = (data) => {
+  return api.post('/purchase-orders', data)
+}
+// Get purchase order by ID
+export const getPurchaseOrderById = (id) => {
+  return api.get(`/purchase-orders/${id}`)
+}
+// Get purchase order by PO number
+export const getPurchaseOrderByNumber = (poNumber) => {
+  return api.get(`/purchase-orders/number/${poNumber}`)
+}
+// Get all purchase orders with pagination
+export const getPurchaseOrders = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    page: params.page || 0,
+    size: params.size || 10,
+    sortBy: params.sortBy || 'orderDate',
+    sortDir: params.sortDir || 'desc'
+  }).toString()
+  return api.get(`/purchase-orders?${queryParams}`)
+}
+// Search purchase orders
+export const searchPurchaseOrders = (params = {}) => {
+  const queryParams = new URLSearchParams()
+  if (params.status) queryParams.append('status', params.status)
+  if (params.supplierId) queryParams.append('supplierId', params.supplierId)
+  if (params.search) queryParams.append('search', params.search)
+  queryParams.append('page', params.page || 0)
+  queryParams.append('size', params.size || 10)
+  
+  return api.get(`/purchase-orders/search?${queryParams.toString()}`)
+}
+// Update purchase order
+export const updatePurchaseOrder = (id, data) => {
+  return api.put(`/purchase-orders/${id}`, data)
+}
+// Delete purchase order
+export const deletePurchaseOrder = (id) => {
+  return api.delete(`/purchase-orders/${id}`)
+}
+// Update purchase order status
+export const updatePurchaseOrderStatus = (id, status) => {
+  return api.put(`/purchase-orders/${id}/status?status=${status}`)
+}
+// Get purchase order summary
+export const getPurchaseOrderSummary = () => {
+  return api.get('/purchase-orders/summary')
+}
+
 export default api
