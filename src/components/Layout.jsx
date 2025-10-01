@@ -193,10 +193,9 @@ function Layout() {
         },
         {
           text: 'Purchase Orders',
-          icon: <RequestQuote />,
+          icon: <ShoppingCart />,
           path: '/purchase-orders',
           roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
-          disabled: true
         },
         {
           text: 'Receiving',

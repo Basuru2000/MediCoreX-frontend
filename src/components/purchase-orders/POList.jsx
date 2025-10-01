@@ -1,0 +1,242 @@
+import React, { useState, useEffect } from 'react'
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Chip,
+  IconButton,
+  Tooltip,
+  Typography,
+  TextField,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  CircularProgress
+} from '@mui/material'
+import {
+  Edit,
+  Delete,
+  Visibility,
+  Search,
+  Send
+} from '@mui/icons-material'
+import { searchPurchaseOrders, deletePurchaseOrder } from '../../services/api'
+
+function POList({ onView, onEdit, canEdit, canDelete, refreshTrigger }) {
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({
+    page: 0,
+    size: 10,
+    totalElements: 0
+  })
+  const [filters, setFilters] = useState({
+    search: '',
+    status: ''
+  })
+
+  useEffect(() => {
+    fetchOrders()
+  }, [pagination.page, pagination.size, filters, refreshTrigger])
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      const response = await searchPurchaseOrders({
+        ...filters,
+        page: pagination.page,
+        size: pagination.size
+      })
+      setOrders(response.data.content)
+      setPagination(prev => ({
+        ...prev,
+        totalElements: response.data.totalElements
+      }))
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this purchase order?')) {
+      try {
+        await deletePurchaseOrder(id)
+        fetchOrders()
+      } catch (error) {
+        console.error('Error deleting PO:', error)
+        alert('Failed to delete purchase order')
+      }
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'DRAFT': return 'default'
+      case 'APPROVED': return 'info'
+      case 'SENT': return 'primary'
+      case 'RECEIVED': return 'success'
+      case 'CANCELLED': return 'error'
+      default: return 'default'
+    }
+  }
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount)
+  }
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString()
+  }
+
+  return (
+    <Box>
+      {/* Filters */}
+      <Box display="flex" gap={2} mb={2}>
+        <TextField
+          size="small"
+          placeholder="Search by PO number or supplier..."
+          value={filters.search}
+          onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            )
+          }}
+          sx={{ flexGrow: 1 }}
+        />
+        
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={filters.status}
+            label="Status"
+            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="DRAFT">Draft</MenuItem>
+            <MenuItem value="APPROVED">Approved</MenuItem>
+            <MenuItem value="SENT">Sent</MenuItem>
+            <MenuItem value="RECEIVED">Received</MenuItem>
+            <MenuItem value="CANCELLED">Cancelled</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      {/* Table */}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell><strong>PO Number</strong></TableCell>
+              <TableCell><strong>Supplier</strong></TableCell>
+              <TableCell><strong>Order Date</strong></TableCell>
+              <TableCell><strong>Expected Delivery</strong></TableCell>
+              <TableCell align="center"><strong>Status</strong></TableCell>
+              <TableCell align="right"><strong>Total Amount</strong></TableCell>
+              <TableCell align="center"><strong>Items</strong></TableCell>
+              <TableCell align="center"><strong>Actions</strong></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <CircularProgress />
+                </TableCell>
+              </TableRow>
+            ) : orders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <Typography variant="body2" color="text.secondary">
+                    No purchase orders found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              orders.map((order) => (
+                <TableRow key={order.id} hover>
+                  <TableCell>{order.poNumber}</TableCell>
+                  <TableCell>{order.supplierName}</TableCell>
+                  <TableCell>{formatDate(order.orderDate)}</TableCell>
+                  <TableCell>
+                    {order.expectedDeliveryDate 
+                      ? formatDate(order.expectedDeliveryDate)
+                      : '-'}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip 
+                      label={order.status} 
+                      color={getStatusColor(order.status)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    {formatCurrency(order.totalAmount)}
+                  </TableCell>
+                  <TableCell align="center">
+                    {order.totalItems}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="View">
+                      <IconButton size="small" onClick={() => onView(order)}>
+                        <Visibility fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {canEdit && order.status === 'DRAFT' && (
+                      <Tooltip title="Edit">
+                        <IconButton size="small" onClick={() => onEdit(order)}>
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {canDelete && order.status === 'DRAFT' && (
+                      <Tooltip title="Delete">
+                        <IconButton 
+                          size="small" 
+                          color="error"
+                          onClick={() => handleDelete(order.id)}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <TablePagination
+        component="div"
+        count={pagination.totalElements}
+        page={pagination.page}
+        onPageChange={(e, newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+        rowsPerPage={pagination.size}
+        onRowsPerPageChange={(e) => setPagination(prev => ({ 
+          ...prev, 
+          size: parseInt(e.target.value, 10),
+          page: 0 
+        }))}
+      />
+    </Box>
+  )
+}
+
+export default POList

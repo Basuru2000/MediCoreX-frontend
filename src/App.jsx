@@ -18,6 +18,7 @@ import CategoryValuation from './pages/Reports/CategoryValuation'
 import ExpiryAlertConfig from './pages/ExpiryAlertConfig'
 import ExpiryMonitoring from './pages/ExpiryMonitoring'
 import ExpiryCalendar from './pages/ExpiryCalendar'
+import PurchaseOrders from './pages/PurchaseOrders'
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
               <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/batch-tracking" element={<BatchTracking />} />
               <Route path="/quarantine" element={<QuarantineManagement />} />
+              <Route path="/purchase-orders" element={<PurchaseOrders />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/notification-preferences" element={<NotificationPreferencesPage />} />
               
