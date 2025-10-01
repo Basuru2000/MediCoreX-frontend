@@ -585,5 +585,29 @@ export const updatePurchaseOrderStatus = (id, status) => {
 export const getPurchaseOrderSummary = () => {
   return api.get('/purchase-orders/summary')
 }
+// Approve purchase order
+export const approvePurchaseOrder = (id, comments = null) => {
+  return api.post(`/purchase-orders/${id}/approve`, {
+    comments: comments
+  })
+}
+// Reject purchase order
+export const rejectPurchaseOrder = (id, comments) => {
+  return api.post(`/purchase-orders/${id}/reject`, {
+    comments: comments
+  })
+}
+// Get pending approvals (for managers)
+export const getPendingApprovals = (params = {}) => {
+  const queryParams = new URLSearchParams({
+    page: params.page || 0,
+    size: params.size || 10
+  }).toString()
+  return api.get(`/purchase-orders/pending-approvals?${queryParams}`)
+}
+// Request approval
+export const requestPurchaseOrderApproval = (id) => {
+  return api.post(`/purchase-orders/${id}/request-approval`)
+}
 
 export default api

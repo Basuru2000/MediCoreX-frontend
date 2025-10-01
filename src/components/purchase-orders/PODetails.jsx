@@ -18,9 +18,12 @@ import {
   Divider,
   Box
 } from '@mui/material'
-import { Close } from '@mui/icons-material'
+import { Close, CheckCircle, Cancel } from '@mui/icons-material'
+import { useAuth } from '../../context/AuthContext'
 
-function PODetails({ order, open, onClose }) {
+function PODetails({ order, open, onClose, onApprove, onReject }) {
+  const { user } = useAuth()
+  
   if (!order) return null
 
   const formatCurrency = (amount) => {
@@ -95,6 +98,47 @@ function PODetails({ order, open, onClose }) {
               </>
             )}
           </Grid>
+          
+          {/* Approval Information */}
+          {(order.approvedByName || order.rejectionComments) && (
+            <>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Approval Information
+                </Typography>
+              </Grid>
+              
+              {order.approvedByName && (
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {order.status === 'CANCELLED' ? 'Rejected By' : 'Approved By'}
+                  </Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {order.approvedByName}
+                  </Typography>
+                  
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {order.status === 'CANCELLED' ? 'Rejection Date' : 'Approval Date'}
+                  </Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {formatDate(order.approvedDate)}
+                  </Typography>
+                </Grid>
+              )}
+              
+              {order.rejectionComments && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Rejection Comments
+                  </Typography>
+                  <Paper sx={{ p: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
+                    <Typography variant="body2">{order.rejectionComments}</Typography>
+                  </Paper>
+                </Grid>
+              )}
+            </>
+          )}
         </Grid>
 
         <Divider sx={{ my: 3 }} />
@@ -175,6 +219,34 @@ function PODetails({ order, open, onClose }) {
       </DialogContent>
       
       <DialogActions>
+        {/* Show approval buttons only for DRAFT status and HOSPITAL_MANAGER role */}
+        {order.status === 'DRAFT' && user?.role === 'HOSPITAL_MANAGER' && (
+          <>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Cancel />}
+              onClick={() => {
+                // This will be handled by parent component
+                if (onReject) onReject(order)
+              }}
+            >
+              Reject
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<CheckCircle />}
+              onClick={() => {
+                // This will be handled by parent component
+                if (onApprove) onApprove(order)
+              }}
+            >
+              Approve
+            </Button>
+            <Box sx={{ flexGrow: 1 }} />
+          </>
+        )}
         <Button onClick={onClose} startIcon={<Close />}>
           Close
         </Button>
