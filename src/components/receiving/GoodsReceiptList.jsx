@@ -92,19 +92,20 @@ function GoodsReceiptList({ onView, refreshTrigger }) {
               <TableCell><strong>Received By</strong></TableCell>
               <TableCell align="center"><strong>Items</strong></TableCell>
               <TableCell align="center"><strong>Status</strong></TableCell>
+              <TableCell align="center"><strong>Quality</strong></TableCell>
               <TableCell align="center"><strong>Actions</strong></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   <CircularProgress />
                 </TableCell>
               </TableRow>
             ) : receipts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   <Typography color="text.secondary">No receipts found</Typography>
                 </TableCell>
               </TableRow>
@@ -133,6 +134,16 @@ function GoodsReceiptList({ onView, refreshTrigger }) {
                       label={receipt.status} 
                       size="small" 
                       color="success"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip 
+                      label={receipt.acceptanceStatus?.replace('_', ' ')} 
+                      size="small" 
+                      color={
+                        receipt.acceptanceStatus === 'ACCEPTED' ? 'success' :
+                        receipt.acceptanceStatus === 'REJECTED' ? 'error' : 'warning'
+                      }
                     />
                   </TableCell>
                   <TableCell align="center">
