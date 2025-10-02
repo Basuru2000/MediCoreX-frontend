@@ -202,7 +202,6 @@ function Layout() {
           icon: <Receipt />,
           path: '/receiving',
           roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
-          disabled: true
         }
       ]
     },

@@ -622,5 +622,33 @@ export const updatePurchaseOrderStatusWithComments = (id, status, comments) => {
   }
   return api.put(`/purchase-orders/${id}/status-with-comments?${params.toString()}`)
 }
+// Get approved purchase orders
+export const getApprovedPurchaseOrders = () => 
+  api.get('/purchase-orders/search', { 
+    params: { 
+      status: 'SENT',  // or 'APPROVED' 
+      size: 100 
+    } 
+  })
+
+// ============================================
+// GOODS RECEIPT ENDPOINTS
+// ============================================
+// Create new goods receipt
+export const createGoodsReceipt = (data) => api.post('/goods-receipts', data)
+// Get goods receipt by ID
+export const getGoodsReceiptById = (id) => api.get(`/goods-receipts/${id}`)
+// Get goods receipt by receipt number
+export const getGoodsReceiptByNumber = (receiptNumber) => 
+  api.get(`/goods-receipts/number/${receiptNumber}`)
+// Get all goods receipts for a purchase order
+export const getGoodsReceiptsByPO = (poId) => 
+  api.get(`/goods-receipts/purchase-order/${poId}`)
+// Get all goods receipts with pagination
+export const getAllGoodsReceipts = (params) => 
+  api.get('/goods-receipts', { params })
+// Search goods receipts
+export const searchGoodsReceipts = (params) => 
+  api.get('/goods-receipts/search', { params })
 
 export default api
