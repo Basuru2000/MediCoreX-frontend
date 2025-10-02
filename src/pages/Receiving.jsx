@@ -46,6 +46,16 @@ function Receiving() {
     setOpenDetails(true)
   }
 
+  // ✨ NEW: Handle updates after quality decision
+  const handleReceiptUpdate = () => {
+    setRefreshTrigger(prev => prev + 1)
+    setSnackbar({
+      open: true,
+      message: '✅ Quality decision recorded successfully!',
+      severity: 'success'
+    })
+  }
+
   const handleSubmit = async (data) => {
     try {
       setLoading(true)
@@ -169,6 +179,7 @@ function Receiving() {
           setOpenDetails(false)
           setSelectedReceipt(null)
         }}
+        onUpdate={handleReceiptUpdate}
       />
 
       {/* ✨ Snackbar Notification */}

@@ -651,4 +651,14 @@ export const getAllGoodsReceipts = (params) =>
 export const searchGoodsReceipts = (params) => 
   api.get('/goods-receipts/search', { params })
 
+// PHASE 3.2: ACCEPT/REJECT ENDPOINTS
+export const acceptGoodsReceipt = (id, data = {}) => 
+  api.post(`/goods-receipts/${id}/accept`, data)
+
+export const rejectGoodsReceipt = (id, data) => 
+  api.post(`/goods-receipts/${id}/reject`, data)
+
+export const getPendingApprovalReceipts = (params) => 
+  api.get('/goods-receipts/pending-approval', { params })
+
 export default api
