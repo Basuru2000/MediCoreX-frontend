@@ -21,6 +21,7 @@ import {
 } from '@mui/material'
 import { Close, CheckCircle, Cancel, HourglassEmpty } from '@mui/icons-material'
 import AcceptRejectDialog from './AcceptRejectDialog'
+import InventoryUpdateSummary from './InventoryUpdateSummary'
 import { acceptGoodsReceipt, rejectGoodsReceipt } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 
@@ -222,6 +223,14 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
               )}
             </Grid>
           </Paper>
+
+          {/* Show inventory update summary if accepted */}
+          {receipt.acceptanceStatus === 'ACCEPTED' && (
+            <Box mt={3}>
+              <InventoryUpdateSummary receipt={receipt} />
+              <Divider sx={{ my: 3 }} />
+            </Box>
+          )}
 
           {/* Line Items */}
           <Typography variant="h6" gutterBottom>

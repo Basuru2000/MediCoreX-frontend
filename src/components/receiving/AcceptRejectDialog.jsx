@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -16,9 +16,12 @@ import {
   Grid,
   Chip,
   FormGroup,
-  Checkbox
+  Checkbox,
+  CircularProgress
 } from '@mui/material'
 import { CheckCircle, Cancel, Warning } from '@mui/icons-material'
+import StockLevelComparison from './StockLevelComparison'
+import { getInventoryPreview } from '../../services/api'
 
 function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
   const [decision, setDecision] = useState('accept')
@@ -26,6 +29,26 @@ function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
   const [qualityNotes, setQualityNotes] = useState('')
   const [notifySupplier, setNotifySupplier] = useState(true)
   const [error, setError] = useState('')
+  const [inventoryPreview, setInventoryPreview] = useState([])
+  const [loadingPreview, setLoadingPreview] = useState(false)
+
+  useEffect(() => {
+    if (open && receipt && decision === 'accept') {
+      fetchInventoryPreview()
+    }
+  }, [open, receipt, decision])
+
+  const fetchInventoryPreview = async () => {
+    try {
+      setLoadingPreview(true)
+      const response = await getInventoryPreview(receipt.id)
+      setInventoryPreview(response.data)
+    } catch (error) {
+      console.error('Error fetching inventory preview:', error)
+    } finally {
+      setLoadingPreview(false)
+    }
+  }
 
   const handleSubmit = () => {
     if (decision === 'reject' && !rejectionReason.trim()) {
@@ -160,6 +183,18 @@ function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
               value={qualityNotes}
               onChange={(e) => setQualityNotes(e.target.value)}
             />
+            
+            {/* Inventory Preview */}
+            {loadingPreview ? (
+              <Box display="flex" justifyContent="center" my={2}>
+                <CircularProgress />
+              </Box>
+            ) : inventoryPreview.length > 0 ? (
+              <Box mt={3}>
+                <StockLevelComparison comparisons={inventoryPreview} />
+              </Box>
+            ) : null}
+            
             <Alert severity="info" sx={{ mt: 2 }}>
               Accepting will add all items to inventory and update stock levels.
             </Alert>
