@@ -669,4 +669,38 @@ export const getPOFulfillmentStatus = (poId) =>
 export const getApprovedPurchaseOrders = () => 
   api.get('/purchase-orders/eligible-for-receiving')
 
+// =====================================================
+// QUALITY CHECKLIST ENDPOINTS
+// =====================================================
+
+// Get all active checklist templates
+export const getActiveChecklistTemplates = () => {
+  return api.get('/quality-checklists/templates')
+}
+
+// Get default checklist template
+export const getDefaultChecklistTemplate = () => {
+  return api.get('/quality-checklists/templates/default')
+}
+
+// Get template by ID
+export const getChecklistTemplateById = (id) => {
+  return api.get(`/quality-checklists/templates/${id}`)
+}
+
+// Submit quality checklist
+export const submitQualityChecklist = (data) => {
+  return api.post('/quality-checklists/submit', data)
+}
+
+// Get checklist for receipt
+export const getChecklistByReceiptId = (receiptId) => {
+  return api.get(`/quality-checklists/receipt/${receiptId}`)
+}
+
+// Check if checklist exists for receipt
+export const checkChecklistExists = (receiptId) => {
+  return api.get(`/quality-checklists/receipt/${receiptId}/exists`)
+}
+
 export default api
