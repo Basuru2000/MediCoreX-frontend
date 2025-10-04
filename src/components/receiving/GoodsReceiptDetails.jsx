@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -22,7 +22,8 @@ import {
 import { Close, CheckCircle, Cancel, HourglassEmpty } from '@mui/icons-material'
 import AcceptRejectDialog from './AcceptRejectDialog'
 import InventoryUpdateSummary from './InventoryUpdateSummary'
-import { acceptGoodsReceipt, rejectGoodsReceipt } from '../../services/api'
+import ChecklistSummary from './ChecklistSummary'
+import { acceptGoodsReceipt, rejectGoodsReceipt, checkChecklistExists } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 
 function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
@@ -30,10 +31,26 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
   const [openDecision, setOpenDecision] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [hasChecklist, setHasChecklist] = useState(false)
 
   const canMakeDecision = 
     (user?.role === 'HOSPITAL_MANAGER' || user?.role === 'PROCUREMENT_OFFICER') &&
     receipt?.acceptanceStatus === 'PENDING_APPROVAL'
+
+  useEffect(() => {
+    if (receipt?.id) {
+      checkForChecklist()
+    }
+  }, [receipt])
+
+  const checkForChecklist = async () => {
+    try {
+      const response = await checkChecklistExists(receipt.id)
+      setHasChecklist(response.data.exists)
+    } catch (error) {
+      console.error('Error checking checklist:', error)
+    }
+  }
 
   const handleDecisionSubmit = async (decision, data) => {
     try {
@@ -275,6 +292,17 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Quality Inspection Section */}
+          {hasChecklist && (
+            <Box mt={4}>
+              <Divider sx={{ mb: 3 }} />
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Quality Inspection
+              </Typography>
+              <ChecklistSummary receiptId={receipt.id} />
+            </Box>
+          )}
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 2 }}>

@@ -21,7 +21,8 @@ import {
 } from '@mui/material'
 import { CheckCircle, Cancel, Warning } from '@mui/icons-material'
 import StockLevelComparison from './StockLevelComparison'
-import { getInventoryPreview } from '../../services/api'
+import { getInventoryPreview, checkChecklistExists } from '../../services/api'
+import QualityChecklistDialog from './QualityChecklistDialog'
 
 function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
   const [decision, setDecision] = useState('accept')
@@ -31,12 +32,30 @@ function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
   const [error, setError] = useState('')
   const [inventoryPreview, setInventoryPreview] = useState([])
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [checklistRequired, setChecklistRequired] = useState(false)
+  const [checklistExists, setChecklistExists] = useState(false)
+  const [openChecklist, setOpenChecklist] = useState(false)
 
   useEffect(() => {
     if (open && receipt && decision === 'accept') {
       fetchInventoryPreview()
     }
   }, [open, receipt, decision])
+
+  useEffect(() => {
+    if (open && receipt) {
+      checkIfChecklistExists()
+    }
+  }, [open, receipt])
+
+  const checkIfChecklistExists = async () => {
+    try {
+      const response = await checkChecklistExists(receipt.id)
+      setChecklistExists(response.data.exists)
+    } catch (error) {
+      console.error('Error checking checklist:', error)
+    }
+  }
 
   const fetchInventoryPreview = async () => {
     try {
@@ -195,6 +214,22 @@ function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
               </Box>
             ) : null}
             
+            {decision === 'accept' && !checklistExists && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                  Quality inspection checklist is required before accepting goods.
+                </Typography>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  onClick={() => setOpenChecklist(true)}
+                  sx={{ mt: 1 }}
+                >
+                  Complete Checklist
+                </Button>
+              </Alert>
+            )}
+            
             <Alert severity="info" sx={{ mt: 2 }}>
               Accepting will add all items to inventory and update stock levels.
             </Alert>
@@ -243,13 +278,23 @@ function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || (decision === 'accept' && !checklistExists)}
           color={decision === 'accept' ? 'success' : 'error'}
           startIcon={decision === 'accept' ? <CheckCircle /> : <Cancel />}
         >
           {loading ? 'Processing...' : decision === 'accept' ? 'Accept Goods' : 'Reject Goods'}
         </Button>
       </DialogActions>
+
+      <QualityChecklistDialog
+        open={openChecklist}
+        onClose={() => setOpenChecklist(false)}
+        receipt={receipt}
+        onChecklistComplete={() => {
+          setChecklistExists(true)
+          setOpenChecklist(false)
+        }}
+      />
     </Dialog>
   )
 }
