@@ -21,6 +21,7 @@ import PODetails from '../components/purchase-orders/PODetails'
 import PendingApprovalsList from '../components/purchase-orders/PendingApprovalsList'
 import POApproval from '../components/purchase-orders/POApproval'
 import StatusUpdateModal from '../components/purchase-orders/StatusUpdateModal'
+import ReceiptProgressIndicator from '../components/receiving/ReceiptProgressIndicator'
 import {
   createPurchaseOrder,
   updatePurchaseOrder,
