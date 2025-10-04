@@ -15,10 +15,14 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton
+  IconButton,
+  Chip,
+  LinearProgress,
+  Tooltip
 } from '@mui/material'
-import { Save, Cancel, Add, Delete } from '@mui/icons-material'
+import { Save, Cancel, Add, Delete, Info } from '@mui/icons-material'
 import { getApprovedPurchaseOrders, getPurchaseOrderById } from '../../services/api'
+import ReceiptProgressIndicator from './ReceiptProgressIndicator'
 
 function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
   const [purchaseOrders, setPurchaseOrders] = useState([])
@@ -39,9 +43,15 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
   const fetchApprovedPOs = async () => {
     try {
       setLoadingPOs(true)
-      // Get POs with status APPROVED or SENT
+      // Get POs with status SENT or PARTIALLY_RECEIVED
       const response = await getApprovedPurchaseOrders()
-      setPurchaseOrders(response.data.content || response.data)
+      
+      // Filter to only show POs that can receive items
+      const eligiblePOs = (response.data.content || response.data).filter(po => 
+        po.status === 'SENT' || po.status === 'PARTIALLY_RECEIVED'
+      )
+      
+      setPurchaseOrders(eligiblePOs)
     } catch (error) {
       console.error('Error fetching purchase orders:', error)
       setError('Failed to load purchase orders')
@@ -62,18 +72,19 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
       const response = await getPurchaseOrderById(po.id)
       const poDetails = response.data
 
-      // Initialize lines with remaining quantities
+      // ✨ ENHANCED: Initialize lines with remaining quantities
       const lines = poDetails.lines
-        .filter(line => line.receivedQuantity < line.quantity)
+        .filter(line => line.remainingQuantity > 0) // Only show lines with remaining items
         .map(line => ({
           poLineId: line.id,
+          productId: line.productId,
           productName: line.productName,
           productCode: line.productCode,
           orderedQuantity: line.quantity,
-          alreadyReceived: line.receivedQuantity,
-          remainingQuantity: line.quantity - line.receivedQuantity,
-          receivedQuantity: line.quantity - line.receivedQuantity, // Default to remaining
-          batchNumber: `BATCH-${line.productCode}-${Date.now()}`,
+          receivedQuantity: line.receivedQuantity || 0,
+          remainingQuantity: line.remainingQuantity || line.quantity, // ✨ NEW
+          receivingQuantity: line.remainingQuantity || 0, // Default to remaining qty
+          batchNumber: '',
           expiryDate: '',
           manufactureDate: '',
           qualityNotes: ''
@@ -81,7 +92,7 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
 
       setSelectedPO(poDetails)
       setFormData({
-        poId: po.id,
+        poId: poDetails.id,
         notes: '',
         lines: lines
       })
@@ -92,81 +103,112 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
   }
 
   const handleLineChange = (index, field, value) => {
-    const newLines = [...formData.lines]
-    newLines[index][field] = value
-    setFormData(prev => ({ ...prev, lines: newLines }))
+    const updatedLines = [...formData.lines]
+    updatedLines[index][field] = value
+
+    // ✨ VALIDATION: Cannot receive more than remaining
+    if (field === 'receivingQuantity') {
+      const remainingQty = updatedLines[index].remainingQuantity
+      if (parseInt(value) > remainingQty) {
+        setError(`Cannot receive more than ${remainingQty} items for ${updatedLines[index].productName}`)
+        return
+      }
+      setError('') // Clear error if valid
+    }
+
+    setFormData({ ...formData, lines: updatedLines })
   }
 
   const handleReceiveAll = () => {
-    const newLines = formData.lines.map(line => ({
+    const updatedLines = formData.lines.map(line => ({
       ...line,
-      receivedQuantity: line.remainingQuantity
+      receivingQuantity: line.remainingQuantity // Set to remaining quantity
     }))
-    setFormData(prev => ({ ...prev, lines: newLines }))
+    setFormData({ ...formData, lines: updatedLines })
+  }
+
+  const handleReceiveRemaining = (index) => {
+    const updatedLines = [...formData.lines]
+    updatedLines[index].receivingQuantity = updatedLines[index].remainingQuantity
+    setFormData({ ...formData, lines: updatedLines })
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    
+
     // Validation
     if (!formData.poId) {
       setError('Please select a purchase order')
       return
     }
 
-    if (formData.lines.length === 0) {
-      setError('No items to receive')
+    const linesToReceive = formData.lines.filter(line => 
+      line.receivingQuantity > 0 && 
+      line.batchNumber && 
+      line.expiryDate
+    )
+
+    if (linesToReceive.length === 0) {
+      setError('Please enter receiving details for at least one item')
       return
     }
 
-    // Validate all lines have required fields
-    for (let line of formData.lines) {
-      if (!line.receivedQuantity || line.receivedQuantity <= 0) {
-        setError('All items must have a received quantity greater than 0')
+    // ✅ NEW: Validate unique batch numbers per product
+    const batchNumbers = new Set()
+    for (const line of linesToReceive) {
+      const key = `${line.productId}-${line.batchNumber}`
+      if (batchNumbers.has(key)) {
+        setError(`Duplicate batch number '${line.batchNumber}' for product ${line.productName}`)
         return
       }
-      if (line.receivedQuantity > line.remainingQuantity) {
-        setError(`Cannot receive more than remaining quantity for ${line.productName}`)
-        return
-      }
-      if (!line.batchNumber) {
-        setError('All items must have a batch number')
-        return
-      }
-      if (!line.expiryDate) {
-        setError('All items must have an expiry date')
+      batchNumbers.add(key)
+      
+      if (line.receivingQuantity > line.remainingQuantity) {
+        setError(`Cannot receive ${line.receivingQuantity} of ${line.productName}. Only ${line.remainingQuantity} remaining.`)
         return
       }
     }
 
-    setError('')
-    onSubmit(formData)
+    // Transform data for API
+    const receiptData = {
+      poId: formData.poId,
+      notes: formData.notes,
+      lines: linesToReceive.map(line => ({
+        poLineId: line.poLineId,
+        receivedQuantity: parseInt(line.receivingQuantity), // ✨ Only send the qty being received NOW
+        batchNumber: line.batchNumber,
+        expiryDate: line.expiryDate,
+        manufactureDate: line.manufactureDate || null,
+        qualityNotes: line.qualityNotes || null
+      }))
+    }
+
+    onSubmit(receiptData)
   }
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3}>
-        {/* PO Selection */}
+        {/* Purchase Order Selection */}
         <Grid item xs={12}>
           <Autocomplete
             options={purchaseOrders}
-            getOptionLabel={(option) => 
-              `${option.poNumber} - ${option.supplierName} (${option.totalItems} items)`
-            }
+            getOptionLabel={(option) => `${option.poNumber} - ${option.supplierName}`}
             value={selectedPO}
-            onChange={(e, newValue) => handlePOSelect(newValue)}
+            onChange={(_, newValue) => handlePOSelect(newValue)}
             loading={loadingPOs}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Select Purchase Order *"
-                placeholder="Choose a PO to receive goods"
+                label="Select Purchase Order"
+                required
                 InputProps={{
                   ...params.InputProps,
                   endAdornment: (
@@ -177,6 +219,25 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                   ),
                 }}
               />
+            )}
+            renderOption={(props, option) => (
+              <Box component="li" {...props}>
+                <Box sx={{ width: '100%' }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2">
+                      {option.poNumber} - {option.supplierName}
+                    </Typography>
+                    <Chip
+                      label={option.status}
+                      size="small"
+                      color={option.status === 'PARTIALLY_RECEIVED' ? 'warning' : 'primary'}
+                    />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(option.orderDate).toLocaleDateString()}
+                  </Typography>
+                </Box>
+              </Box>
             )}
           />
         </Grid>
@@ -203,6 +264,16 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                       {new Date(selectedPO.orderDate).toLocaleDateString()}
                     </Typography>
                   </Grid>
+                  <Grid item xs={12}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Info fontSize="small" color="info" />
+                      <Typography variant="caption" color="text.secondary">
+                        {selectedPO.status === 'PARTIALLY_RECEIVED' 
+                          ? 'This order has been partially received. You can receive the remaining items.'
+                          : 'This order is ready for receiving.'}
+                      </Typography>
+                    </Box>
+                  </Grid>
                 </Grid>
               </Paper>
             </Grid>
@@ -228,42 +299,48 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                     <TableRow>
                       <TableCell><strong>Product</strong></TableCell>
                       <TableCell align="center"><strong>Ordered</strong></TableCell>
-                      <TableCell align="center"><strong>Already Received</strong></TableCell>
+                      <TableCell align="center"><strong>Previously Received</strong></TableCell>
                       <TableCell align="center"><strong>Remaining</strong></TableCell>
-                      <TableCell align="center"><strong>Receiving Now *</strong></TableCell>
-                      <TableCell><strong>Batch Number *</strong></TableCell>
-                      <TableCell><strong>Expiry Date *</strong></TableCell>
+                      <TableCell align="center"><strong>Receiving Now</strong></TableCell>
+                      <TableCell><strong>Batch Number</strong></TableCell>
+                      <TableCell><strong>Expiry Date</strong></TableCell>
                       <TableCell><strong>Mfg Date</strong></TableCell>
+                      <TableCell align="center"><strong>Actions</strong></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {formData.lines.map((line, index) => (
-                      <TableRow key={index}>
+                      <TableRow key={line.poLineId}>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={600}>
-                            {line.productName}
-                          </Typography>
+                          <Typography variant="body2">{line.productName}</Typography>
                           <Typography variant="caption" color="text.secondary">
                             {line.productCode}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">{line.orderedQuantity}</TableCell>
-                        <TableCell align="center">{line.alreadyReceived}</TableCell>
                         <TableCell align="center">
-                          <Typography fontWeight={600} color="primary">
-                            {line.remainingQuantity}
-                          </Typography>
+                          <Chip
+                            label={line.receivedQuantity}
+                            size="small"
+                            color={line.receivedQuantity > 0 ? 'success' : 'default'}
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip
+                            label={line.remainingQuantity}
+                            size="small"
+                            color="warning"
+                          />
                         </TableCell>
                         <TableCell align="center">
                           <TextField
                             type="number"
                             size="small"
-                            value={line.receivedQuantity}
-                            onChange={(e) => handleLineChange(
-                              index, 'receivedQuantity', parseInt(e.target.value) || 0
-                            )}
-                            inputProps={{ min: 1, max: line.remainingQuantity }}
+                            value={line.receivingQuantity}
+                            onChange={(e) => handleLineChange(index, 'receivingQuantity', e.target.value)}
+                            inputProps={{ min: 0, max: line.remainingQuantity }}
                             sx={{ width: 80 }}
+                            error={parseInt(line.receivingQuantity) > line.remainingQuantity}
                           />
                         </TableCell>
                         <TableCell>
@@ -271,7 +348,9 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                             size="small"
                             value={line.batchNumber}
                             onChange={(e) => handleLineChange(index, 'batchNumber', e.target.value)}
-                            sx={{ width: 150 }}
+                            placeholder="Batch #"
+                            required={line.receivingQuantity > 0}
+                            sx={{ width: 120 }}
                           />
                         </TableCell>
                         <TableCell>
@@ -281,7 +360,8 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                             value={line.expiryDate}
                             onChange={(e) => handleLineChange(index, 'expiryDate', e.target.value)}
                             InputLabelProps={{ shrink: true }}
-                            sx={{ width: 150 }}
+                            required={line.receivingQuantity > 0}
+                            sx={{ width: 140 }}
                           />
                         </TableCell>
                         <TableCell>
@@ -291,8 +371,19 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                             value={line.manufactureDate}
                             onChange={(e) => handleLineChange(index, 'manufactureDate', e.target.value)}
                             InputLabelProps={{ shrink: true }}
-                            sx={{ width: 150 }}
+                            sx={{ width: 140 }}
                           />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Receive all remaining">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleReceiveRemaining(index)}
+                              color="primary"
+                            >
+                              <Add />
+                            </IconButton>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -305,11 +396,11 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Receipt Notes"
+                label="Notes (Optional)"
                 multiline
                 rows={3}
                 value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
             </Grid>
           </>
@@ -320,19 +411,19 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
           <Box display="flex" gap={2} justifyContent="flex-end">
             <Button
               variant="outlined"
-              startIcon={<Cancel />}
               onClick={onCancel}
               disabled={loading}
             >
+              <Cancel sx={{ mr: 1 }} />
               Cancel
             </Button>
             <Button
               type="submit"
               variant="contained"
-              startIcon={<Save />}
-              disabled={loading || !selectedPO || formData.lines.length === 0}
+              disabled={loading || !selectedPO}
             >
-              {loading ? 'Processing...' : 'Receive Goods'}
+              {loading ? <CircularProgress size={20} /> : <Save sx={{ mr: 1 }} />}
+              Create Receipt
             </Button>
           </Box>
         </Grid>

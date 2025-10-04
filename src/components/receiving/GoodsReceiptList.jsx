@@ -111,49 +111,35 @@ function GoodsReceiptList({ onView, refreshTrigger }) {
               </TableRow>
             ) : (
               receipts.map((receipt) => (
-                <TableRow key={receipt.id} hover>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600}>
-                      {receipt.receiptNumber}
-                    </Typography>
-                  </TableCell>
+                <TableRow hover key={receipt.id}>
+                  <TableCell>{receipt.receiptNumber}</TableCell>
                   <TableCell>{receipt.poNumber}</TableCell>
                   <TableCell>{receipt.supplierName}</TableCell>
                   <TableCell>{formatDateTime(receipt.receiptDate)}</TableCell>
                   <TableCell>{receipt.receivedByName}</TableCell>
+                  <TableCell align="center">{receipt.lines?.length || 0}</TableCell>
                   <TableCell align="center">
-                    <Chip 
-                      label={receipt.totalQuantity} 
-                      size="small" 
-                      color="primary" 
-                      variant="outlined"
+                    <Chip
+                      label={receipt.status}
+                      size="small"
+                      color={receipt.status === 'RECEIVED' ? 'success' : 'default'}
                     />
                   </TableCell>
                   <TableCell align="center">
-                    <Chip 
-                      label={receipt.status} 
-                      size="small" 
-                      color="success"
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip 
-                      label={receipt.acceptanceStatus?.replace('_', ' ')} 
-                      size="small" 
+                    <Chip
+                      label={receipt.acceptanceStatus}
+                      size="small"
                       color={
                         receipt.acceptanceStatus === 'ACCEPTED' ? 'success' :
-                        receipt.acceptanceStatus === 'REJECTED' ? 'error' : 'warning'
+                        receipt.acceptanceStatus === 'PENDING_APPROVAL' ? 'warning' :
+                        'error'
                       }
                     />
                   </TableCell>
                   <TableCell align="center">
                     <Tooltip title="View Details">
-                      <IconButton 
-                        size="small" 
-                        color="primary"
-                        onClick={() => onView(receipt)}
-                      >
-                        <Visibility />
+                      <IconButton size="small" onClick={() => onView(receipt)}>
+                        <Visibility fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   </TableCell>

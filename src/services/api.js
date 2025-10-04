@@ -622,14 +622,6 @@ export const updatePurchaseOrderStatusWithComments = (id, status, comments) => {
   }
   return api.put(`/purchase-orders/${id}/status-with-comments?${params.toString()}`)
 }
-// Get approved purchase orders
-export const getApprovedPurchaseOrders = () => 
-  api.get('/purchase-orders/search', { 
-    params: { 
-      status: 'SENT',  // or 'APPROVED' 
-      size: 100 
-    } 
-  })
 
 // ============================================
 // GOODS RECEIPT ENDPOINTS
@@ -664,5 +656,17 @@ export const getPendingApprovalReceipts = (params) =>
 // Get inventory preview before accepting goods receipt
 export const getInventoryPreview = (receiptId) => 
   api.get(`/goods-receipts/${receiptId}/inventory-preview`)
+
+// Get all receipts for a specific purchase order (for receipt history)
+export const getReceiptHistoryForPO = (poId) => 
+  api.get(`/goods-receipts/purchase-order/${poId}`)
+
+// Get PO fulfillment status
+export const getPOFulfillmentStatus = (poId) => 
+  api.get(`/purchase-orders/${poId}/fulfillment-status`)
+
+// Get purchase orders eligible for receiving
+export const getApprovedPurchaseOrders = () => 
+  api.get('/purchase-orders/eligible-for-receiving')
 
 export default api
