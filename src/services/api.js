@@ -703,4 +703,23 @@ export const checkChecklistExists = (receiptId) => {
   return api.get(`/quality-checklists/receipt/${receiptId}/exists`)
 }
 
+// =====================================================
+// AUTO PO GENERATION ENDPOINTS
+// =====================================================
+
+// Get auto PO configuration
+export const getAutoPOConfig = () => {
+  return api.get('/auto-po/config')
+}
+
+// Update auto PO configuration
+export const updateAutoPOConfig = (data) => {
+  return api.put('/auto-po/config', data)
+}
+
+// Manually trigger auto PO generation
+export const generateAutoPOs = () => {
+  return api.post('/auto-po/generate')
+}
+
 export default api
