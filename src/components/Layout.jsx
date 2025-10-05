@@ -55,7 +55,8 @@ import {
   Business,
   LocalShipping,
   RequestQuote,
-  Receipt
+  Receipt,
+  AutoAwesome
 } from "@mui/icons-material";
 import NotificationBell from './notifications/NotificationBell'
 import WebSocketStatus from './notifications/WebSocketStatus'
@@ -93,7 +94,7 @@ function Layout() {
     if (path.includes('/reports/')) {
       setReportsOpen(true)
     }
-    if (path.includes('/suppliers') || path.includes('/purchase-orders') || path.includes('/receiving')) {
+    if (path.includes('/suppliers') || path.includes('/purchase-orders') || path.includes('/receiving') || path.includes('/auto-po-settings')) {
       setProcurementOpen(true)
     }
   }, [location.pathname])
@@ -202,6 +203,12 @@ function Layout() {
           icon: <Receipt />,
           path: '/receiving',
           roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
+        },
+        {
+          text: 'Auto PO Settings',
+          icon: <Settings />,
+          path: '/auto-po-settings',
+          roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER']
         }
       ]
     },
@@ -262,7 +269,7 @@ function Layout() {
         },
         {
           text: 'Notification Settings',
-          icon: <SettingsApplications />,
+          icon: <Settings />,
           path: '/notification-preferences',
           roles: ['HOSPITAL_MANAGER', 'PHARMACY_STAFF']
         }

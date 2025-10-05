@@ -22,6 +22,7 @@ import PendingApprovalsList from '../components/purchase-orders/PendingApprovals
 import POApproval from '../components/purchase-orders/POApproval'
 import StatusUpdateModal from '../components/purchase-orders/StatusUpdateModal'
 import ReceiptProgressIndicator from '../components/receiving/ReceiptProgressIndicator'
+import AutoPOBanner from '../components/purchase-orders/AutoPOBanner'
 import {
   createPurchaseOrder,
   updatePurchaseOrder,
@@ -262,6 +263,9 @@ function PurchaseOrders() {
           </Grid>
         </Grid>
       )}
+
+      {/* Auto PO Banner */}
+      <AutoPOBanner />
 
       {/* Pending Approvals Section - Only for Managers */}
       {user?.role === 'HOSPITAL_MANAGER' && (
