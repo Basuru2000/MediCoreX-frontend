@@ -21,6 +21,7 @@ import ExpiryCalendar from './pages/ExpiryCalendar'
 import PurchaseOrders from './pages/PurchaseOrders'
 import Receiving from './pages/Receiving'
 import AutoPOSettings from './pages/AutoPOSettings'
+import ProcurementAnalytics from './pages/ProcurementAnalytics'
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
               <Route path="/batch-tracking" element={<BatchTracking />} />
               <Route path="/quarantine" element={<QuarantineManagement />} />
               <Route path="/purchase-orders" element={<PurchaseOrders />} />
+              <Route path="/procurement-analytics" element={<ProcurementAnalytics />} />
               <Route path="/receiving" element={<Receiving />} />
               <Route path="/auto-po-settings" element={<AutoPOSettings />} />
               <Route path="/notifications" element={<NotificationsPage />} />

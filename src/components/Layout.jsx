@@ -94,7 +94,7 @@ function Layout() {
     if (path.includes('/reports/')) {
       setReportsOpen(true)
     }
-    if (path.includes('/suppliers') || path.includes('/purchase-orders') || path.includes('/receiving') || path.includes('/auto-po-settings')) {
+    if (path.includes('/suppliers') || path.includes('/purchase-orders') || path.includes('/receiving') || path.includes('/auto-po-settings') || path.includes('/procurement-analytics')) {
       setProcurementOpen(true)
     }
   }, [location.pathname])
@@ -203,6 +203,12 @@ function Layout() {
           icon: <Receipt />,
           path: '/receiving',
           roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER'],
+        },
+        {
+          text: 'Procurement Analytics',
+          icon: <Assessment />,
+          path: '/procurement-analytics',
+          roles: ['HOSPITAL_MANAGER', 'PROCUREMENT_OFFICER']
         },
         {
           text: 'Auto PO Settings',

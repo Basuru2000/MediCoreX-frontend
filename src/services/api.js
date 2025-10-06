@@ -722,4 +722,49 @@ export const generateAutoPOs = () => {
   return api.post('/auto-po/generate')
 }
 
+// ============================================
+// PROCUREMENT ANALYTICS ENDPOINTS
+// ============================================
+
+/**
+ * Get overall procurement metrics
+ * @param {string} startDate - Format: YYYY-MM-DD
+ * @param {string} endDate - Format: YYYY-MM-DD
+ */
+export const getProcurementMetrics = (startDate, endDate) => {
+  const params = new URLSearchParams()
+  if (startDate) params.append('startDate', startDate)
+  if (endDate) params.append('endDate', endDate)
+  return api.get(`/procurement-analytics/metrics?${params.toString()}`)
+}
+
+/**
+ * Get PO trends over time
+ * @param {number} months - Number of months (default: 12)
+ */
+export const getPOTrends = (months = 12) => {
+  return api.get(`/procurement-analytics/trends?months=${months}`)
+}
+
+/**
+ * Get top suppliers
+ * @param {number} limit - Number of suppliers (default: 10)
+ * @param {string} sortBy - Sort by 'value' or 'volume' (default: 'value')
+ */
+export const getTopSuppliers = (limit = 10, sortBy = 'value') => {
+  return api.get(`/procurement-analytics/top-suppliers?limit=${limit}&sortBy=${sortBy}`)
+}
+
+/**
+ * Get PO status distribution
+ * @param {string} startDate - Format: YYYY-MM-DD
+ * @param {string} endDate - Format: YYYY-MM-DD
+ */
+export const getStatusDistribution = (startDate, endDate) => {
+  const params = new URLSearchParams()
+  if (startDate) params.append('startDate', startDate)
+  if (endDate) params.append('endDate', endDate)
+  return api.get(`/procurement-analytics/status-distribution?${params.toString()}`)
+}
+
 export default api
