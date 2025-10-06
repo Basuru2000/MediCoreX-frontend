@@ -36,13 +36,17 @@ api.interceptors.response.use(
     console.error('=== API Error:', error.response?.status, error.response?.data)
     
     if (error.response?.status === 401) {
-      // Only redirect to login if we're not already trying to login
+      // Clear auth data
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      
+      // Only redirect if not already on login page
       if (!window.location.pathname.includes('/login')) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
+        console.warn('Unauthorized - redirecting to login')
         window.location.href = '/login'
       }
     }
+    
     return Promise.reject(error)
   }
 )

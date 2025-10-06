@@ -51,7 +51,6 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Validation
     if (!formData.username || !formData.password) {
       setError('Please enter both username and password')
       return
@@ -66,6 +65,7 @@ function Login() {
       setError(result.error)
       setLoading(false)
     }
+    // ✅ Navigation handled by AuthContext, no need to manually navigate
   }
 
   const handleTogglePassword = () => {
