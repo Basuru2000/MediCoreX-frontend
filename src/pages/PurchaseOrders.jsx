@@ -117,7 +117,7 @@ function PurchaseOrders() {
   const handleApprove = async (id, comments) => {
     try {
       setLoading(true)
-      await approvePurchaseOrder(id, { comments })
+      await approvePurchaseOrder(id, comments)
       setRefreshTrigger(prev => prev + 1)
     } catch (error) {
       console.error('Error approving PO:', error)
@@ -130,7 +130,7 @@ function PurchaseOrders() {
   const handleReject = async (id, comments) => {
     try {
       setLoading(true)
-      await rejectPurchaseOrder(id, { comments })
+      await rejectPurchaseOrder(id, comments)
       setRefreshTrigger(prev => prev + 1)
     } catch (error) {
       console.error('Error rejecting PO:', error)
@@ -143,7 +143,7 @@ function PurchaseOrders() {
   const handleStatusUpdateSubmit = async (data) => {
     try {
       setLoading(true)
-      await updatePurchaseOrderStatusWithComments(selectedForStatusUpdate.id, data)
+      await updatePurchaseOrderStatusWithComments(selectedForStatusUpdate.id, data.status, data.comments)
       setOpenStatusModal(false)
       setSelectedForStatusUpdate(null)
       setRefreshTrigger(prev => prev + 1)

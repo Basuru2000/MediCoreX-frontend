@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import {
   Box,
-  Button,
-  TextField,
   Grid,
+  TextField,
+  Button,
   Typography,
-  Alert,
-  CircularProgress,
-  Autocomplete,
   Table,
   TableBody,
   TableCell,
@@ -15,264 +12,306 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton,
+  CircularProgress,
   Chip,
-  LinearProgress,
-  Tooltip
+  IconButton,
+  Tooltip,
+  Alert,
+  Stack,
+  useTheme,
+  alpha,
+  Autocomplete
 } from '@mui/material'
-import { Save, Cancel, Add, Delete, Info } from '@mui/icons-material'
-import { getApprovedPurchaseOrders, getPurchaseOrderById } from '../../services/api'
-import ReceiptProgressIndicator from './ReceiptProgressIndicator'
+import {
+  Add,
+  Remove,
+  Cancel,
+  Save,
+  CheckCircle,
+  LocalShipping
+} from '@mui/icons-material'
+import { getApprovedPurchaseOrders } from '../../services/api'
 
-function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
+function GoodsReceiptForm({ onSubmit, onCancel, loading: parentLoading }) {
+  const theme = useTheme()
+  const [loading, setLoading] = useState(false)
   const [purchaseOrders, setPurchaseOrders] = useState([])
   const [selectedPO, setSelectedPO] = useState(null)
-  const [loadingPOs, setLoadingPOs] = useState(false)
-  const [error, setError] = useState('')
-  
   const [formData, setFormData] = useState({
     poId: null,
     notes: '',
     lines: []
   })
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchApprovedPOs()
+    fetchPurchaseOrders()
   }, [])
 
-  const fetchApprovedPOs = async () => {
+  const fetchPurchaseOrders = async () => {
     try {
-      setLoadingPOs(true)
-      // Get POs with status SENT or PARTIALLY_RECEIVED
+      setLoading(true)
       const response = await getApprovedPurchaseOrders()
-      
-      // Filter to only show POs that can receive items
-      const eligiblePOs = (response.data.content || response.data).filter(po => 
-        po.status === 'SENT' || po.status === 'PARTIALLY_RECEIVED'
-      )
-      
-      setPurchaseOrders(eligiblePOs)
+      setPurchaseOrders(response.data)
     } catch (error) {
       console.error('Error fetching purchase orders:', error)
       setError('Failed to load purchase orders')
     } finally {
-      setLoadingPOs(false)
+      setLoading(false)
     }
   }
 
-  const handlePOSelect = async (po) => {
-    if (!po) {
-      setSelectedPO(null)
-      setFormData({ poId: null, notes: '', lines: [] })
-      return
-    }
-
-    try {
-      // Fetch full PO details
-      const response = await getPurchaseOrderById(po.id)
-      const poDetails = response.data
-
-      // ✨ ENHANCED: Initialize lines with remaining quantities
-      const lines = poDetails.lines
-        .filter(line => line.remainingQuantity > 0) // Only show lines with remaining items
-        .map(line => ({
+  const handlePOSelect = (event, value) => {
+    setSelectedPO(value)
+    if (value) {
+      setFormData({
+        poId: value.id,
+        notes: '',
+        lines: value.lines.map(line => ({
           poLineId: line.id,
           productId: line.productId,
           productName: line.productName,
           productCode: line.productCode,
           orderedQuantity: line.quantity,
           receivedQuantity: line.receivedQuantity || 0,
-          remainingQuantity: line.remainingQuantity || line.quantity, // ✨ NEW
-          receivingQuantity: line.remainingQuantity || 0, // Default to remaining qty
+          remainingQuantity: line.remainingQuantity || line.quantity,
+          receivingNow: line.remainingQuantity || line.quantity,
           batchNumber: '',
           expiryDate: '',
           manufactureDate: '',
-          qualityNotes: ''
+          unitCost: line.unitPrice
         }))
-
-      setSelectedPO(poDetails)
-      setFormData({
-        poId: poDetails.id,
-        notes: '',
-        lines: lines
       })
-    } catch (error) {
-      console.error('Error fetching PO details:', error)
-      setError('Failed to load purchase order details')
+      setError('')
+    } else {
+      setFormData({
+        poId: null,
+        notes: '',
+        lines: []
+      })
     }
   }
 
-  const handleLineChange = (index, field, value) => {
-    const updatedLines = [...formData.lines]
-    updatedLines[index][field] = value
-
-    // ✨ VALIDATION: Cannot receive more than remaining
-    if (field === 'receivingQuantity') {
-      const remainingQty = updatedLines[index].remainingQuantity
-      if (parseInt(value) > remainingQty) {
-        setError(`Cannot receive more than ${remainingQty} items for ${updatedLines[index].productName}`)
-        return
-      }
-      setError('') // Clear error if valid
-    }
-
-    setFormData({ ...formData, lines: updatedLines })
+  const handleQuantityChange = (index, quantity) => {
+    const newLines = [...formData.lines]
+    const line = newLines[index]
+    const qty = Math.max(0, Math.min(parseInt(quantity) || 0, line.remainingQuantity))
+    line.receivingNow = qty
+    setFormData({ ...formData, lines: newLines })
   }
 
-  const handleReceiveAll = () => {
-    const updatedLines = formData.lines.map(line => ({
-      ...line,
-      receivingQuantity: line.remainingQuantity // Set to remaining quantity
-    }))
-    setFormData({ ...formData, lines: updatedLines })
+  const handleBatchChange = (index, field, value) => {
+    const newLines = [...formData.lines]
+    newLines[index][field] = value
+    setFormData({ ...formData, lines: newLines })
   }
 
   const handleReceiveRemaining = (index) => {
-    const updatedLines = [...formData.lines]
-    updatedLines[index].receivingQuantity = updatedLines[index].remainingQuantity
-    setFormData({ ...formData, lines: updatedLines })
+    const newLines = [...formData.lines]
+    newLines[index].receivingNow = newLines[index].remainingQuantity
+    setFormData({ ...formData, lines: newLines })
+  }
+
+  const handleReceiveAll = () => {
+    const newLines = formData.lines.map(line => ({
+      ...line,
+      receivingNow: line.remainingQuantity
+    }))
+    setFormData({ ...formData, lines: newLines })
+  }
+
+  const validateForm = () => {
+    if (!formData.poId) {
+      setError('Please select a purchase order')
+      return false
+    }
+
+    const hasItemsToReceive = formData.lines.some(line => line.receivingNow > 0)
+    if (!hasItemsToReceive) {
+      setError('Please enter quantities to receive')
+      return false
+    }
+
+    for (const line of formData.lines) {
+      if (line.receivingNow > 0) {
+        if (!line.batchNumber) {
+          setError(`Please enter batch number for ${line.productName}`)
+          return false
+        }
+        if (!line.expiryDate) {
+          setError(`Please enter expiry date for ${line.productName}`)
+          return false
+        }
+      }
+    }
+
+    return true
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-
-    // Validation
-    if (!formData.poId) {
-      setError('Please select a purchase order')
+    
+    if (!validateForm()) {
       return
     }
 
-    const linesToReceive = formData.lines.filter(line => 
-      line.receivingQuantity > 0 && 
-      line.batchNumber && 
-      line.expiryDate
-    )
-
-    if (linesToReceive.length === 0) {
-      setError('Please enter receiving details for at least one item')
-      return
-    }
-
-    // ✅ NEW: Validate unique batch numbers per product
-    const batchNumbers = new Set()
-    for (const line of linesToReceive) {
-      const key = `${line.productId}-${line.batchNumber}`
-      if (batchNumbers.has(key)) {
-        setError(`Duplicate batch number '${line.batchNumber}' for product ${line.productName}`)
-        return
-      }
-      batchNumbers.add(key)
-      
-      if (line.receivingQuantity > line.remainingQuantity) {
-        setError(`Cannot receive ${line.receivingQuantity} of ${line.productName}. Only ${line.remainingQuantity} remaining.`)
-        return
-      }
-    }
-
-    // Transform data for API
-    const receiptData = {
+    const submitData = {
       poId: formData.poId,
       notes: formData.notes,
-      lines: linesToReceive.map(line => ({
-        poLineId: line.poLineId,
-        receivedQuantity: parseInt(line.receivingQuantity), // ✨ Only send the qty being received NOW
-        batchNumber: line.batchNumber,
-        expiryDate: line.expiryDate,
-        manufactureDate: line.manufactureDate || null,
-        qualityNotes: line.qualityNotes || null
-      }))
+      lines: formData.lines
+        .filter(line => line.receivingNow > 0)
+        .map(line => ({
+          poLineId: line.poLineId,
+          productId: line.productId,
+          receivedQuantity: line.receivingNow,
+          batchNumber: line.batchNumber,
+          expiryDate: line.expiryDate,
+          manufactureDate: line.manufactureDate || null,
+          unitCost: line.unitCost
+        }))
     }
 
-    onSubmit(receiptData)
+    onSubmit(submitData)
+  }
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress size={48} thickness={4} />
+          <Typography variant="body2" color="text.secondary">
+            Loading purchase orders...
+          </Typography>
+        </Stack>
+      </Box>
+    )
   }
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      {error && (
-        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
       <Grid container spacing={3}>
-        {/* Purchase Order Selection */}
+        {/* PO Selection */}
         <Grid item xs={12}>
           <Autocomplete
+            value={selectedPO}
+            onChange={handlePOSelect}
             options={purchaseOrders}
             getOptionLabel={(option) => `${option.poNumber} - ${option.supplierName}`}
-            value={selectedPO}
-            onChange={(_, newValue) => handlePOSelect(newValue)}
-            loading={loadingPOs}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
             renderInput={(params) => (
               <TextField
                 {...params}
                 label="Select Purchase Order"
+                placeholder="Search by PO number or supplier..."
                 required
                 InputProps={{
                   ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loadingPOs ? <CircularProgress size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
+                  sx: {
+                    borderRadius: '8px'
+                  }
                 }}
               />
             )}
             renderOption={(props, option) => (
               <Box component="li" {...props}>
-                <Box sx={{ width: '100%' }}>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2">
-                      {option.poNumber} - {option.supplierName}
+                <Stack direction="row" spacing={2} alignItems="center" width="100%">
+                  <Box flex={1}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {option.poNumber}
                     </Typography>
-                    <Chip
-                      label={option.status}
-                      size="small"
-                      color={option.status === 'PARTIALLY_RECEIVED' ? 'warning' : 'primary'}
-                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {option.supplierName}
+                    </Typography>
                   </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(option.orderDate).toLocaleDateString()}
-                  </Typography>
-                </Box>
+                  <Chip
+                    label={option.status === 'PARTIALLY_RECEIVED' ? 'Partial' : 'Ready'}
+                    size="small"
+                    color={option.status === 'PARTIALLY_RECEIVED' ? 'warning' : 'success'}
+                    sx={{ fontSize: '0.75rem' }}
+                  />
+                </Stack>
               </Box>
             )}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px'
+              }
+            }}
           />
         </Grid>
 
-        {/* Show PO Details if selected */}
+        {error && (
+          <Grid item xs={12}>
+            <Alert 
+              severity="error" 
+              onClose={() => setError('')}
+              sx={{ borderRadius: '8px' }}
+            >
+              {error}
+            </Alert>
+          </Grid>
+        )}
+
         {selectedPO && (
           <>
+            {/* PO Info Summary */}
             <Grid item xs={12}>
-              <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: '8px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.02)
+                }}
+              >
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
+                  <Grid item xs={12} sm={3}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      PO Number
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600} color="primary">
+                      {selectedPO.poNumber}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                       Supplier
                     </Typography>
-                    <Typography variant="body1" fontWeight={600}>
+                    <Typography variant="body1" fontWeight={500}>
                       {selectedPO.supplierName}
                     </Typography>
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Order Date
+                  <Grid item xs={12} sm={3}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      Status
                     </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      {new Date(selectedPO.orderDate).toLocaleDateString()}
+                    <Box mt={0.5}>
+                      <Chip
+                        label={selectedPO.status === 'PARTIALLY_RECEIVED' ? 'Partially Received' : 'Sent'}
+                        size="small"
+                        color={selectedPO.status === 'PARTIALLY_RECEIVED' ? 'warning' : 'success'}
+                        sx={{ fontSize: '0.75rem', height: 24 }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      Total Amount
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600} color="success.main">
+                      ${selectedPO.totalAmount.toFixed(2)}
                     </Typography>
                   </Grid>
                   <Grid item xs={12}>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Info fontSize="small" color="info" />
-                      <Typography variant="caption" color="text.secondary">
-                        {selectedPO.status === 'PARTIALLY_RECEIVED' 
-                          ? 'This order has been partially received. You can receive the remaining items.'
-                          : 'This order is ready for receiving.'}
-                      </Typography>
-                    </Box>
+                    <Alert 
+                      severity={selectedPO.status === 'PARTIALLY_RECEIVED' ? 'warning' : 'info'}
+                      icon={selectedPO.status === 'PARTIALLY_RECEIVED' ? <LocalShipping /> : <CheckCircle />}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {selectedPO.status === 'PARTIALLY_RECEIVED'
+                        ? 'This order has been partially received. You can receive the remaining items.'
+                        : 'This order is ready for receiving.'}
+                    </Alert>
                   </Grid>
                 </Grid>
               </Paper>
@@ -280,49 +319,69 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
 
             {/* Receipt Items Table */}
             <Grid item xs={12}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6">
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight={600} sx={{ fontSize: '1.125rem' }}>
                   Items to Receive
                 </Typography>
                 <Button
                   variant="outlined"
                   size="small"
                   onClick={handleReceiveAll}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 500
+                  }}
                 >
                   Receive All Remaining
                 </Button>
-              </Box>
+              </Stack>
 
-              <TableContainer component={Paper}>
+              <TableContainer 
+                component={Paper} 
+                elevation={0}
+                sx={{ 
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}
+              >
                 <Table size="small">
                   <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Product</strong></TableCell>
-                      <TableCell align="center"><strong>Ordered</strong></TableCell>
-                      <TableCell align="center"><strong>Previously Received</strong></TableCell>
-                      <TableCell align="center"><strong>Remaining</strong></TableCell>
-                      <TableCell align="center"><strong>Receiving Now</strong></TableCell>
-                      <TableCell><strong>Batch Number</strong></TableCell>
-                      <TableCell><strong>Expiry Date</strong></TableCell>
-                      <TableCell><strong>Mfg Date</strong></TableCell>
-                      <TableCell align="center"><strong>Actions</strong></TableCell>
+                    <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.03) }}>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Product</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Ordered</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Previously Received</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Remaining</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Receiving Now</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Batch Number</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Expiry Date</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Mfg Date</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {formData.lines.map((line, index) => (
-                      <TableRow key={line.poLineId}>
+                      <TableRow key={line.poLineId} hover>
                         <TableCell>
-                          <Typography variant="body2">{line.productName}</Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem' }}>
+                            {line.productName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                             {line.productCode}
                           </Typography>
                         </TableCell>
-                        <TableCell align="center">{line.orderedQuantity}</TableCell>
+                        <TableCell align="center">
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                            {line.orderedQuantity}
+                          </Typography>
+                        </TableCell>
                         <TableCell align="center">
                           <Chip
                             label={line.receivedQuantity}
                             size="small"
-                            color={line.receivedQuantity > 0 ? 'success' : 'default'}
+                            color={line.receivedQuantity > 0 ? 'info' : 'default'}
+                            sx={{ minWidth: 40, fontSize: '0.75rem', height: 24 }}
                           />
                         </TableCell>
                         <TableCell align="center">
@@ -330,27 +389,41 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                             label={line.remainingQuantity}
                             size="small"
                             color="warning"
+                            sx={{ minWidth: 40, fontSize: '0.75rem', height: 24, fontWeight: 600 }}
                           />
                         </TableCell>
                         <TableCell align="center">
                           <TextField
                             type="number"
                             size="small"
-                            value={line.receivingQuantity}
-                            onChange={(e) => handleLineChange(index, 'receivingQuantity', e.target.value)}
-                            inputProps={{ min: 0, max: line.remainingQuantity }}
-                            sx={{ width: 80 }}
-                            error={parseInt(line.receivingQuantity) > line.remainingQuantity}
+                            value={line.receivingNow}
+                            onChange={(e) => handleQuantityChange(index, e.target.value)}
+                            inputProps={{ 
+                              min: 0, 
+                              max: line.remainingQuantity,
+                              style: { textAlign: 'center' }
+                            }}
+                            sx={{ 
+                              width: 80,
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '6px'
+                              }
+                            }}
                           />
                         </TableCell>
                         <TableCell>
                           <TextField
                             size="small"
-                            value={line.batchNumber}
-                            onChange={(e) => handleLineChange(index, 'batchNumber', e.target.value)}
                             placeholder="Batch #"
-                            required={line.receivingQuantity > 0}
-                            sx={{ width: 120 }}
+                            value={line.batchNumber}
+                            onChange={(e) => handleBatchChange(index, 'batchNumber', e.target.value)}
+                            required={line.receivingNow > 0}
+                            sx={{ 
+                              width: 120,
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '6px'
+                              }
+                            }}
                           />
                         </TableCell>
                         <TableCell>
@@ -358,10 +431,15 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                             type="date"
                             size="small"
                             value={line.expiryDate}
-                            onChange={(e) => handleLineChange(index, 'expiryDate', e.target.value)}
+                            onChange={(e) => handleBatchChange(index, 'expiryDate', e.target.value)}
+                            required={line.receivingNow > 0}
                             InputLabelProps={{ shrink: true }}
-                            required={line.receivingQuantity > 0}
-                            sx={{ width: 140 }}
+                            sx={{ 
+                              width: 140,
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '6px'
+                              }
+                            }}
                           />
                         </TableCell>
                         <TableCell>
@@ -369,19 +447,29 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                             type="date"
                             size="small"
                             value={line.manufactureDate}
-                            onChange={(e) => handleLineChange(index, 'manufactureDate', e.target.value)}
+                            onChange={(e) => handleBatchChange(index, 'manufactureDate', e.target.value)}
                             InputLabelProps={{ shrink: true }}
-                            sx={{ width: 140 }}
+                            sx={{ 
+                              width: 140,
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '6px'
+                              }
+                            }}
                           />
                         </TableCell>
                         <TableCell align="center">
-                          <Tooltip title="Receive all remaining">
+                          <Tooltip title="Receive All Remaining" arrow>
                             <IconButton
                               size="small"
                               onClick={() => handleReceiveRemaining(index)}
                               color="primary"
+                              sx={{
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                                }
+                              }}
                             >
-                              <Add />
+                              <Add fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         </TableCell>
@@ -401,6 +489,12 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
                 rows={3}
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Add any additional notes about this receipt..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px'
+                  }
+                }}
               />
             </Grid>
           </>
@@ -408,24 +502,40 @@ function GoodsReceiptForm({ onSubmit, onCancel, loading }) {
 
         {/* Action Buttons */}
         <Grid item xs={12}>
-          <Box display="flex" gap={2} justifyContent="flex-end">
+          <Stack direction="row" spacing={2} justifyContent="flex-end">
             <Button
               variant="outlined"
               onClick={onCancel}
-              disabled={loading}
+              disabled={parentLoading}
+              startIcon={<Cancel />}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 500,
+                px: 3
+              }}
             >
-              <Cancel sx={{ mr: 1 }} />
               Cancel
             </Button>
             <Button
               type="submit"
               variant="contained"
-              disabled={loading || !selectedPO}
+              disabled={parentLoading || !selectedPO}
+              startIcon={parentLoading ? <CircularProgress size={16} /> : <Save />}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                '&:hover': {
+                  background: `linear-gradient(135deg, ${theme.palette.success.dark}, ${theme.palette.success.main})`
+                }
+              }}
             >
-              {loading ? <CircularProgress size={20} /> : <Save sx={{ mr: 1 }} />}
-              Create Receipt
+              {parentLoading ? 'Creating...' : 'Create Receipt'}
             </Button>
-          </Box>
+          </Stack>
         </Grid>
       </Grid>
     </Box>

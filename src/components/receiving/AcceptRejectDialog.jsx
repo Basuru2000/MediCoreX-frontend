@@ -1,82 +1,49 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
-  TextField,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
   Box,
   Typography,
-  Alert,
-  Divider,
   Grid,
+  TextField,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  Divider,
   Chip,
-  FormGroup,
-  Checkbox,
-  CircularProgress
+  Alert,
+  Switch,
+  Stack,
+  useTheme,
+  alpha,
+  Paper
 } from '@mui/material'
-import { CheckCircle, Cancel, Warning } from '@mui/icons-material'
-import StockLevelComparison from './StockLevelComparison'
-import { getInventoryPreview, checkChecklistExists } from '../../services/api'
-import QualityChecklistDialog from './QualityChecklistDialog'
+import {
+  Warning,
+  CheckCircle,
+  Cancel,
+  Send
+} from '@mui/icons-material'
 
 function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
+  const theme = useTheme()
   const [decision, setDecision] = useState('accept')
   const [rejectionReason, setRejectionReason] = useState('')
   const [qualityNotes, setQualityNotes] = useState('')
   const [notifySupplier, setNotifySupplier] = useState(true)
   const [error, setError] = useState('')
-  const [inventoryPreview, setInventoryPreview] = useState([])
-  const [loadingPreview, setLoadingPreview] = useState(false)
-  const [checklistRequired, setChecklistRequired] = useState(false)
-  const [checklistExists, setChecklistExists] = useState(false)
-  const [openChecklist, setOpenChecklist] = useState(false)
-
-  useEffect(() => {
-    if (open && receipt && decision === 'accept') {
-      fetchInventoryPreview()
-    }
-  }, [open, receipt, decision])
-
-  useEffect(() => {
-    if (open && receipt) {
-      checkIfChecklistExists()
-    }
-  }, [open, receipt])
-
-  const checkIfChecklistExists = async () => {
-    try {
-      const response = await checkChecklistExists(receipt.id)
-      setChecklistExists(response.data.exists)
-    } catch (error) {
-      console.error('Error checking checklist:', error)
-    }
-  }
-
-  const fetchInventoryPreview = async () => {
-    try {
-      setLoadingPreview(true)
-      const response = await getInventoryPreview(receipt.id)
-      setInventoryPreview(response.data)
-    } catch (error) {
-      console.error('Error fetching inventory preview:', error)
-    } finally {
-      setLoadingPreview(false)
-    }
-  }
 
   const handleSubmit = () => {
     if (decision === 'reject' && !rejectionReason.trim()) {
-      setError('Rejection reason is required')
+      setError('Please provide a rejection reason')
       return
     }
 
-    const data = decision === 'accept' 
-      ? { qualityNotes }
+    const data = decision === 'accept'
+      ? { qualityNotes, notifySupplier }
       : { rejectionReason, notifySupplier }
 
     onSubmit(decision, data)
@@ -94,30 +61,70 @@ function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
   if (!receipt) return null
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Warning color="warning" />
-          <Typography variant="h6">
-            Quality Control Decision
-          </Typography>
-        </Box>
+    <Dialog 
+      open={open} 
+      onClose={handleClose} 
+      maxWidth="md" 
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '12px',
+          boxShadow: theme.shadows[24]
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        pb: 2, 
+        borderBottom: `1px solid ${theme.palette.divider}`
+      }}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '8px',
+              backgroundColor: alpha(theme.palette.warning.main, 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Warning sx={{ color: theme.palette.warning.main, fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography variant="h6" fontWeight={600}>
+              Quality Control Decision
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Review and approve or reject this receipt
+            </Typography>
+          </Box>
+        </Stack>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent sx={{ pt: 3 }}>
         {/* Receipt Summary */}
-        <Box mb={3} p={2} bgcolor="grey.50" borderRadius={1}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: '8px',
+            border: `1px solid ${theme.palette.divider}`,
+            backgroundColor: alpha(theme.palette.primary.main, 0.02)
+          }}
+        >
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                 Receipt Number
               </Typography>
-              <Typography variant="body1" fontWeight={600}>
+              <Typography variant="body1" fontWeight={600} color="primary">
                 {receipt.receiptNumber}
               </Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                 PO Number
               </Typography>
               <Typography variant="body1" fontWeight={600}>
@@ -125,176 +132,242 @@ function AcceptRejectDialog({ receipt, open, onClose, onSubmit, loading }) {
               </Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                 Supplier
               </Typography>
-              <Typography variant="body1">
+              <Typography variant="body1" sx={{ fontSize: '0.875rem' }}>
                 {receipt.supplierName}
               </Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                 Total Items
               </Typography>
               <Chip 
                 label={`${receipt.totalQuantity} units`} 
                 color="primary" 
                 size="small"
+                sx={{ 
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  height: 24,
+                  mt: 0.5
+                }}
               />
             </Grid>
           </Grid>
-        </Box>
+        </Paper>
 
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 3 }} />
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }} onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
 
         {/* Decision Selection */}
-        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, fontSize: '1rem' }}>
           Quality Decision
         </Typography>
         
         <RadioGroup value={decision} onChange={(e) => setDecision(e.target.value)}>
-          <FormControlLabel
-            value="accept"
-            control={<Radio />}
-            label={
-              <Box display="flex" alignItems="center" gap={1}>
-                <CheckCircle color="success" fontSize="small" />
-                <Box>
-                  <Typography variant="body1" fontWeight={600}>
-                    Accept Goods
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Quality approved - Add items to inventory
-                  </Typography>
-                </Box>
-              </Box>
-            }
-          />
-          
-          <FormControlLabel
-            value="reject"
-            control={<Radio />}
-            label={
-              <Box display="flex" alignItems="center" gap={1}>
-                <Cancel color="error" fontSize="small" />
-                <Box>
-                  <Typography variant="body1" fontWeight={600}>
-                    Reject Goods
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Quality issues found - Do not add to inventory
-                  </Typography>
-                </Box>
-              </Box>
-            }
-          />
+          <Paper
+            elevation={0}
+            sx={{
+              mb: 2,
+              p: 2,
+              border: `2px solid ${decision === 'accept' ? theme.palette.success.main : theme.palette.divider}`,
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              backgroundColor: decision === 'accept' ? alpha(theme.palette.success.main, 0.04) : 'transparent',
+              '&:hover': {
+                borderColor: decision === 'accept' ? theme.palette.success.dark : theme.palette.primary.main,
+                backgroundColor: decision === 'accept' ? alpha(theme.palette.success.main, 0.06) : alpha(theme.palette.primary.main, 0.02)
+              }
+            }}
+            onClick={() => setDecision('accept')}
+          >
+            <FormControlLabel
+              value="accept"
+              control={<Radio />}
+              label={
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <CheckCircle 
+                    sx={{ 
+                      fontSize: 20,
+                      color: decision === 'accept' ? theme.palette.success.main : theme.palette.text.secondary
+                    }} 
+                  />
+                  <Box>
+                    <Typography variant="body1" fontWeight={600}>
+                      Accept Receipt
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Items meet quality standards and will be added to inventory
+                    </Typography>
+                  </Box>
+                </Stack>
+              }
+            />
+          </Paper>
+
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              border: `2px solid ${decision === 'reject' ? theme.palette.error.main : theme.palette.divider}`,
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              backgroundColor: decision === 'reject' ? alpha(theme.palette.error.main, 0.04) : 'transparent',
+              '&:hover': {
+                borderColor: decision === 'reject' ? theme.palette.error.dark : theme.palette.primary.main,
+                backgroundColor: decision === 'reject' ? alpha(theme.palette.error.main, 0.06) : alpha(theme.palette.primary.main, 0.02)
+              }
+            }}
+            onClick={() => setDecision('reject')}
+          >
+            <FormControlLabel
+              value="reject"
+              control={<Radio />}
+              label={
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Cancel 
+                    sx={{ 
+                      fontSize: 20,
+                      color: decision === 'reject' ? theme.palette.error.main : theme.palette.text.secondary
+                    }} 
+                  />
+                  <Box>
+                    <Typography variant="body1" fontWeight={600}>
+                      Reject Receipt
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Items fail quality standards and will not be added to inventory
+                    </Typography>
+                  </Box>
+                </Stack>
+              }
+            />
+          </Paper>
         </RadioGroup>
 
-        {/* Conditional Fields */}
-        {decision === 'accept' ? (
-          <Box mt={3}>
+        <Divider sx={{ my: 3 }} />
+
+        {/* Accept Fields */}
+        {decision === 'accept' && (
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5 }}>
+              Quality Notes (Optional)
+            </Typography>
             <TextField
               fullWidth
-              multiline
-              rows={3}
-              label="Quality Notes (Optional)"
-              placeholder="Add any quality observations or notes..."
-              value={qualityNotes}
-              onChange={(e) => setQualityNotes(e.target.value)}
-            />
-            
-            {/* Inventory Preview */}
-            {loadingPreview ? (
-              <Box display="flex" justifyContent="center" my={2}>
-                <CircularProgress />
-              </Box>
-            ) : inventoryPreview.length > 0 ? (
-              <Box mt={3}>
-                <StockLevelComparison comparisons={inventoryPreview} />
-              </Box>
-            ) : null}
-            
-            {decision === 'accept' && !checklistExists && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                <Typography variant="body2">
-                  Quality inspection checklist is required before accepting goods.
-                </Typography>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  onClick={() => setOpenChecklist(true)}
-                  sx={{ mt: 1 }}
-                >
-                  Complete Checklist
-                </Button>
-              </Alert>
-            )}
-            
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Accepting will add all items to inventory and update stock levels.
-            </Alert>
-          </Box>
-        ) : (
-          <Box mt={3}>
-            <TextField
-              fullWidth
-              required
               multiline
               rows={4}
-              label="Rejection Reason"
-              placeholder="Describe quality issues (damaged items, incorrect products, expired dates, etc.)"
-              value={rejectionReason}
-              onChange={(e) => {
-                setRejectionReason(e.target.value)
-                setError('')
-              }}
-              error={!!error}
-              helperText={error}
-            />
-            
-            <FormGroup sx={{ mt: 2 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={notifySupplier}
-                    onChange={(e) => setNotifySupplier(e.target.checked)}
-                  />
+              value={qualityNotes}
+              onChange={(e) => setQualityNotes(e.target.value)}
+              placeholder="Add any quality inspection notes or observations..."
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px'
                 }
-                label="Notify supplier about rejection"
-              />
-            </FormGroup>
+              }}
+            />
+          </Box>
+        )}
 
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              Rejecting will NOT add items to inventory. Consider coordinating return or replacement with supplier.
+        {/* Reject Fields */}
+        {decision === 'reject' && (
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5 }}>
+              Rejection Reason <span style={{ color: theme.palette.error.main }}>*</span>
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Explain why the items are being rejected (e.g., damage, wrong items, quality issues)..."
+              required
+              error={Boolean(error)}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px'
+                }
+              }}
+            />
+            <Alert severity="warning" sx={{ mt: 2, borderRadius: '8px' }}>
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                Important
+              </Typography>
+              <Typography variant="body2">
+                Rejected items will NOT be added to inventory. Make sure to coordinate with the supplier for replacement or return.
+              </Typography>
             </Alert>
           </Box>
         )}
+
+        {/* Notification Option */}
+        <Box sx={{ mt: 3, p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.divider}` }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={notifySupplier}
+                onChange={(e) => setNotifySupplier(e.target.checked)}
+                color="primary"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2" fontWeight={600}>
+                  Notify Supplier
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {decision === 'accept'
+                    ? 'Send confirmation email to supplier about successful receipt'
+                    : 'Send rejection notification to supplier with reason'}
+                </Typography>
+              </Box>
+            }
+          />
+        </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleClose} disabled={loading}>
+      <Divider />
+
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 500,
+            px: 3,
+            color: theme.palette.text.secondary
+          }}
+        >
           Cancel
         </Button>
         <Button
-          variant="contained"
           onClick={handleSubmit}
-          disabled={loading || (decision === 'accept' && !checklistExists)}
+          disabled={loading}
+          variant="contained"
           color={decision === 'accept' ? 'success' : 'error'}
           startIcon={decision === 'accept' ? <CheckCircle /> : <Cancel />}
+          sx={{
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 3
+          }}
         >
-          {loading ? 'Processing...' : decision === 'accept' ? 'Accept Goods' : 'Reject Goods'}
+          {loading ? 'Processing...' : decision === 'accept' ? 'Accept Receipt' : 'Reject Receipt'}
         </Button>
       </DialogActions>
-
-      <QualityChecklistDialog
-        open={openChecklist}
-        onClose={() => setOpenChecklist(false)}
-        receipt={receipt}
-        onChecklistComplete={() => {
-          setChecklistExists(true)
-          setOpenChecklist(false)
-        }}
-      />
     </Dialog>
   )
 }
