@@ -14,7 +14,7 @@ import {
   Tabs,
   IconButton,
   useTheme,
-  alpha
+  CircularProgress
 } from '@mui/material'
 import {
   Edit,
@@ -23,7 +23,10 @@ import {
   Phone,
   LocationOn,
   Business,
-  CreditCard
+  CreditCard,
+  CheckCircle,
+  Block,
+  Warning
 } from '@mui/icons-material'
 import SupplierContactManager from './SupplierContactManager'
 import SupplierDocumentManager from './SupplierDocumentManager'
@@ -63,15 +66,43 @@ function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
     }
   }
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'ACTIVE': return <CheckCircle sx={{ fontSize: 16 }} />
+      case 'INACTIVE': return <Warning sx={{ fontSize: 16 }} />
+      case 'BLOCKED': return <Block sx={{ fontSize: 16 }} />
+      default: return null
+    }
+  }
+
   const InfoRow = ({ icon, label, value }) => (
-    <Box display="flex" alignItems="center" mb={2}>
-      <Box display="flex" alignItems="center" minWidth={150}>
+    <Box display="flex" alignItems="flex-start" mb={2}>
+      <Box 
+        display="flex" 
+        alignItems="center" 
+        minWidth={140}
+        sx={{ color: 'text.secondary' }}
+      >
         {icon}
-        <Typography variant="body2" color="text.secondary" ml={1}>
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            ml: 1,
+            fontSize: '0.875rem',
+            fontWeight: 500
+          }}
+        >
           {label}
         </Typography>
       </Box>
-      <Typography variant="body1">
+      <Typography 
+        variant="body1"
+        sx={{ 
+          fontSize: '0.875rem',
+          color: 'text.primary',
+          fontWeight: 500
+        }}
+      >
         {value || '-'}
       </Typography>
     </Box>
@@ -82,268 +113,383 @@ function SupplierDetails({ supplier, onClose, onEdit, canEdit }) {
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box display="flex" alignItems="center" gap={2}>
-            <Typography variant="h6">Supplier Details</Typography>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600,
+                fontSize: '1.25rem'
+              }}
+            >
+              Supplier Details
+            </Typography>
             <Chip
+              icon={getStatusIcon(supplierData.status)}
               label={supplierData.status}
               color={getStatusColor(supplierData.status)}
               size="small"
+              sx={{
+                height: 24,
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                borderRadius: '6px'
+              }}
             />
           </Box>
-          <Box>
+          <Box display="flex" gap={1}>
             {canEdit && (
-              <IconButton onClick={onEdit} color="primary">
-                <Edit />
+              <IconButton 
+                onClick={() => onEdit(supplierData)}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  color: 'primary.main',
+                  bgcolor: 'primary.lighter',
+                  '&:hover': {
+                    bgcolor: 'primary.light'
+                  }
+                }}
+              >
+                <Edit sx={{ fontSize: 18 }} />
               </IconButton>
             )}
-            <IconButton onClick={onClose}>
+            <IconButton 
+              onClick={onClose}
+              sx={{
+                width: 36,
+                height: 36,
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: 'action.hover'
+                }
+              }}
+            >
               <Close />
             </IconButton>
           </Box>
         </Box>
       </DialogTitle>
 
-      <DialogContent>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
-            <Tab label="General Info" />
-            <Tab label="Contacts" />
-            <Tab label="Documents" />
-            <Tab label="Product Catalog" />
-            <Tab label="Performance Metrics" />
-          </Tabs>
-        </Box>
+      <Divider />
 
-        {/* Tab Panel 1: General Information */}
-        {tabValue === 0 && (
-          <Box sx={{ mt: 3 }}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                    backgroundColor: alpha(theme.palette.background.paper, 0.9)
-                  }}
-                >
-                  <Typography variant="subtitle1" fontWeight={600} mb={2}>
-                    Basic Information
-                  </Typography>
-                  <InfoRow
-                    icon={<Business fontSize="small" />}
-                    label="Code"
-                    value={supplierData.code}
-                  />
-                  <InfoRow
-                    icon={<Business fontSize="small" />}
-                    label="Name"
-                    value={supplierData.name}
-                  />
-                  <InfoRow
-                    icon={<Business fontSize="small" />}
-                    label="Tax ID"
-                    value={supplierData.taxId}
-                  />
-                  <InfoRow
-                    icon={<Business fontSize="small" />}
-                    label="Registration"
-                    value={supplierData.registrationNumber}
-                  />
-                </Paper>
-              </Grid>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}>
+        <Tabs 
+          value={tabValue} 
+          onChange={(e, newValue) => setTabValue(newValue)}
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.875rem',
+              minHeight: 48,
+              py: 1.5
+            }
+          }}
+        >
+          <Tab label="General Info" />
+          <Tab label="Contacts" />
+          <Tab label="Documents" />
+          <Tab label="Product Catalog" />
+          <Tab label="Performance" />
+        </Tabs>
+      </Box>
 
-              <Grid item xs={12} md={6}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                    backgroundColor: alpha(theme.palette.background.paper, 0.9)
-                  }}
-                >
-                  <Typography variant="subtitle1" fontWeight={600} mb={2}>
-                    Contact Information
-                  </Typography>
-                  <InfoRow
-                    icon={<Email fontSize="small" />}
-                    label="Email"
-                    value={supplierData.email}
-                  />
-                  <InfoRow
-                    icon={<Phone fontSize="small" />}
-                    label="Phone"
-                    value={supplierData.phone}
-                  />
-                  <InfoRow
-                    icon={<Phone fontSize="small" />}
-                    label="Fax"
-                    value={supplierData.fax}
-                  />
-                  <InfoRow
-                    icon={<Business fontSize="small" />}
-                    label="Website"
-                    value={supplierData.website}
-                  />
-                </Paper>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                    backgroundColor: alpha(theme.palette.background.paper, 0.9)
-                  }}
-                >
-                  <Typography variant="subtitle1" fontWeight={600} mb={2}>
-                    Address
-                  </Typography>
-                  <Box display="flex" alignItems="flex-start">
-                    <LocationOn fontSize="small" sx={{ mt: 0.5, mr: 1 }} />
-                    <Box>
-                      {supplierData.addressLine1 && (
-                        <Typography variant="body1">{supplierData.addressLine1}</Typography>
-                      )}
-                      {supplierData.addressLine2 && (
-                        <Typography variant="body1">{supplierData.addressLine2}</Typography>
-                      )}
-                      <Typography variant="body1">
-                        {[
-                          supplierData.city,
-                          supplierData.state,
-                          supplierData.postalCode,
-                          supplierData.country
-                        ].filter(Boolean).join(', ') || '-'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                    backgroundColor: alpha(theme.palette.background.paper, 0.9)
-                  }}
-                >
-                  <Typography variant="subtitle1" fontWeight={600} mb={2}>
-                    Financial Information
-                  </Typography>
-                  <InfoRow
-                    icon={<CreditCard fontSize="small" />}
-                    label="Payment Terms"
-                    value={supplierData.paymentTerms}
-                  />
-                  <InfoRow
-                    icon={<CreditCard fontSize="small" />}
-                    label="Credit Limit"
-                    value={supplierData.creditLimit ? `$${supplierData.creditLimit}` : '-'}
-                  />
-                </Paper>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                    backgroundColor: alpha(theme.palette.background.paper, 0.9)
-                  }}
-                >
-                  <Typography variant="subtitle1" fontWeight={600} mb={2}>
-                    Additional Information
-                  </Typography>
-                  <InfoRow
-                    icon={<Business fontSize="small" />}
-                    label="Rating"
-                    value={supplierData.rating ? `${supplierData.rating}/5.00` : 'Not Rated'}
-                  />
-                  <InfoRow
-                    icon={<Business fontSize="small" />}
-                    label="Created By"
-                    value={supplierData.createdBy}
-                  />
-                </Paper>
-              </Grid>
-
-              {supplierData.notes && (
-                <Grid item xs={12}>
+      <DialogContent sx={{ pt: 3 }}>
+        {loading ? (
+          <Box 
+            display="flex" 
+            justifyContent="center" 
+            alignItems="center"
+            minHeight="400px"
+          >
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            {/* Tab Panel 0: General Information */}
+            {tabValue === 0 && (
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
                   <Paper
+                    elevation={0}
                     sx={{
                       p: 3,
-                      borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.background.paper, 0.9)
+                      borderRadius: '12px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      height: '100%'
                     }}
                   >
-                    <Typography variant="subtitle1" fontWeight={600} mb={2}>
-                      Notes
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        fontWeight: 600,
+                        mb: 2,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      Basic Information
                     </Typography>
-                    <Typography variant="body1">{supplierData.notes}</Typography>
+                    <InfoRow
+                      icon={<Business sx={{ fontSize: 18 }} />}
+                      label="Code"
+                      value={supplierData.code}
+                    />
+                    <InfoRow
+                      icon={<Business sx={{ fontSize: 18 }} />}
+                      label="Name"
+                      value={supplierData.name}
+                    />
+                    <InfoRow
+                      icon={<Business sx={{ fontSize: 18 }} />}
+                      label="Tax ID"
+                      value={supplierData.taxId}
+                    />
+                    <InfoRow
+                      icon={<Business sx={{ fontSize: 18 }} />}
+                      label="Registration"
+                      value={supplierData.registrationNumber}
+                    />
                   </Paper>
                 </Grid>
-              )}
-            </Grid>
-          </Box>
-        )}
 
-        {/* Tab Panel 2: Contacts */}
-        {tabValue === 1 && (
-          <Box sx={{ mt: 3 }}>
-            <SupplierContactManager
-              supplierId={supplierData.id}
-              contacts={supplierData.contacts || []}
-              canEdit={canEdit}
-              onUpdate={fetchSupplierDetails}
-            />
-          </Box>
-        )}
+                <Grid item xs={12} md={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: '12px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      height: '100%'
+                    }}
+                  >
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        fontWeight: 600,
+                        mb: 2,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      Contact Information
+                    </Typography>
+                    <InfoRow
+                      icon={<Email sx={{ fontSize: 18 }} />}
+                      label="Email"
+                      value={supplierData.email}
+                    />
+                    <InfoRow
+                      icon={<Phone sx={{ fontSize: 18 }} />}
+                      label="Phone"
+                      value={supplierData.phone}
+                    />
+                    <InfoRow
+                      icon={<Phone sx={{ fontSize: 18 }} />}
+                      label="Fax"
+                      value={supplierData.fax}
+                    />
+                    <InfoRow
+                      icon={<Business sx={{ fontSize: 18 }} />}
+                      label="Website"
+                      value={supplierData.website}
+                    />
+                  </Paper>
+                </Grid>
 
-        {/* Tab Panel 3: Documents */}
-        {tabValue === 2 && (
-          <Box sx={{ mt: 3 }}>
-            <SupplierDocumentManager
-              supplierId={supplierData.id}
-              documents={supplierData.documents || []}
-              canEdit={canEdit}
-              onUpdate={fetchSupplierDetails}
-            />
-          </Box>
-        )}
+                <Grid item xs={12}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: '12px',
+                      border: `1px solid ${theme.palette.divider}`
+                    }}
+                  >
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        fontWeight: 600,
+                        mb: 2,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      Address
+                    </Typography>
+                    <InfoRow
+                      icon={<LocationOn sx={{ fontSize: 18 }} />}
+                      label="Address"
+                      value={[
+                        supplierData.addressLine1,
+                        supplierData.addressLine2,
+                        supplierData.city,
+                        supplierData.state,
+                        supplierData.postalCode,
+                        supplierData.country
+                      ].filter(Boolean).join(', ')}
+                    />
+                  </Paper>
+                </Grid>
 
-        {/* Tab Panel 4: Product Catalog */}
-        {tabValue === 3 && (
-          <Box sx={{ mt: 3 }}>
-            <SupplierProductCatalog
-              supplierId={supplierData.id}
-              canEdit={canEdit}
-            />
-          </Box>
-        )}
+                <Grid item xs={12} md={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: '12px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      height: '100%'
+                    }}
+                  >
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        fontWeight: 600,
+                        mb: 2,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      Payment Terms
+                    </Typography>
+                    <InfoRow
+                      icon={<CreditCard sx={{ fontSize: 18 }} />}
+                      label="Terms"
+                      value={supplierData.paymentTerms}
+                    />
+                    <InfoRow
+                      icon={<CreditCard sx={{ fontSize: 18 }} />}
+                      label="Credit Limit"
+                      value={supplierData.creditLimit}
+                    />
+                  </Paper>
+                </Grid>
 
-        {/* Tab Panel 5: Performance Metrics */}
-        {tabValue === 4 && (
-          <Box sx={{ mt: 3 }}>
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <SupplierScorecard
-                  supplierId={supplierData.id}
-                  supplierName={supplierData.name}
-                  onRefresh={fetchSupplierDetails}
-                />
+                <Grid item xs={12} md={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: '12px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      height: '100%'
+                    }}
+                  >
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        fontWeight: 600,
+                        mb: 2,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      Additional Info
+                    </Typography>
+                    <InfoRow
+                      icon={<Business sx={{ fontSize: 18 }} />}
+                      label="Rating"
+                      value={supplierData.rating ? `${supplierData.rating}/5.00` : 'Not Rated'}
+                    />
+                    <InfoRow
+                      icon={<Business sx={{ fontSize: 18 }} />}
+                      label="Created By"
+                      value={supplierData.createdBy}
+                    />
+                  </Paper>
+                </Grid>
+
+                {supplierData.notes && (
+                  <Grid item xs={12}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        borderRadius: '12px',
+                        border: `1px solid ${theme.palette.divider}`
+                      }}
+                    >
+                      <Typography 
+                        variant="subtitle2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          mb: 2,
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        Notes
+                      </Typography>
+                      <Typography 
+                        variant="body2"
+                        sx={{ color: 'text.secondary' }}
+                      >
+                        {supplierData.notes}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                )}
               </Grid>
-              <Grid item xs={12}>
-                <PerformanceChart
-                  supplierId={supplierData.id}
-                  supplierName={supplierData.name}
-                />
+            )}
+
+            {/* Tab Panel 1: Contacts */}
+            {tabValue === 1 && (
+              <SupplierContactManager
+                supplierId={supplierData.id}
+                contacts={supplierData.contacts || []}
+                canEdit={canEdit}
+                onUpdate={fetchSupplierDetails}
+              />
+            )}
+
+            {/* Tab Panel 2: Documents */}
+            {tabValue === 2 && (
+              <SupplierDocumentManager
+                supplierId={supplierData.id}
+                documents={supplierData.documents || []}
+                canEdit={canEdit}
+                onUpdate={fetchSupplierDetails}
+              />
+            )}
+
+            {/* Tab Panel 3: Product Catalog */}
+            {tabValue === 3 && (
+              <SupplierProductCatalog
+                supplierId={supplierData.id}
+                canEdit={canEdit}
+              />
+            )}
+
+            {/* Tab Panel 4: Performance Metrics */}
+            {tabValue === 4 && (
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <SupplierScorecard
+                    supplierId={supplierData.id}
+                    supplierName={supplierData.name}
+                    onRefresh={fetchSupplierDetails}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <PerformanceChart
+                    supplierId={supplierData.id}
+                    supplierName={supplierData.name}
+                  />
+                </Grid>
               </Grid>
-            </Grid>
-          </Box>
+            )}
+          </>
         )}
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+      <Divider />
+
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button 
+          onClick={onClose}
+          sx={{
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 500,
+            px: 3
+          }}
+        >
+          Close
+        </Button>
       </DialogActions>
     </>
   )

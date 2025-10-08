@@ -6,340 +6,475 @@ import {
   Box,
   Grid,
   TextField,
+  Slider,
   Button,
   Alert,
-  Slider,
-  FormControl,
-  FormLabel,
+  Paper,
   Divider,
-  Switch,
-  FormControlLabel
+  useTheme
 } from '@mui/material'
-import {
-  Settings,
-  Save,
-  RestartAlt
-} from '@mui/icons-material'
+import { Save } from '@mui/icons-material'
 
 function MetricsConfiguration({ onSave }) {
+  const theme = useTheme()
+  const [saved, setSaved] = useState(false)
   const [config, setConfig] = useState({
-    // Weight configuration (must total 100%)
     deliveryWeight: 30,
     qualityWeight: 35,
     complianceWeight: 20,
     costWeight: 15,
-    
-    // Threshold settings
-    excellentThreshold: 80,
-    goodThreshold: 60,
-    poorThreshold: 40,
-    
-    // Alert settings
-    enableAlerts: true,
-    alertThreshold: 60,
-    
-    // Calculation frequency
-    autoCalculate: true,
-    calculationDay: 1 // Day of month
+    alertThreshold: 60
   })
-  
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
 
-  const handleWeightChange = (field, value) => {
-    const newConfig = { ...config, [field]: value }
-    
-    // Validate total equals 100
-    const total = newConfig.deliveryWeight + newConfig.qualityWeight + 
-                  newConfig.complianceWeight + newConfig.costWeight
-    
-    if (total !== 100) {
-      setError(`Total weight must equal 100% (currently ${total}%)`)
-    } else {
-      setError('')
-    }
-    
-    setConfig(newConfig)
+  const handleSliderChange = (name) => (event, newValue) => {
+    setConfig(prev => ({
+      ...prev,
+      [name]: newValue
+    }))
+  }
+
+  const handleInputChange = (name) => (event) => {
+    setConfig(prev => ({
+      ...prev,
+      [name]: Number(event.target.value)
+    }))
   }
 
   const handleSave = () => {
-    const total = config.deliveryWeight + config.qualityWeight + 
-                  config.complianceWeight + config.costWeight
-    
-    if (total !== 100) {
-      setError('Total weight must equal 100%')
-      return
-    }
-    
-    // Save configuration (this would call an API in production)
-    localStorage.setItem('metricsConfig', JSON.stringify(config))
-    setSuccess(true)
-    setTimeout(() => setSuccess(false), 3000)
-    
-    if (onSave) {
-      onSave(config)
-    }
+    onSave(config)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
   }
 
-  const handleReset = () => {
-    setConfig({
-      deliveryWeight: 30,
-      qualityWeight: 35,
-      complianceWeight: 20,
-      costWeight: 15,
-      excellentThreshold: 80,
-      goodThreshold: 60,
-      poorThreshold: 40,
-      enableAlerts: true,
-      alertThreshold: 60,
-      autoCalculate: true,
-      calculationDay: 1
-    })
-    setError('')
-    setSuccess(false)
-  }
+  const totalWeight = config.deliveryWeight + config.qualityWeight + 
+                      config.complianceWeight + config.costWeight
 
   return (
-    <Card>
-      <CardContent>
-        <Box display="flex" alignItems="center" gap={1} mb={3}>
-          <Settings color="primary" />
-          <Typography variant="h6">
+    <Card
+      elevation={0}
+      sx={{
+        borderRadius: '12px',
+        border: `1px solid ${theme.palette.divider}`
+      }}
+    >
+      <CardContent sx={{ p: 3 }}>
+        <Box mb={3}>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600,
+              fontSize: '1.125rem',
+              mb: 0.5
+            }}
+          >
             Metrics Configuration
+          </Typography>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: 'text.secondary',
+              fontSize: '0.875rem'
+            }}
+          >
+            Configure weights and thresholds for supplier performance scoring
           </Typography>
         </Box>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {success && <Alert severity="success" sx={{ mb: 2 }}>Configuration saved successfully</Alert>}
+        {saved && (
+          <Alert 
+            severity="success" 
+            sx={{ 
+              mb: 3,
+              borderRadius: '8px'
+            }}
+          >
+            Configuration saved successfully
+          </Alert>
+        )}
 
         <Grid container spacing={3}>
           {/* Weight Configuration */}
           <Grid item xs={12}>
-            <FormControl component="fieldset" fullWidth>
-              <FormLabel component="legend">
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Performance Score Weights (Must total 100%)
-                </Typography>
-              </FormLabel>
-              
-              <Box sx={{ mt: 2 }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="body2" gutterBottom>
-                      Delivery Performance: {config.deliveryWeight}%
-                    </Typography>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: '8px',
+                border: `1px solid ${theme.palette.divider}`,
+                bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900'
+              }}
+            >
+              <Typography 
+                variant="subtitle2" 
+                sx={{ 
+                  fontWeight: 600,
+                  mb: 3,
+                  fontSize: '0.875rem'
+                }}
+              >
+                Performance Weights
+              </Typography>
+
+              <Grid container spacing={3}>
+                {/* Delivery Weight */}
+                <Grid item xs={12} md={6}>
+                  <Box>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500,
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        Delivery Performance
+                      </Typography>
+                      <TextField
+                        value={config.deliveryWeight}
+                        onChange={handleInputChange('deliveryWeight')}
+                        type="number"
+                        inputProps={{ min: 0, max: 100, step: 5 }}
+                        size="small"
+                        sx={{
+                          width: 80,
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '6px',
+                            height: 32,
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        InputProps={{
+                          endAdornment: <Typography variant="caption">%</Typography>
+                        }}
+                      />
+                    </Box>
                     <Slider
                       value={config.deliveryWeight}
-                      onChange={(e, value) => handleWeightChange('deliveryWeight', value)}
+                      onChange={handleSliderChange('deliveryWeight')}
                       min={0}
                       max={100}
                       step={5}
                       marks
                       valueLabelDisplay="auto"
+                      sx={{
+                        '& .MuiSlider-thumb': {
+                          width: 16,
+                          height: 16
+                        },
+                        '& .MuiSlider-track': {
+                          height: 4
+                        },
+                        '& .MuiSlider-rail': {
+                          height: 4
+                        }
+                      }}
                     />
-                  </Grid>
-                  
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="body2" gutterBottom>
-                      Quality Score: {config.qualityWeight}%
-                    </Typography>
+                  </Box>
+                </Grid>
+
+                {/* Quality Weight */}
+                <Grid item xs={12} md={6}>
+                  <Box>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500,
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        Quality Score
+                      </Typography>
+                      <TextField
+                        value={config.qualityWeight}
+                        onChange={handleInputChange('qualityWeight')}
+                        type="number"
+                        inputProps={{ min: 0, max: 100, step: 5 }}
+                        size="small"
+                        sx={{
+                          width: 80,
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '6px',
+                            height: 32,
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        InputProps={{
+                          endAdornment: <Typography variant="caption">%</Typography>
+                        }}
+                      />
+                    </Box>
                     <Slider
                       value={config.qualityWeight}
-                      onChange={(e, value) => handleWeightChange('qualityWeight', value)}
+                      onChange={handleSliderChange('qualityWeight')}
                       min={0}
                       max={100}
                       step={5}
                       marks
                       valueLabelDisplay="auto"
+                      sx={{
+                        '& .MuiSlider-thumb': {
+                          width: 16,
+                          height: 16
+                        },
+                        '& .MuiSlider-track': {
+                          height: 4
+                        },
+                        '& .MuiSlider-rail': {
+                          height: 4
+                        }
+                      }}
                     />
-                  </Grid>
-                  
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="body2" gutterBottom>
-                      Compliance Score: {config.complianceWeight}%
-                    </Typography>
+                  </Box>
+                </Grid>
+
+                {/* Compliance Weight */}
+                <Grid item xs={12} md={6}>
+                  <Box>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500,
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        Compliance
+                      </Typography>
+                      <TextField
+                        value={config.complianceWeight}
+                        onChange={handleInputChange('complianceWeight')}
+                        type="number"
+                        inputProps={{ min: 0, max: 100, step: 5 }}
+                        size="small"
+                        sx={{
+                          width: 80,
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '6px',
+                            height: 32,
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        InputProps={{
+                          endAdornment: <Typography variant="caption">%</Typography>
+                        }}
+                      />
+                    </Box>
                     <Slider
                       value={config.complianceWeight}
-                      onChange={(e, value) => handleWeightChange('complianceWeight', value)}
+                      onChange={handleSliderChange('complianceWeight')}
                       min={0}
                       max={100}
                       step={5}
                       marks
                       valueLabelDisplay="auto"
+                      sx={{
+                        '& .MuiSlider-thumb': {
+                          width: 16,
+                          height: 16
+                        },
+                        '& .MuiSlider-track': {
+                          height: 4
+                        },
+                        '& .MuiSlider-rail': {
+                          height: 4
+                        }
+                      }}
                     />
-                  </Grid>
-                  
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="body2" gutterBottom>
-                      Cost Performance: {config.costWeight}%
-                    </Typography>
+                  </Box>
+                </Grid>
+
+                {/* Cost Weight */}
+                <Grid item xs={12} md={6}>
+                  <Box>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500,
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        Cost Performance
+                      </Typography>
+                      <TextField
+                        value={config.costWeight}
+                        onChange={handleInputChange('costWeight')}
+                        type="number"
+                        inputProps={{ min: 0, max: 100, step: 5 }}
+                        size="small"
+                        sx={{
+                          width: 80,
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '6px',
+                            height: 32,
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        InputProps={{
+                          endAdornment: <Typography variant="caption">%</Typography>
+                        }}
+                      />
+                    </Box>
                     <Slider
                       value={config.costWeight}
-                      onChange={(e, value) => handleWeightChange('costWeight', value)}
+                      onChange={handleSliderChange('costWeight')}
                       min={0}
                       max={100}
                       step={5}
                       marks
                       valueLabelDisplay="auto"
+                      sx={{
+                        '& .MuiSlider-thumb': {
+                          width: 16,
+                          height: 16
+                        },
+                        '& .MuiSlider-track': {
+                          height: 4
+                        },
+                        '& .MuiSlider-rail': {
+                          height: 4
+                        }
+                      }}
                     />
-                  </Grid>
+                  </Box>
                 </Grid>
-                
-                <Typography variant="caption" color="text.secondary">
-                  Total: {config.deliveryWeight + config.qualityWeight + 
-                         config.complianceWeight + config.costWeight}%
+              </Grid>
+
+              {/* Total Weight Indicator */}
+              <Box 
+                mt={3} 
+                p={2} 
+                sx={{ 
+                  borderRadius: '8px',
+                  bgcolor: totalWeight === 100 ? 'success.lighter' : 'warning.lighter',
+                  border: `1px solid ${totalWeight === 100 ? theme.palette.success.main : theme.palette.warning.main}`
+                }}
+              >
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: totalWeight === 100 ? 'success.main' : 'warning.main',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Total Weight: {totalWeight}%
+                  {totalWeight !== 100 && ' (Must equal 100%)'}
                 </Typography>
               </Box>
-            </FormControl>
+            </Paper>
           </Grid>
 
+          {/* Alert Threshold */}
           <Grid item xs={12}>
-            <Divider />
-          </Grid>
-
-          {/* Threshold Settings */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Performance Thresholds
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Excellent Threshold"
-                  type="number"
-                  value={config.excellentThreshold}
-                  onChange={(e) => setConfig({ ...config, excellentThreshold: parseInt(e.target.value) })}
-                  InputProps={{
-                    inputProps: { min: 0, max: 100 }
-                  }}
-                  helperText="Score for excellent performance"
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Good Threshold"
-                  type="number"
-                  value={config.goodThreshold}
-                  onChange={(e) => setConfig({ ...config, goodThreshold: parseInt(e.target.value) })}
-                  InputProps={{
-                    inputProps: { min: 0, max: 100 }
-                  }}
-                  helperText="Score for good performance"
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Poor Threshold"
-                  type="number"
-                  value={config.poorThreshold}
-                  onChange={(e) => setConfig({ ...config, poorThreshold: parseInt(e.target.value) })}
-                  InputProps={{
-                    inputProps: { min: 0, max: 100 }
-                  }}
-                  helperText="Score below this is poor"
-                />
-              </Grid>
-            </Grid>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Divider />
-          </Grid>
-
-          {/* Alert Settings */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Alert Settings
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={config.enableAlerts}
-                      onChange={(e) => setConfig({ ...config, enableAlerts: e.target.checked })}
-                    />
-                  }
-                  label="Enable Performance Alerts"
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Alert Threshold"
-                  type="number"
-                  value={config.alertThreshold}
-                  onChange={(e) => setConfig({ ...config, alertThreshold: parseInt(e.target.value) })}
-                  disabled={!config.enableAlerts}
-                  InputProps={{
-                    inputProps: { min: 0, max: 100 }
-                  }}
-                  helperText="Alert when score falls below"
-                />
-              </Grid>
-            </Grid>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Divider />
-          </Grid>
-
-          {/* Calculation Settings */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Calculation Settings
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={config.autoCalculate}
-                      onChange={(e) => setConfig({ ...config, autoCalculate: e.target.checked })}
-                    />
-                  }
-                  label="Auto-calculate Monthly Metrics"
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Calculation Day"
-                  type="number"
-                  value={config.calculationDay}
-                  onChange={(e) => setConfig({ ...config, calculationDay: parseInt(e.target.value) })}
-                  disabled={!config.autoCalculate}
-                  InputProps={{
-                    inputProps: { min: 1, max: 28 }
-                  }}
-                  helperText="Day of month to calculate"
-                />
-              </Grid>
-            </Grid>
-          </Grid>
-
-          {/* Action Buttons */}
-          <Grid item xs={12}>
-            <Box display="flex" justifyContent="flex-end" gap={2} mt={2}>
-              <Button
-                variant="outlined"
-                startIcon={<RestartAlt />}
-                onClick={handleReset}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: '8px',
+                border: `1px solid ${theme.palette.divider}`,
+                bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900'
+              }}
+            >
+              <Typography 
+                variant="subtitle2" 
+                sx={{ 
+                  fontWeight: 600,
+                  mb: 3,
+                  fontSize: '0.875rem'
+                }}
               >
-                Reset to Defaults
-              </Button>
+                Alert Threshold
+              </Typography>
+
+              <Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontWeight: 500,
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Low Performance Alert Threshold
+                  </Typography>
+                  <TextField
+                    value={config.alertThreshold}
+                    onChange={handleInputChange('alertThreshold')}
+                    type="number"
+                    inputProps={{ min: 0, max: 100, step: 5 }}
+                    size="small"
+                    sx={{
+                      width: 80,
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '6px',
+                        height: 32,
+                        fontSize: '0.875rem'
+                      }
+                    }}
+                    InputProps={{
+                      endAdornment: <Typography variant="caption">%</Typography>
+                    }}
+                  />
+                </Box>
+                <Slider
+                  value={config.alertThreshold}
+                  onChange={handleSliderChange('alertThreshold')}
+                  min={0}
+                  max={100}
+                  step={5}
+                  marks
+                  valueLabelDisplay="auto"
+                  sx={{
+                    '& .MuiSlider-thumb': {
+                      width: 16,
+                      height: 16
+                    },
+                    '& .MuiSlider-track': {
+                      height: 4
+                    },
+                    '& .MuiSlider-rail': {
+                      height: 4
+                    }
+                  }}
+                />
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    color: 'text.secondary',
+                    display: 'block',
+                    mt: 1,
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Alert will be triggered when supplier score falls below this threshold
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Save Button */}
+          <Grid item xs={12}>
+            <Divider sx={{ mb: 2 }} />
+            <Box display="flex" justifyContent="flex-end">
               <Button
                 variant="contained"
                 startIcon={<Save />}
                 onClick={handleSave}
-                disabled={!!error}
+                disabled={totalWeight !== 100}
+                sx={{
+                  height: 40,
+                  px: 3,
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    boxShadow: theme.shadows[2]
+                  }
+                }}
               >
                 Save Configuration
               </Button>

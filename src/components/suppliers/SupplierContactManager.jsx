@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   Box,
   Button,
+  Typography,
   IconButton,
   Table,
   TableBody,
@@ -10,7 +11,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Typography,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -18,26 +18,31 @@ import {
   TextField,
   Grid,
   Chip,
+  Divider,
   Alert,
-  Tooltip
+  useTheme
 } from '@mui/material'
 import {
   Add,
   Edit,
   Delete,
-  Phone,
   Email,
-  Person,
-  Star
+  Phone,
+  Close
 } from '@mui/icons-material'
-import { addSupplierContact, deleteSupplierContact } from '../../services/api'
+import {
+  createSupplierContact,
+  updateSupplierContact,
+  deleteSupplierContact
+} from '../../services/api'
 
 function SupplierContactManager({ supplierId, contacts, canEdit, onUpdate }) {
+  const theme = useTheme()
   const [openDialog, setOpenDialog] = useState(false)
-  const [editingContact, setEditingContact] = useState(null)
+  const [selectedContact, setSelectedContact] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
-    designation: '',
+    title: '',
     email: '',
     phone: '',
     mobile: '',
@@ -48,10 +53,10 @@ function SupplierContactManager({ supplierId, contacts, canEdit, onUpdate }) {
   const [error, setError] = useState('')
 
   const handleAdd = () => {
-    setEditingContact(null)
+    setSelectedContact(null)
     setFormData({
       name: '',
-      designation: '',
+      title: '',
       email: '',
       phone: '',
       mobile: '',
@@ -62,33 +67,9 @@ function SupplierContactManager({ supplierId, contacts, canEdit, onUpdate }) {
   }
 
   const handleEdit = (contact) => {
-    setEditingContact(contact)
-    setFormData({
-      name: contact.name,
-      designation: contact.designation || '',
-      email: contact.email || '',
-      phone: contact.phone || '',
-      mobile: contact.mobile || '',
-      isPrimary: contact.isPrimary || false,
-      notes: contact.notes || ''
-    })
+    setSelectedContact(contact)
+    setFormData(contact)
     setOpenDialog(true)
-  }
-
-  const handleSubmit = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      
-      await addSupplierContact(supplierId, formData)
-      
-      setOpenDialog(false)
-      onUpdate()
-    } catch (error) {
-      setError(error.response?.data?.message || 'Failed to save contact')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const handleDelete = async (contactId) => {
@@ -102,194 +83,369 @@ function SupplierContactManager({ supplierId, contacts, canEdit, onUpdate }) {
     }
   }
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    })
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      if (selectedContact) {
+        await updateSupplierContact(selectedContact.id, formData)
+      } else {
+        await createSupplierContact(supplierId, formData)
+      }
+      setOpenDialog(false)
+      onUpdate()
+    } catch (error) {
+      setError(error.response?.data?.message || 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (!contacts || contacts.length === 0) {
-    return (
-      <Box textAlign="center" py={4}>
-        <Typography variant="body1" color="text.secondary" mb={2}>
-          No contacts added yet
-        </Typography>
+  const handleChange = (e) => {
+    const { name, value, checked, type } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  return (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600,
+              fontSize: '1.125rem',
+              mb: 0.5
+            }}
+          >
+            Contact Persons
+          </Typography>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: 'text.secondary',
+              fontSize: '0.875rem'
+            }}
+          >
+            Manage supplier contact information
+          </Typography>
+        </Box>
         {canEdit && (
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={handleAdd}
-          >
-            Add First Contact
-          </Button>
-        )}
-      </Box>
-    )
-  }
-
-  return (
-    <Box>
-      {canEdit && (
-        <Box display="flex" justifyContent="flex-end" mb={2}>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleAdd}
+            sx={{
+              height: 36,
+              px: 2,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: theme.shadows[2]
+              }
+            }}
           >
             Add Contact
           </Button>
-        </Box>
-      )}
+        )}
+      </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Designation</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Phone</TableCell>
-              <TableCell>Mobile</TableCell>
-              <TableCell align="center">Primary</TableCell>
-              {canEdit && <TableCell align="center">Actions</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {contacts.map((contact) => (
-              <TableRow key={contact.id}>
-                <TableCell>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Person fontSize="small" />
-                    {contact.name}
-                  </Box>
-                </TableCell>
-                <TableCell>{contact.designation || '-'}</TableCell>
-                <TableCell>
-                  {contact.email ? (
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Email fontSize="small" />
-                      {contact.email}
-                    </Box>
-                  ) : '-'}
-                </TableCell>
-                <TableCell>
-                  {contact.phone ? (
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Phone fontSize="small" />
-                      {contact.phone}
-                    </Box>
-                  ) : '-'}
-                </TableCell>
-                <TableCell>{contact.mobile || '-'}</TableCell>
-                <TableCell align="center">
-                  {contact.isPrimary && (
-                    <Chip
-                      icon={<Star />}
-                      label="Primary"
-                      color="primary"
-                      size="small"
-                    />
-                  )}
-                </TableCell>
+      {contacts.length === 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            textAlign: 'center',
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            No contacts added yet
+          </Typography>
+        </Paper>
+      ) : (
+        <TableContainer 
+          component={Paper}
+          elevation={0}
+          sx={{
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Table>
+            <TableHead>
+              <TableRow
+                sx={{
+                  bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900'
+                }}
+              >
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Title</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Contact</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Status</TableCell>
                 {canEdit && (
-                  <TableCell align="center">
-                    <Tooltip title="Edit">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEdit(contact)}
-                      >
-                        <Edit fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(contact.id)}
-                      >
-                        <Delete fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Actions</TableCell>
                 )}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {contacts.map((contact, index) => (
+                <TableRow 
+                  key={contact.id}
+                  hover
+                  sx={{
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'light' ? 'action.hover' : 'action.selected'
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: 500,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {contact.name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography 
+                      variant="body2"
+                      sx={{ 
+                        color: 'text.secondary',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {contact.title || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex" flexDirection="column" gap={0.5}>
+                      {contact.email && (
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <Email sx={{ fontSize: 14, color: 'text.secondary' }} />
+                          <Typography 
+                            variant="caption"
+                            sx={{ fontSize: '0.75rem' }}
+                          >
+                            {contact.email}
+                          </Typography>
+                        </Box>
+                      )}
+                      {contact.phone && (
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <Phone sx={{ fontSize: 14, color: 'text.secondary' }} />
+                          <Typography 
+                            variant="caption"
+                            sx={{ fontSize: '0.75rem' }}
+                          >
+                            {contact.phone}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    {contact.isPrimary && (
+                      <Chip
+                        label="Primary"
+                        color="primary"
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          borderRadius: '6px'
+                        }}
+                      />
+                    )}
+                  </TableCell>
+                  {canEdit && (
+                    <TableCell align="center">
+                      <Box display="flex" gap={0.5} justifyContent="center">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleEdit(contact)}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            color: 'info.main',
+                            '&:hover': {
+                              bgcolor: 'info.lighter'
+                            }
+                          }}
+                        >
+                          <Edit sx={{ fontSize: 18 }} />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(contact.id)}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            color: 'error.main',
+                            '&:hover': {
+                              bgcolor: 'error.lighter'
+                            }
+                          }}
+                        >
+                          <Delete sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+      {/* Add/Edit Contact Dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '12px'
+          }
+        }}
+      >
         <DialogTitle>
-          {editingContact ? 'Edit Contact' : 'Add New Contact'}
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600,
+                fontSize: '1.25rem'
+              }}
+            >
+              {selectedContact ? 'Edit Contact' : 'Add Contact'}
+            </Typography>
+            <IconButton 
+              onClick={() => setOpenDialog(false)}
+              sx={{
+                width: 32,
+                height: 32,
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: 'action.hover'
+                }
+              }}
+            >
+              <Close />
+            </IconButton>
+          </Box>
         </DialogTitle>
-        <DialogContent>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
+
+        <Divider />
+
+        <DialogContent sx={{ pt: 3 }}>
+          {error && (
+            <Alert 
+              severity="error" 
+              onClose={() => setError('')}
+              sx={{ 
+                mb: 3,
+                borderRadius: '8px'
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Contact Name"
+                required
+                label="Name"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px'
+                  }
+                }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+
+            <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Designation"
-                name="designation"
-                value={formData.designation}
+                label="Title/Position"
+                name="title"
+                value={formData.title}
                 onChange={handleChange}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px'
+                  }
+                }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+
+            <Grid item xs={12}>
               <TextField
                 fullWidth
+                required
                 label="Email"
                 name="email"
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px'
+                  }
+                }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Phone"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px'
+                  }
+                }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Mobile"
                 name="mobile"
                 value={formData.mobile}
                 onChange={handleChange}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px'
+                  }
+                }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
-              <Box display="flex" alignItems="center" height="100%">
-                <label>
-                  <input
-                    type="checkbox"
-                    name="isPrimary"
-                    checked={formData.isPrimary}
-                    onChange={handleChange}
-                  />
-                  <Typography component="span" ml={1}>
-                    Set as Primary Contact
-                  </Typography>
-                </label>
-              </Box>
-            </Grid>
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -299,18 +455,46 @@ function SupplierContactManager({ supplierId, contacts, canEdit, onUpdate }) {
                 rows={2}
                 value={formData.notes}
                 onChange={handleChange}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '8px'
+                  }
+                }}
               />
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+
+        <Divider />
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button 
+            onClick={() => setOpenDialog(false)}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 3
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={loading || !formData.name}
+            disabled={loading}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: theme.shadows[2]
+              }
+            }}
           >
-            {loading ? 'Saving...' : 'Save'}
+            {loading ? 'Saving...' : (selectedContact ? 'Update' : 'Create')}
           </Button>
         </DialogActions>
       </Dialog>
