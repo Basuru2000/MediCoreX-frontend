@@ -15,7 +15,8 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
-  useTheme
+  useTheme,
+  alpha
 } from '@mui/material'
 import {
   Add,
@@ -45,11 +46,12 @@ function SupplierDocumentManager({ supplierId, documents, canEdit, onUpdate }) {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('documentType', 'CERTIFICATE')
-    formData.append('description', file.name)
+    formData.append('documentName', file.name)  // ✅ FIXED: Changed from 'description'
 
     try {
       await uploadSupplierDocument(supplierId, formData)
       onUpdate()
+      event.target.value = null  // Reset file input
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to upload document')
     } finally {
@@ -63,301 +65,205 @@ function SupplierDocumentManager({ supplierId, documents, canEdit, onUpdate }) {
         await deleteSupplierDocument(documentId)
         onUpdate()
       } catch (error) {
-        console.error('Error deleting document:', error)
+        setError(error.response?.data?.message || 'Failed to delete document')
       }
     }
   }
 
-  const handleDownload = (documentId, fileName) => {
-    const url = getDocumentDownloadUrl(documentId)
+  const handleDownload = (documentId, documentName) => {
+    const downloadUrl = getDocumentDownloadUrl(documentId)
     const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
+    link.href = downloadUrl
+    link.download = documentName
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'N/A'
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
   const isExpiringSoon = (expiryDate) => {
     if (!expiryDate) return false
-    const days = Math.ceil((new Date(expiryDate) - new Date()) / (1000 * 60 * 60 * 24))
-    return days <= 30 && days > 0
+    const today = new Date()
+    const expiry = new Date(expiryDate)
+    const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24))
+    return daysUntilExpiry <= 30 && daysUntilExpiry > 0
   }
 
   const isExpired = (expiryDate) => {
     if (!expiryDate) return false
-    return new Date(expiryDate) < new Date()
-  }
-
-  const getDocumentStatusChip = (expiryDate) => {
-    if (!expiryDate) return null
-    
-    if (isExpired(expiryDate)) {
-      return (
-        <Chip
-          label="Expired"
-          color="error"
-          size="small"
-          icon={<Warning sx={{ fontSize: 14 }} />}
-          sx={{
-            height: 22,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            borderRadius: '6px'
-          }}
-        />
-      )
-    }
-    
-    if (isExpiringSoon(expiryDate)) {
-      return (
-        <Chip
-          label="Expiring Soon"
-          color="warning"
-          size="small"
-          icon={<Warning sx={{ fontSize: 14 }} />}
-          sx={{
-            height: 22,
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            borderRadius: '6px'
-          }}
-        />
-      )
-    }
-    
-    return (
-      <Chip
-        label="Valid"
-        color="success"
-        size="small"
-        sx={{
-          height: 22,
-          fontSize: '0.7rem',
-          fontWeight: 500,
-          borderRadius: '6px'
-        }}
-      />
-    )
+    const today = new Date()
+    const expiry = new Date(expiryDate)
+    return expiry < today
   }
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              fontWeight: 600,
-              fontSize: '1.125rem',
-              mb: 0.5
-            }}
-          >
-            Documents
-          </Typography>
-          <Typography 
-            variant="body2" 
-            sx={{ 
-              color: 'text.secondary',
-              fontSize: '0.875rem'
-            }}
-          >
-            Manage supplier certificates and documents
+      {/* Upload Section */}
+      {canEdit && (
+        <Box sx={{ mb: 3 }}>
+          <input
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            style={{ display: 'none' }}
+            id="document-upload"
+            type="file"
+            onChange={handleFileUpload}
+            disabled={uploading}
+          />
+          <label htmlFor="document-upload">
+            <Button
+              variant="outlined"
+              component="span"
+              startIcon={uploading ? <CircularProgress size={20} /> : <Add />}
+              disabled={uploading}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 500
+              }}
+            >
+              {uploading ? 'Uploading...' : 'Upload Document'}
+            </Button>
+          </label>
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+            Accepted formats: PDF, DOC, DOCX, JPG, PNG (Max 5MB)
           </Typography>
         </Box>
-        {canEdit && (
-          <Button
-            variant="contained"
-            component="label"
-            startIcon={uploading ? <CircularProgress size={16} /> : <Add />}
-            disabled={uploading}
-            sx={{
-              height: 36,
-              px: 2,
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              boxShadow: 'none',
-              '&:hover': {
-                boxShadow: theme.shadows[2]
-              }
-            }}
-          >
-            {uploading ? 'Uploading...' : 'Upload Document'}
-            <input
-              type="file"
-              hidden
-              onChange={handleFileUpload}
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-            />
-          </Button>
-        )}
-      </Box>
+      )}
 
+      {/* Error Alert */}
       {error && (
         <Alert 
           severity="error" 
           onClose={() => setError('')}
-          sx={{ 
-            mb: 3,
-            borderRadius: '8px'
-          }}
+          sx={{ mb: 3, borderRadius: '8px' }}
         >
           {error}
         </Alert>
       )}
 
-      {documents.length === 0 ? (
-        <Paper
-          elevation={0}
-          sx={{
-            p: 4,
-            textAlign: 'center',
-            borderRadius: '12px',
-            border: `1px solid ${theme.palette.divider}`
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            No documents uploaded yet
-          </Typography>
-        </Paper>
-      ) : (
+      {/* Documents Table */}
+      {documents && documents.length > 0 ? (
         <TableContainer 
-          component={Paper}
+          component={Paper} 
           elevation={0}
-          sx={{
-            borderRadius: '12px',
-            border: `1px solid ${theme.palette.divider}`
+          sx={{ 
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '8px'
           }}
         >
-          <Table>
+          <Table size="small">
             <TableHead>
-              <TableRow
-                sx={{
-                  bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900'
-                }}
-              >
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Document</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Type</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Expiry Date</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Uploaded</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Actions</TableCell>
+              <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                <TableCell sx={{ fontWeight: 600 }}>Document Name</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Size</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Expiry Date</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Uploaded By</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {documents.map((doc, index) => (
+              {documents.map((doc) => (
                 <TableRow 
                   key={doc.id}
                   hover
                   sx={{
                     '&:hover': {
-                      bgcolor: theme.palette.mode === 'light' ? 'action.hover' : 'action.selected'
+                      bgcolor: alpha(theme.palette.primary.main, 0.02)
                     }
                   }}
                 >
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1}>
-                      <InsertDriveFile 
-                        sx={{ 
-                          fontSize: 20, 
-                          color: 'primary.main' 
-                        }} 
-                      />
-                      <Box>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            fontWeight: 500,
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          {doc.fileName || doc.description}
-                        </Typography>
-                        {doc.description && doc.fileName !== doc.description && (
-                          <Typography 
-                            variant="caption"
-                            sx={{ 
-                              color: 'text.secondary',
-                              fontSize: '0.75rem'
-                            }}
-                          >
-                            {doc.description}
-                          </Typography>
-                        )}
-                      </Box>
+                      <InsertDriveFile sx={{ fontSize: 20, color: 'primary.main' }} />
+                      <Typography variant="body2">{doc.documentName}</Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Typography 
-                      variant="body2"
-                      sx={{ 
-                        color: 'text.secondary',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      {doc.documentType || 'Document'}
+                    <Chip 
+                      label={doc.documentType} 
+                      size="small"
+                      sx={{ height: 24, fontSize: '0.75rem' }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatFileSize(doc.fileSize)}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography 
-                      variant="body2"
-                      sx={{ 
-                        color: 'text.secondary',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      {doc.expiryDate ? new Date(doc.expiryDate).toLocaleDateString() : '-'}
-                    </Typography>
+                    {doc.expiryDate ? (
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography 
+                          variant="body2"
+                          color={isExpired(doc.expiryDate) ? 'error' : isExpiringSoon(doc.expiryDate) ? 'warning.main' : 'text.secondary'}
+                        >
+                          {formatDate(doc.expiryDate)}
+                        </Typography>
+                        {(isExpired(doc.expiryDate) || isExpiringSoon(doc.expiryDate)) && (
+                          <Tooltip title={isExpired(doc.expiryDate) ? 'Expired' : 'Expiring Soon'}>
+                            <Warning 
+                              sx={{ 
+                                fontSize: 18, 
+                                color: isExpired(doc.expiryDate) ? 'error.main' : 'warning.main'
+                              }} 
+                            />
+                          </Tooltip>
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">N/A</Typography>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {getDocumentStatusChip(doc.expiryDate)}
-                  </TableCell>
-                  <TableCell>
-                    <Typography 
-                      variant="caption"
-                      sx={{ 
-                        color: 'text.secondary',
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : '-'}
+                    <Typography variant="body2" color="text.secondary">
+                      {doc.uploadedBy || 'N/A'}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
-                    <Box display="flex" gap={0.5} justifyContent="center">
-                      <Tooltip title="Download" arrow>
-                        <IconButton
+                    <Box display="flex" justifyContent="center" gap={0.5}>
+                      <Tooltip title="Download">
+                        <IconButton 
                           size="small"
-                          onClick={() => handleDownload(doc.id, doc.fileName)}
+                          onClick={() => handleDownload(doc.id, doc.documentName)}
                           sx={{
-                            width: 32,
-                            height: 32,
-                            color: 'primary.main',
                             '&:hover': {
-                              bgcolor: 'primary.lighter'
+                              bgcolor: alpha(theme.palette.primary.main, 0.1),
+                              color: 'primary.main'
                             }
                           }}
                         >
-                          <Download sx={{ fontSize: 18 }} />
+                          <Download fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       {canEdit && (
-                        <Tooltip title="Delete" arrow>
-                          <IconButton
+                        <Tooltip title="Delete">
+                          <IconButton 
                             size="small"
                             onClick={() => handleDelete(doc.id)}
                             sx={{
-                              width: 32,
-                              height: 32,
-                              color: 'error.main',
                               '&:hover': {
-                                bgcolor: 'error.lighter'
+                                bgcolor: alpha(theme.palette.error.main, 0.1),
+                                color: 'error.main'
                               }
                             }}
                           >
-                            <Delete sx={{ fontSize: 18 }} />
+                            <Delete fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       )}
@@ -368,6 +274,22 @@ function SupplierDocumentManager({ supplierId, documents, canEdit, onUpdate }) {
             </TableBody>
           </Table>
         </TableContainer>
+      ) : (
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 4, 
+            textAlign: 'center',
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: '8px',
+            bgcolor: alpha(theme.palette.primary.main, 0.02)
+          }}
+        >
+          <InsertDriveFile sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+          <Typography variant="body2" color="text.secondary">
+            No documents uploaded yet
+          </Typography>
+        </Paper>
       )}
     </Box>
   )
