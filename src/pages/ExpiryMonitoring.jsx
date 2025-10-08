@@ -203,7 +203,7 @@ function ExpiryMonitoring() {
               variant="contained"
               startIcon={triggering ? <CircularProgress size={20} /> : <PlayArrow />}
               onClick={() => handleTriggerCheck()}
-              disabled={triggering || checkAlreadyRun}
+              disabled={triggering}
               sx={{
                 borderRadius: '8px',
                 textTransform: 'none',
