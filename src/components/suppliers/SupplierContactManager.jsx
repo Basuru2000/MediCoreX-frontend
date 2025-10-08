@@ -31,7 +31,7 @@ import {
   Close
 } from '@mui/icons-material'
 import {
-  createSupplierContact,
+  addSupplierContact,
   updateSupplierContact,
   deleteSupplierContact
 } from '../../services/api'
@@ -92,7 +92,7 @@ function SupplierContactManager({ supplierId, contacts, canEdit, onUpdate }) {
       if (selectedContact) {
         await updateSupplierContact(selectedContact.id, formData)
       } else {
-        await createSupplierContact(supplierId, formData)
+        await addSupplierContact(supplierId, formData)
       }
       setOpenDialog(false)
       onUpdate()

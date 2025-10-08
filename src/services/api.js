@@ -451,6 +451,7 @@ export const updateSupplier = (id, data) => api.put(`/suppliers/${id}`, data)
 export const deleteSupplier = (id) => api.delete(`/suppliers/${id}`)
 export const updateSupplierStatus = (id, status) => api.put(`/suppliers/${id}/status?status=${status}`)
 export const addSupplierContact = (supplierId, data) => api.post(`/suppliers/${supplierId}/contacts`, data)
+export const updateSupplierContact = (contactId, data) => api.put(`/suppliers/contacts/${contactId}`, data)
 export const deleteSupplierContact = (contactId) => api.delete(`/suppliers/contacts/${contactId}`)
 
 // Document management endpoints - COMPLETE REPLACEMENT
