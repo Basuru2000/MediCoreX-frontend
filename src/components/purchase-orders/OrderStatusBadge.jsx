@@ -1,50 +1,66 @@
 import React from 'react'
-import { Chip } from '@mui/material'
+import { Chip, useTheme, alpha } from '@mui/material'
 import {
   Edit,
   CheckCircle,
   Send,
   LocalShipping,
-  Cancel
+  Cancel,
+  HourglassEmpty
 } from '@mui/icons-material'
 
 function OrderStatusBadge({ status, size = 'small' }) {
+  const theme = useTheme()
+
   const getStatusConfig = (status) => {
     switch (status) {
       case 'DRAFT':
         return {
           label: 'Draft',
-          color: 'default',
-          icon: <Edit fontSize="small" />
+          color: theme.palette.grey[600],
+          bgColor: alpha(theme.palette.grey[500], 0.1),
+          icon: <Edit sx={{ fontSize: size === 'small' ? 16 : 18 }} />
         }
       case 'APPROVED':
         return {
           label: 'Approved',
-          color: 'info',
-          icon: <CheckCircle fontSize="small" />
+          color: theme.palette.info.main,
+          bgColor: alpha(theme.palette.info.main, 0.1),
+          icon: <CheckCircle sx={{ fontSize: size === 'small' ? 16 : 18 }} />
         }
       case 'SENT':
         return {
           label: 'Sent',
-          color: 'primary',
-          icon: <Send fontSize="small" />
+          color: theme.palette.primary.main,
+          bgColor: alpha(theme.palette.primary.main, 0.1),
+          icon: <Send sx={{ fontSize: size === 'small' ? 16 : 18 }} />
+        }
+      case 'PARTIALLY_RECEIVED':
+        return {
+          label: 'Partially Received',
+          color: theme.palette.warning.main,
+          bgColor: alpha(theme.palette.warning.main, 0.1),
+          icon: <HourglassEmpty sx={{ fontSize: size === 'small' ? 16 : 18 }} />
         }
       case 'RECEIVED':
         return {
           label: 'Received',
-          color: 'success',
-          icon: <LocalShipping fontSize="small" />
+          color: theme.palette.success.main,
+          bgColor: alpha(theme.palette.success.main, 0.1),
+          icon: <LocalShipping sx={{ fontSize: size === 'small' ? 16 : 18 }} />
         }
       case 'CANCELLED':
         return {
           label: 'Cancelled',
-          color: 'error',
-          icon: <Cancel fontSize="small" />
+          color: theme.palette.error.main,
+          bgColor: alpha(theme.palette.error.main, 0.1),
+          icon: <Cancel sx={{ fontSize: size === 'small' ? 16 : 18 }} />
         }
       default:
         return {
           label: status || 'Unknown',
-          color: 'default',
+          color: theme.palette.grey[600],
+          bgColor: alpha(theme.palette.grey[500], 0.1),
           icon: null
         }
     }
@@ -55,10 +71,19 @@ function OrderStatusBadge({ status, size = 'small' }) {
   return (
     <Chip
       label={config.label}
-      color={config.color}
-      size={size}
       icon={config.icon}
-      sx={{ fontWeight: 500 }}
+      size={size}
+      sx={{
+        height: size === 'small' ? 24 : 28,
+        fontSize: size === 'small' ? '0.75rem' : '0.8125rem',
+        fontWeight: 600,
+        bgcolor: config.bgColor,
+        color: config.color,
+        border: `1px solid ${alpha(config.color, 0.3)}`,
+        '& .MuiChip-icon': {
+          color: config.color
+        }
+      }}
     />
   )
 }

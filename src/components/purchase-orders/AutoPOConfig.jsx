@@ -10,16 +10,16 @@ import {
   Grid,
   Divider,
   Alert,
-  Chip
+  Chip,
+  Stack,
+  useTheme,
+  alpha
 } from '@mui/material'
-import { Save, Settings } from '@mui/icons-material'
+import { Save, Settings, Check, Error } from '@mui/icons-material'
 import { getAutoPOConfig, updateAutoPOConfig } from '../../services/api'
 
-/**
- * Compact Auto PO Configuration Component
- * Can be embedded in dashboards or as a quick settings panel
- */
 function AutoPOConfig({ onConfigUpdate }) {
+  const theme = useTheme()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -69,7 +69,7 @@ function AutoPOConfig({ onConfigUpdate }) {
       
       const response = await updateAutoPOConfig(config)
       setConfig(response.data)
-      setSuccess('Configuration saved!')
+      setSuccess('Configuration saved successfully!')
       
       if (onConfigUpdate) {
         onConfigUpdate(response.data)
@@ -78,36 +78,90 @@ function AutoPOConfig({ onConfigUpdate }) {
       setTimeout(() => setSuccess(''), 3000)
     } catch (error) {
       console.error('Error saving config:', error)
-      setError(error.response?.data?.message || 'Failed to save')
+      setError(error.response?.data?.message || 'Failed to save configuration')
     } finally {
       setSaving(false)
     }
   }
 
   if (loading) {
-    return <Typography>Loading configuration...</Typography>
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" py={6}>
+        <Typography color="text.secondary">Loading configuration...</Typography>
+      </Box>
+    )
   }
 
   return (
-    <Paper elevation={2} sx={{ p: 3 }}>
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Settings color="primary" />
-          <Typography variant="h6" fontWeight={600}>
+    <Paper
+      elevation={0}
+      sx={{
+        p: 3,
+        borderRadius: '12px',
+        border: `1px solid ${theme.palette.divider}`
+      }}
+    >
+      {/* Header */}
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.primary.main
+            }}
+          >
+            <Settings fontSize="small" />
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Quick Auto PO Settings
           </Typography>
-        </Box>
+        </Stack>
         <Chip
+          icon={config.enabled ? <Check sx={{ fontSize: 16 }} /> : <Error sx={{ fontSize: 16 }} />}
           label={config.enabled ? "Enabled" : "Disabled"}
-          color={config.enabled ? "success" : "default"}
           size="small"
+          sx={{
+            height: 28,
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            bgcolor: config.enabled ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.grey[500], 0.1),
+            color: config.enabled ? theme.palette.success.main : theme.palette.grey[600],
+            border: `1px solid ${alpha(config.enabled ? theme.palette.success.main : theme.palette.grey[500], 0.3)}`
+          }}
         />
       </Box>
 
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {/* Alerts */}
+      {success && (
+        <Alert
+          severity="success"
+          sx={{
+            mb: 3,
+            borderRadius: '8px'
+          }}
+        >
+          {success}
+        </Alert>
+      )}
+      {error && (
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            borderRadius: '8px'
+          }}
+        >
+          {error}
+        </Alert>
+      )}
 
-      <Grid container spacing={2}>
+      <Grid container spacing={3}>
         {/* Enable/Disable Toggle */}
         <Grid item xs={12}>
           <FormControlLabel
@@ -118,7 +172,16 @@ function AutoPOConfig({ onConfigUpdate }) {
                 color="primary"
               />
             }
-            label="Enable Auto PO Generation"
+            label={
+              <Box>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  Enable Auto PO Generation
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Automatically create purchase orders for low-stock products
+                </Typography>
+              </Box>
+            }
           />
         </Grid>
 
@@ -137,6 +200,11 @@ function AutoPOConfig({ onConfigUpdate }) {
             onChange={handleChange('reorderMultiplier')}
             inputProps={{ min: 1, max: 10, step: 0.1 }}
             disabled={!config.enabled}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px'
+              }
+            }}
           />
         </Grid>
 
@@ -151,6 +219,11 @@ function AutoPOConfig({ onConfigUpdate }) {
             onChange={handleChange('daysUntilDelivery')}
             inputProps={{ min: 1, max: 90 }}
             disabled={!config.enabled}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px'
+              }
+            }}
           />
         </Grid>
 
@@ -180,7 +253,21 @@ function AutoPOConfig({ onConfigUpdate }) {
                 color="warning"
               />
             }
-            label="Auto-Approve Generated POs (⚠️ Use with caution)"
+            label={
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="body2">Auto-Approve Generated POs</Typography>
+                <Chip
+                  label="⚠️ Use with caution"
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: '0.7rem',
+                    bgcolor: alpha(theme.palette.warning.main, 0.1),
+                    color: theme.palette.warning.main
+                  }}
+                />
+              </Box>
+            }
             disabled={!config.enabled}
           />
         </Grid>
@@ -200,6 +287,10 @@ function AutoPOConfig({ onConfigUpdate }) {
           />
         </Grid>
 
+        <Grid item xs={12}>
+          <Divider />
+        </Grid>
+
         {/* Save Button */}
         <Grid item xs={12}>
           <Button
@@ -207,7 +298,16 @@ function AutoPOConfig({ onConfigUpdate }) {
             fullWidth
             startIcon={<Save />}
             onClick={handleSave}
-            disabled={saving || !config.enabled}
+            disabled={saving}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+              '&:hover': {
+                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.4)}`
+              }
+            }}
           >
             {saving ? 'Saving...' : 'Save Configuration'}
           </Button>

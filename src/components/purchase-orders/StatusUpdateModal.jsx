@@ -12,17 +12,21 @@ import {
   TextField,
   Alert,
   Box,
-  Typography
+  Typography,
+  Paper,
+  Stack,
+  useTheme,
+  alpha
 } from '@mui/material'
-import { Save, Cancel } from '@mui/icons-material'
+import { Save, Cancel, TrendingFlat } from '@mui/icons-material'
 import OrderStatusBadge from './OrderStatusBadge'
 
 function StatusUpdateModal({ order, open, onClose, onUpdate, loading }) {
+  const theme = useTheme()
   const [newStatus, setNewStatus] = useState(order?.status || '')
   const [comments, setComments] = useState('')
   const [error, setError] = useState('')
 
-  // Reset when dialog opens/closes
   React.useEffect(() => {
     if (open && order) {
       setNewStatus(order.status)
@@ -38,11 +42,13 @@ function StatusUpdateModal({ order, open, onClose, onUpdate, loading }) {
       case 'APPROVED':
         return ['SENT', 'CANCELLED']
       case 'SENT':
+        return ['PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED']
+      case 'PARTIALLY_RECEIVED':
         return ['RECEIVED', 'CANCELLED']
       case 'RECEIVED':
-        return [] // No transitions allowed
+        return []
       case 'CANCELLED':
-        return [] // No transitions allowed
+        return []
       default:
         return []
     }
@@ -55,7 +61,10 @@ function StatusUpdateModal({ order, open, onClose, onUpdate, loading }) {
     }
 
     try {
-      await onUpdate(order.id, newStatus, comments)
+      await onUpdate({
+        status: newStatus,
+        comments: comments
+      })
       handleClose()
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update status')
@@ -75,55 +84,131 @@ function StatusUpdateModal({ order, open, onClose, onUpdate, loading }) {
   const canChangeStatus = availableStatuses.length > 0
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Update Purchase Order Status</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '12px'
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        pb: 2,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        bgcolor: alpha(theme.palette.primary.main, 0.02)
+      }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          Update Purchase Order Status
+        </Typography>
+      </DialogTitle>
 
-      <DialogContent>
+      <DialogContent sx={{ pt: 3 }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert
+            severity="error"
+            sx={{
+              mb: 3,
+              borderRadius: '8px'
+            }}
+          >
             {error}
           </Alert>
         )}
 
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary">
-            PO Number
-          </Typography>
-          <Typography variant="h6">{order.poNumber}</Typography>
-        </Box>
+        {/* Order Info */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: '8px',
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: alpha(theme.palette.grey[500], 0.02)
+          }}
+        >
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                PO Number
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5 }}>
+                {order.poNumber}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                Supplier
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>
+                {order.supplierName}
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
 
+        {/* Current Status */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
             Current Status
           </Typography>
           <OrderStatusBadge status={order.status} size="medium" />
         </Box>
 
         {!canChangeStatus ? (
-          <Alert severity="info">
+          <Alert
+            severity="info"
+            sx={{
+              borderRadius: '8px'
+            }}
+          >
             This purchase order cannot be changed from its current status.
           </Alert>
         ) : (
           <>
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>New Status *</InputLabel>
+            {/* Status Transition Indicator */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                mb: 3,
+                p: 2,
+                borderRadius: '8px',
+                bgcolor: alpha(theme.palette.info.main, 0.05)
+              }}
+            >
+              <OrderStatusBadge status={order.status} />
+              <TrendingFlat sx={{ color: 'text.secondary' }} />
+              <OrderStatusBadge status={newStatus || order.status} />
+            </Box>
+
+            {/* New Status Selection */}
+            <FormControl
+              fullWidth
+              sx={{ mb: 3 }}
+            >
+              <InputLabel>New Status</InputLabel>
               <Select
                 value={newStatus}
-                label="New Status *"
+                label="New Status"
                 onChange={(e) => setNewStatus(e.target.value)}
-                disabled={loading}
+                sx={{
+                  borderRadius: '8px'
+                }}
               >
-                <MenuItem value={order.status} disabled>
-                  {order.status} (Current)
-                </MenuItem>
                 {availableStatuses.map((status) => (
                   <MenuItem key={status} value={status}>
-                    {status}
+                    {status.replace('_', ' ')}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
+            {/* Comments */}
             <TextField
               fullWidth
               multiline
@@ -131,23 +216,49 @@ function StatusUpdateModal({ order, open, onClose, onUpdate, loading }) {
               label="Comments (Optional)"
               value={comments}
               onChange={(e) => setComments(e.target.value)}
-              placeholder="Add any notes about this status change..."
-              disabled={loading}
+              placeholder="Add any comments about this status change..."
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px'
+                }
+              }}
             />
           </>
         )}
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={handleClose} disabled={loading}>
+      <DialogActions sx={{
+        px: 3,
+        py: 2,
+        borderTop: `1px solid ${theme.palette.divider}`,
+        bgcolor: alpha(theme.palette.grey[500], 0.02)
+      }}>
+        <Button
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 500
+          }}
+        >
           Cancel
         </Button>
         {canChangeStatus && (
           <Button
-            variant="contained"
-            startIcon={<Save />}
             onClick={handleSubmit}
+            variant="contained"
             disabled={loading || !newStatus || newStatus === order.status}
+            startIcon={<Save />}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+              '&:hover': {
+                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.4)}`
+              }
+            }}
           >
             {loading ? 'Updating...' : 'Update Status'}
           </Button>

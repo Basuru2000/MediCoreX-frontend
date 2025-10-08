@@ -19,7 +19,10 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  CircularProgress
+  CircularProgress,
+  Stack,
+  useTheme,
+  alpha
 } from '@mui/material'
 import {
   Edit,
@@ -34,6 +37,7 @@ import OrderStatusBadge from './OrderStatusBadge'
 import ReceiptProgressIndicator from '../receiving/ReceiptProgressIndicator'
 
 function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTrigger }) {
+  const theme = useTheme()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({
@@ -96,7 +100,7 @@ function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTri
   return (
     <Box>
       {/* Filters */}
-      <Box display="flex" gap={2} mb={2}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
         <TextField
           size="small"
           placeholder="Search by PO number or supplier..."
@@ -105,142 +109,168 @@ function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTri
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Search />
+                <Search sx={{ fontSize: 20, color: 'text.secondary' }} />
               </InputAdornment>
             )
           }}
-          sx={{ flexGrow: 1 }}
+          sx={{ 
+            flexGrow: 1,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px'
+            }
+          }}
         />
         
-        <FormControl size="small" sx={{ minWidth: 150 }}>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel>Status</InputLabel>
           <Select
             value={filters.status}
             label="Status"
             onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            sx={{
+              borderRadius: '8px'
+            }}
           >
             <MenuItem value="">All</MenuItem>
             <MenuItem value="DRAFT">Draft</MenuItem>
             <MenuItem value="APPROVED">Approved</MenuItem>
             <MenuItem value="SENT">Sent</MenuItem>
+            <MenuItem value="PARTIALLY_RECEIVED">Partially Received</MenuItem>
             <MenuItem value="RECEIVED">Received</MenuItem>
             <MenuItem value="CANCELLED">Cancelled</MenuItem>
           </Select>
         </FormControl>
-      </Box>
+      </Stack>
 
       {/* Table */}
-      <TableContainer component={Paper}>
+      <TableContainer 
+        component={Paper}
+        elevation={0}
+        sx={{
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: '8px',
+          overflow: 'hidden'
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell><strong>PO Number</strong></TableCell>
-              <TableCell><strong>Supplier</strong></TableCell>
-              <TableCell><strong>Order Date</strong></TableCell>
-              <TableCell><strong>Expected Delivery</strong></TableCell>
-              <TableCell align="center"><strong>Status</strong></TableCell>
-              <TableCell align="center"><strong>Fulfillment</strong></TableCell>
-              <TableCell align="right"><strong>Total Amount</strong></TableCell>
-              <TableCell align="center"><strong>Items</strong></TableCell>
-              <TableCell align="center"><strong>Actions</strong></TableCell>
+            <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+              <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>PO Number</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Supplier</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Order Date</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Expected Delivery</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600, color: 'text.primary' }}>Status</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600, color: 'text.primary' }}>Fulfillment</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, color: 'text.primary' }}>Total Amount</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600, color: 'text.primary' }}>Items</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 600, color: 'text.primary' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} align="center">
-                  <CircularProgress />
+                <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <CircularProgress size={40} thickness={4} />
                 </TableCell>
               </TableRow>
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                   <Typography variant="body2" color="text.secondary">
                     No purchase orders found
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              orders.map((order) => {
-                // Calculate totals from lines
-                const totalOrdered = order.lines?.reduce((sum, line) => sum + (line.quantity || 0), 0) || 0
-                const totalReceived = order.lines?.reduce((sum, line) => sum + (line.receivedQuantity || 0), 0) || 0
-                const totalRemaining = order.lines?.reduce((sum, line) => sum + (line.remainingQuantity || 0), 0) || 0
-                
-                return (
-                  <TableRow key={order.id} hover>
-                    <TableCell>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        {order.autoGenerated && (
-                          <Tooltip title="Auto-Generated PO">
-                            <AutoAwesome fontSize="small" color="primary" />
-                          </Tooltip>
-                        )}
-                        <Typography 
-                          variant="body2" 
-                          fontWeight={600}
-                          sx={{ 
-                            cursor: 'pointer',
-                            '&:hover': { color: 'primary.main' }
-                          }}
-                          onClick={() => onView && onView(order)}
-                        >
-                          {order.poNumber}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{order.supplierName}</TableCell>
-                    <TableCell>{formatDate(order.orderDate)}</TableCell>
-                    <TableCell>
-                      {order.expectedDeliveryDate 
-                        ? formatDate(order.expectedDeliveryDate)
-                        : '-'}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
-                        <OrderStatusBadge status={order.status} />
-                        {order.status === 'DRAFT' && (
-                          <Tooltip title="Pending Approval">
-                            <Chip 
-                              label="!" 
-                              size="small" 
-                              color="warning"
-                              sx={{ width: 24, minWidth: 24 }}
-                            />
-                          </Tooltip>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      {(order.status === 'RECEIVED' || 
-                        order.status === 'PARTIALLY_RECEIVED' ||
-                        order.status === 'SENT') ? (
-                        <Box sx={{ width: '100%', py: 1 }}>
-                          <ReceiptProgressIndicator
-                            ordered={totalOrdered}
-                            received={totalReceived}
-                            remaining={totalRemaining}
-                          />
-                        </Box>
-                      ) : (
-                        <Typography variant="caption" color="text.secondary">—</Typography>
+              orders.map((order) => (
+                <TableRow 
+                  key={order.id}
+                  hover
+                  sx={{
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.02)
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography variant="body2" fontWeight={600}>
+                        {order.poNumber}
+                      </Typography>
+                      {order.autoGenerated && (
+                        <Tooltip title="Auto-generated">
+                          <AutoAwesome sx={{ fontSize: 16, color: 'primary.main' }} />
+                        </Tooltip>
                       )}
-                    </TableCell>
-                    <TableCell align="right">
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{order.supplierName}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {order.supplierCode}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{formatDate(order.orderDate)}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {order.expectedDeliveryDate ? formatDate(order.expectedDeliveryDate) : '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <OrderStatusBadge status={order.status} />
+                  </TableCell>
+                  <TableCell align="center">
+                    <ReceiptProgressIndicator 
+                      totalItems={order.totalItems}
+                      receivedItems={order.totalReceived}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" fontWeight={600} color="primary">
                       {formatCurrency(order.totalAmount)}
-                    </TableCell>
-                    <TableCell align="center">
-                      {order.totalItems}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="View">
-                        <IconButton size="small" onClick={() => onView(order)}>
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip 
+                      label={order.totalItems} 
+                      size="small"
+                      sx={{
+                        height: 24,
+                        fontSize: '0.75rem',
+                        fontWeight: 600
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" spacing={0.5} justifyContent="center">
+                      <Tooltip title="View Details">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => onView(order)}
+                          sx={{
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.primary.main, 0.1),
+                              color: 'primary.main'
+                            }
+                          }}
+                        >
                           <Visibility fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       {canEdit && order.status === 'DRAFT' && (
                         <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => onEdit(order)}>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => onEdit(order)}
+                            sx={{
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.info.main, 0.1),
+                                color: 'info.main'
+                              }
+                            }}
+                          >
                             <Edit fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -249,8 +279,13 @@ function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTri
                         <Tooltip title="Delete">
                           <IconButton 
                             size="small" 
-                            color="error"
                             onClick={() => handleDelete(order.id)}
+                            sx={{
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.error.main, 0.1),
+                                color: 'error.main'
+                              }
+                            }}
                           >
                             <Delete fontSize="small" />
                           </IconButton>
@@ -260,17 +295,22 @@ function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTri
                         <Tooltip title="Update Status">
                           <IconButton 
                             size="small" 
-                            color="primary"
                             onClick={() => onStatusUpdate && onStatusUpdate(order)}
+                            sx={{
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.success.main, 0.1),
+                                color: 'success.main'
+                              }
+                            }}
                           >
                             <Send fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
@@ -287,6 +327,12 @@ function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTri
           size: parseInt(e.target.value, 10),
           page: 0 
         }))}
+        sx={{
+          borderTop: `1px solid ${theme.palette.divider}`,
+          '.MuiTablePagination-select': {
+            borderRadius: '6px'
+          }
+        }}
       />
     </Box>
   )
