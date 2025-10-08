@@ -32,9 +32,11 @@ import {
   LocalShipping,
   Business,
   Person,
-  CalendarToday
+  CalendarToday,
+  ShoppingCart
 } from '@mui/icons-material'
 import AcceptRejectDialog from './AcceptRejectDialog'
+import QualityChecklistDialog from './QualityChecklistDialog'
 import InventoryUpdateSummary from './InventoryUpdateSummary'
 import ChecklistSummary from './ChecklistSummary'
 import { acceptGoodsReceipt, rejectGoodsReceipt, checkChecklistExists } from '../../services/api'
@@ -44,6 +46,7 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
   const theme = useTheme()
   const { user } = useAuth()
   const [openDecision, setOpenDecision] = useState(false)
+  const [openChecklist, setOpenChecklist] = useState(false) // ✅ NEW
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasChecklist, setHasChecklist] = useState(false)
@@ -65,6 +68,25 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
     } catch (error) {
       console.error('Error checking checklist:', error)
     }
+  }
+
+  // ✅ NEW: Handle the Make Quality Decision button click
+  const handleMakeDecision = () => {
+    if (hasChecklist) {
+      // Checklist already completed, go directly to decision
+      setOpenDecision(true)
+    } else {
+      // No checklist yet, open checklist dialog first
+      setOpenChecklist(true)
+    }
+  }
+
+  // ✅ NEW: Handle checklist completion
+  const handleChecklistComplete = (checklistData) => {
+    setOpenChecklist(false)
+    setHasChecklist(true)
+    // After checklist is submitted, automatically open accept/reject dialog
+    setOpenDecision(true)
   }
 
   const handleDecisionSubmit = async (decision, data) => {
@@ -215,196 +237,184 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
             </Alert>
           )}
 
-          {/* Header Info */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              mb: 3,
-              borderRadius: '8px',
-              border: `1px solid ${theme.palette.divider}`,
-              backgroundColor: alpha(theme.palette.primary.main, 0.02)
-            }}
-          >
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                    Receipt Number
-                  </Typography>
-                  <Typography variant="h6" fontWeight={600} color="primary">
-                    {receipt.receiptNumber}
-                  </Typography>
-                </Stack>
-              </Grid>
+          {/* Acceptance Status Badge */}
+          <Box sx={{ mb: 3 }}>
+            <Chip
+              icon={statusConfig.icon}
+              label={statusConfig.label}
+              sx={{
+                bgcolor: statusConfig.bgcolor,
+                color: statusConfig.textColor,
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                height: 32,
+                '& .MuiChip-icon': {
+                  color: statusConfig.textColor
+                }
+              }}
+            />
+          </Box>
 
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                    Quality Status
-                  </Typography>
-                  <Chip
-                    icon={statusConfig.icon}
-                    label={statusConfig.label}
-                    sx={{
-                      backgroundColor: statusConfig.bgcolor,
-                      color: statusConfig.textColor,
-                      fontWeight: 600,
-                      fontSize: '0.8125rem',
-                      height: 28,
-                      width: 'fit-content',
-                      '& .MuiChip-icon': {
-                        color: statusConfig.textColor
-                      }
-                    }}
-                  />
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <LocalShipping sx={{ color: theme.palette.text.secondary, fontSize: 18, mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                      PO Number
-                    </Typography>
-                    <Typography variant="body1" fontWeight={500}>
-                      {receipt.poNumber}
+          {/* Receipt Information Grid */}
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid item xs={12} md={6}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: alpha(theme.palette.primary.main, 0.04),
+                  borderRadius: '8px',
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <ShoppingCart sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                      Purchase Order
                     </Typography>
                   </Box>
+                  <Typography variant="h6" fontWeight={600} sx={{ fontSize: '1rem' }}>
+                    {receipt.poNumber}
+                  </Typography>
                 </Stack>
-              </Grid>
+              </Paper>
+            </Grid>
 
-              <Grid item xs={12} sm={6}>
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <Business sx={{ color: theme.palette.text.secondary, fontSize: 18, mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+            <Grid item xs={12} md={6}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: alpha(theme.palette.info.main, 0.04),
+                  borderRadius: '8px',
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Business sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" fontWeight={500}>
                       Supplier
                     </Typography>
-                    <Typography variant="body1" fontWeight={500}>
-                      {receipt.supplierName}
-                    </Typography>
                   </Box>
+                  <Typography variant="h6" fontWeight={600} sx={{ fontSize: '1rem' }}>
+                    {receipt.supplierName}
+                  </Typography>
                 </Stack>
-              </Grid>
+              </Paper>
+            </Grid>
 
-              <Grid item xs={12} sm={6}>
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <CalendarToday sx={{ color: theme.palette.text.secondary, fontSize: 18, mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+            <Grid item xs={12} md={6}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: alpha(theme.palette.success.main, 0.04),
+                  borderRadius: '8px',
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <CalendarToday sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" fontWeight={500}>
                       Receipt Date
                     </Typography>
-                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                      {formatDateTime(receipt.receiptDate)}
-                    </Typography>
                   </Box>
+                  <Typography variant="body2" fontWeight={600}>
+                    {formatDateTime(receipt.receiptDate)}
+                  </Typography>
                 </Stack>
-              </Grid>
+              </Paper>
+            </Grid>
 
-              <Grid item xs={12} sm={6}>
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <Person sx={{ color: theme.palette.text.secondary, fontSize: 18, mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+            <Grid item xs={12} md={6}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: alpha(theme.palette.warning.main, 0.04),
+                  borderRadius: '8px',
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Person sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" fontWeight={500}>
                       Received By
                     </Typography>
-                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                      {receipt.receivedByName}
-                    </Typography>
                   </Box>
+                  <Typography variant="body2" fontWeight={600}>
+                    {receipt.receivedByName}
+                  </Typography>
                 </Stack>
-              </Grid>
-
-              {receipt.acceptanceStatus === 'REJECTED' && receipt.rejectionReason && (
-                <Grid item xs={12}>
-                  <Alert severity="error" sx={{ borderRadius: '8px' }}>
-                    <Typography variant="caption" fontWeight={600} display="block" mb={0.5}>
-                      Rejection Reason
-                    </Typography>
-                    <Typography variant="body2">
-                      {receipt.rejectionReason}
-                    </Typography>
-                  </Alert>
-                </Grid>
-              )}
-
-              {receipt.notes && (
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                    Notes
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    {receipt.notes}
-                  </Typography>
-                </Grid>
-              )}
+              </Paper>
             </Grid>
-          </Paper>
+          </Grid>
 
-          {/* Inventory Update Summary */}
-          {receipt.acceptanceStatus === 'ACCEPTED' && (
-            <Box mb={3}>
-              <InventoryUpdateSummary receipt={receipt} />
-            </Box>
-          )}
-
-          {/* Line Items */}
+          {/* Received Items Table */}
           <Typography variant="h6" fontWeight={600} sx={{ mb: 2, fontSize: '1.125rem' }}>
             Received Items
           </Typography>
+
           <TableContainer 
             component={Paper} 
             elevation={0}
             sx={{ 
+              mb: 3,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: '8px',
-              overflow: 'hidden',
-              mb: 3
+              overflow: 'hidden'
             }}
           >
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.03) }}>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Product</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Ordered</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Received</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Batch Number</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>Expiry Date</TableCell>
+                <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.813rem' }}>Product</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.813rem' }}>Ordered</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.813rem' }}>Received</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.813rem' }}>Batch Number</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.813rem' }}>Expiry Date</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {receipt.lines?.map((line) => (
-                  <TableRow key={line.id} hover>
+                {receipt.lines?.map((line, index) => (
+                  <TableRow key={index}>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem' }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.875rem' }}>
                         {line.productName}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      <Typography variant="caption" color="text.secondary">
                         {line.productCode}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                        {line.orderedQuantity}
-                      </Typography>
+                      <Chip 
+                        label={line.orderedQuantity} 
+                        size="small"
+                        sx={{ 
+                          height: 24,
+                          fontSize: '0.75rem',
+                          fontWeight: 600
+                        }}
+                      />
                     </TableCell>
                     <TableCell align="center">
                       <Chip 
                         label={line.receivedQuantity} 
-                        color="primary" 
                         size="small"
+                        color="primary"
                         sx={{ 
-                          minWidth: 40,
+                          height: 24,
                           fontSize: '0.75rem',
-                          fontWeight: 600,
-                          height: 24
+                          fontWeight: 600
                         }}
                       />
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem' }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                         {line.batchNumber}
                       </Typography>
                     </TableCell>
@@ -433,6 +443,14 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
               <ChecklistSummary receiptId={receipt.id} />
             </Box>
           )}
+
+          {/* Inventory Update Summary (only show if accepted) */}
+          {receipt.acceptanceStatus === 'ACCEPTED' && (
+            <Box>
+              <Divider sx={{ my: 3 }} />
+              <InventoryUpdateSummary receipt={receipt} />
+            </Box>
+          )}
         </DialogContent>
 
         <Divider />
@@ -455,7 +473,7 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
             <Button
               variant="contained"
               color="warning"
-              onClick={() => setOpenDecision(true)}
+              onClick={handleMakeDecision} // ✅ CHANGED: Now uses new handler
               startIcon={<HourglassEmpty />}
               sx={{
                 borderRadius: '8px',
@@ -469,6 +487,14 @@ function GoodsReceiptDetails({ receipt, open, onClose, onUpdate }) {
           )}
         </DialogActions>
       </Dialog>
+
+      {/* ✅ NEW: Quality Checklist Dialog */}
+      <QualityChecklistDialog
+        open={openChecklist}
+        onClose={() => setOpenChecklist(false)}
+        receipt={receipt}
+        onChecklistComplete={handleChecklistComplete}
+      />
 
       {/* Accept/Reject Dialog */}
       <AcceptRejectDialog

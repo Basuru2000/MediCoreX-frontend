@@ -159,11 +159,20 @@ function ProductForm({ open, onClose, onSubmit, product, categories }) {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onSubmit(formData)
+const handleSubmit = () => {
+  if (validateForm()) {
+    // Clean the form data
+    const cleanedData = {
+      ...formData,
+      // Remove expiryDate if it's empty or in the past (to avoid @Future validation)
+      expiryDate: formData.expiryDate && new Date(formData.expiryDate) > new Date() 
+        ? formData.expiryDate 
+        : null
     }
+    
+    onSubmit(cleanedData)
   }
+}
 
   const generateBarcode = () => {
     const randomBarcode = 'PRD' + Date.now().toString().slice(-10)

@@ -222,9 +222,11 @@ function POList({ onView, onEdit, canEdit, canDelete, onStatusUpdate, refreshTri
                     <OrderStatusBadge status={order.status} />
                   </TableCell>
                   <TableCell align="center">
+                    {/* ✅ FIXED: Corrected prop names */}
                     <ReceiptProgressIndicator 
-                      totalItems={order.totalItems}
-                      receivedItems={order.totalReceived}
+                      ordered={order.totalItems}
+                      received={order.totalReceived || 0}
+                      remaining={(order.totalItems || 0) - (order.totalReceived || 0)}
                     />
                   </TableCell>
                   <TableCell align="right">
