@@ -15,7 +15,9 @@ import {
   Typography,
   Tooltip,
   Dialog,
-  Alert
+  Alert,
+  CircularProgress,
+  useTheme
 } from '@mui/material'
 import {
   Add,
@@ -26,7 +28,6 @@ import {
   TrendingDown
 } from '@mui/icons-material'
 import SupplierProductForm from './SupplierProductForm'
-import PreferredSupplierBadge from './PreferredSupplierBadge'
 import { 
   getSupplierCatalog, 
   removeProductFromCatalog,
@@ -34,6 +35,7 @@ import {
 } from '../../../services/api'
 
 function SupplierProductCatalog({ supplierId, canEdit }) {
+  const theme = useTheme()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({
@@ -85,7 +87,7 @@ function SupplierProductCatalog({ supplierId, canEdit }) {
         await removeProductFromCatalog(productId)
         fetchCatalog()
       } catch (error) {
-        setError('Failed to remove product')
+        console.error('Error removing product:', error)
       }
     }
   }
@@ -95,7 +97,7 @@ function SupplierProductCatalog({ supplierId, canEdit }) {
       await setPreferredSupplier(supplierId, productId)
       fetchCatalog()
     } catch (error) {
-      setError('Failed to set preferred supplier')
+      console.error('Error setting preferred supplier:', error)
     }
   }
 
@@ -106,148 +108,345 @@ function SupplierProductCatalog({ supplierId, canEdit }) {
     }).format(amount)
   }
 
+  if (loading && products.length === 0) {
+    return (
+      <Box 
+        display="flex" 
+        flexDirection="column"
+        justifyContent="center" 
+        alignItems="center"
+        minHeight="400px"
+        gap={2}
+      >
+        <CircularProgress size={40} thickness={4} />
+        <Typography variant="body2" color="text.secondary">
+          Loading catalog...
+        </Typography>
+      </Box>
+    )
+  }
+
   return (
     <Box>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      
-      {canEdit && (
-        <Box display="flex" justifyContent="flex-end" mb={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600,
+              fontSize: '1.125rem',
+              mb: 0.5
+            }}
+          >
+            Product Catalog
+          </Typography>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: 'text.secondary',
+              fontSize: '0.875rem'
+            }}
+          >
+            Products available from this supplier
+          </Typography>
+        </Box>
+        {canEdit && (
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={handleAdd}
+            sx={{
+              height: 36,
+              px: 2,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: theme.shadows[2]
+              }
+            }}
           >
             Add Product
           </Button>
-        </Box>
+        )}
+      </Box>
+
+      {error && (
+        <Alert 
+          severity="error" 
+          onClose={() => setError('')}
+          sx={{ 
+            mb: 3,
+            borderRadius: '8px'
+          }}
+        >
+          {error}
+        </Alert>
       )}
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Product</TableCell>
-              <TableCell>Supplier Code</TableCell>
-              <TableCell align="right">Unit Price</TableCell>
-              <TableCell align="right">Discounts</TableCell>
-              <TableCell align="center">Lead Time</TableCell>
-              <TableCell align="center">MOQ</TableCell>
-              <TableCell align="center">Status</TableCell>
-              {canEdit && <TableCell align="center">Actions</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {products.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <Box>
-                    <Typography variant="body2" fontWeight={500}>
-                      {item.productName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.productCode}
-                    </Typography>
-                    {item.isPreferred && <PreferredSupplierBadge />}
-                  </Box>
-                </TableCell>
-                <TableCell>{item.supplierProductCode || '-'}</TableCell>
-                <TableCell align="right">
-                  <Box>
-                    <Typography variant="body2">
-                      {formatCurrency(item.unitPrice, item.currency)}
-                    </Typography>
-                    {item.effectivePrice < item.unitPrice && (
-                      <Typography variant="caption" color="success.main">
-                        Effective: {formatCurrency(item.effectivePrice)}
-                      </Typography>
-                    )}
-                  </Box>
-                </TableCell>
-                <TableCell align="right">
-                  <Box>
-                    {item.discountPercentage > 0 && (
-                      <Chip
-                        size="small"
-                        label={`${item.discountPercentage}% off`}
-                        color="success"
-                        variant="outlined"
-                        sx={{ mb: 0.5 }}
-                      />
-                    )}
-                    {item.bulkDiscountPercentage > 0 && (
-                      <Chip
-                        size="small"
-                        label={`Bulk: ${item.bulkDiscountPercentage}%`}
-                        icon={<TrendingDown />}
-                        variant="outlined"
-                      />
-                    )}
-                  </Box>
-                </TableCell>
-                <TableCell align="center">
-                  {item.leadTimeDays} days
-                </TableCell>
-                <TableCell align="center">
-                  {item.minOrderQuantity}
-                  {item.maxOrderQuantity && ` - ${item.maxOrderQuantity}`}
-                </TableCell>
-                <TableCell align="center">
-                  <Chip
-                    size="small"
-                    label={item.isActive ? 'Active' : 'Inactive'}
-                    color={item.isActive ? 'success' : 'default'}
-                  />
-                </TableCell>
-                {canEdit && (
-                  <TableCell align="center">
-                    <Tooltip title={item.isPreferred ? 'Preferred' : 'Set as Preferred'}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleSetPreferred(item.productId)}
-                        color={item.isPreferred ? 'warning' : 'default'}
+      {products.length === 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            textAlign: 'center',
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            No products in catalog yet
+          </Typography>
+        </Paper>
+      ) : (
+        <>
+          <TableContainer 
+            component={Paper}
+            elevation={0}
+            sx={{
+              borderRadius: '12px',
+              border: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Table>
+              <TableHead>
+                <TableRow
+                  sx={{
+                    bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900'
+                  }}
+                >
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Product</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Code</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Price</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Lead Time</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>MOQ</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Status</TableCell>
+                  {canEdit && (
+                    <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>Actions</TableCell>
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {products.map((item, index) => (
+                  <TableRow 
+                    key={item.id}
+                    hover
+                    sx={{
+                      '&:hover': {
+                        bgcolor: theme.palette.mode === 'light' ? 'action.hover' : 'action.selected'
+                      },
+                      bgcolor: item.isPreferred ? 
+                        (theme.palette.mode === 'light' ? 'warning.lighter' : 'warning.darker') : 
+                        'transparent'
+                    }}
+                  >
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        {item.isPreferred && (
+                          <Star sx={{ fontSize: 18, color: 'warning.main' }} />
+                        )}
+                        <Box>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontWeight: 500,
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {item.productName}
+                          </Typography>
+                          {item.supplierProductName && item.supplierProductName !== item.productName && (
+                            <Typography 
+                              variant="caption"
+                              sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.75rem'
+                              }}
+                            >
+                              {item.supplierProductName}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.875rem',
+                          fontFamily: 'monospace'
+                        }}
                       >
-                        {item.isPreferred ? <Star /> : <StarBorder />}
-                      </IconButton>
-                    </Tooltip>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEdit(item)}
-                    >
-                      <Edit fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDelete(item.id)}
-                      color="error"
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                        {item.supplierProductCode || item.productCode}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          {formatCurrency(item.unitPrice, item.currency)}
+                        </Typography>
+                        {item.discountPercentage > 0 && (
+                          <Chip
+                            icon={<TrendingDown sx={{ fontSize: 12 }} />}
+                            label={`${item.discountPercentage}% off`}
+                            size="small"
+                            color="success"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.65rem',
+                              mt: 0.5,
+                              '& .MuiChip-icon': {
+                                fontSize: 12
+                              }
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {item.leadTimeDays} days
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {item.minOrderQuantity}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={item.isActive ? 'Active' : 'Inactive'}
+                        color={item.isActive ? 'success' : 'default'}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          borderRadius: '6px'
+                        }}
+                      />
+                    </TableCell>
+                    {canEdit && (
+                      <TableCell align="center">
+                        <Box display="flex" gap={0.5} justifyContent="center">
+                          <Tooltip 
+                            title={item.isPreferred ? 'Preferred' : 'Set as Preferred'} 
+                            arrow
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={() => handleSetPreferred(item.productId)}
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                color: item.isPreferred ? 'warning.main' : 'text.secondary',
+                                '&:hover': {
+                                  bgcolor: item.isPreferred ? 'warning.lighter' : 'action.hover'
+                                }
+                              }}
+                            >
+                              {item.isPreferred ? 
+                                <Star sx={{ fontSize: 18 }} /> : 
+                                <StarBorder sx={{ fontSize: 18 }} />
+                              }
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEdit(item)}
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                color: 'info.main',
+                                '&:hover': {
+                                  bgcolor: 'info.lighter'
+                                }
+                              }}
+                            >
+                              <Edit sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDelete(item.id)}
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                color: 'error.main',
+                                '&:hover': {
+                                  bgcolor: 'error.lighter'
+                                }
+                              }}
+                            >
+                              <Delete sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-      <TablePagination
-        component="div"
-        count={pagination.totalElements}
-        page={pagination.page}
-        onPageChange={(e, newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
-        rowsPerPage={pagination.size}
-        onRowsPerPageChange={(e) => setPagination(prev => ({ 
-          ...prev, 
-          size: parseInt(e.target.value, 10),
-          page: 0 
-        }))}
-      />
+          <TablePagination
+            component="div"
+            count={pagination.totalElements}
+            page={pagination.page}
+            onPageChange={(e, newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+            rowsPerPage={pagination.size}
+            onRowsPerPageChange={(e) => setPagination(prev => ({ 
+              ...prev, 
+              size: parseInt(e.target.value, 10),
+              page: 0 
+            }))}
+            sx={{
+              mt: 2,
+              '.MuiTablePagination-toolbar': {
+                fontSize: '0.875rem'
+              },
+              '.MuiTablePagination-select': {
+                borderRadius: '6px'
+              }
+            }}
+          />
+        </>
+      )}
 
       <Dialog
         open={openForm}
         onClose={() => setOpenForm(false)}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '12px'
+          }
+        }}
       >
         <SupplierProductForm
           supplierId={supplierId}
