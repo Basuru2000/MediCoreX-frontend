@@ -44,6 +44,7 @@ import {
 import { getBatchExpiryReport, markExpiredBatches } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import BatchExpiryCalendar from '../components/batch/BatchExpiryCalendar'
+import ExpiryTimeline from '../components/batch/ExpiryTimeline'
 
 function BatchTracking() {
   const theme = useTheme()
@@ -461,90 +462,7 @@ function BatchTracking() {
           </Paper>
         )}
 
-        {tabValue === 1 && report?.batchesByExpiryRange && (
-          <Paper 
-            sx={{ 
-              p: 3,
-              borderRadius: '8px',
-              boxShadow: 'none',
-              border: `1px solid ${theme.palette.divider}`
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-              Batches by Expiry Timeline
-            </Typography>
-            <Stack spacing={3}>
-              {Object.entries(report.batchesByExpiryRange).map(([range, batches]) => (
-                <Box key={range}>
-                  <Box 
-                    sx={{ 
-                      display: 'flex',
-                      alignItems: 'center',
-                      mb: 1.5,
-                      pb: 1,
-                      borderBottom: `1px solid ${theme.palette.divider}`
-                    }}
-                  >
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1 }}>
-                      {range}
-                    </Typography>
-                    <Chip 
-                      label={`${batches.length} batches`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Box>
-                  {batches.length > 0 && (
-                    <Stack spacing={1}>
-                      {batches.slice(0, 5).map(batch => (
-                        <Box 
-                          key={batch.batchId}
-                          sx={{ 
-                            p: 1.5,
-                            borderRadius: '6px',
-                            border: `1px solid ${theme.palette.divider}`,
-                            bgcolor: selectedBatch?.batchId === batch.batchId ?
-                              alpha(theme.palette.primary.main, 0.05) : 'background.paper',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.primary.main, 0.05),
-                              borderColor: theme.palette.primary.main
-                            }
-                          }}
-                          onClick={() => handleSelectBatch(batch.batchId)}
-                        >
-                          <Box display="flex" justifyContent="space-between" alignItems="center">
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {batch.productName}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Batch: {batch.batchNumber} • Qty: {batch.quantity}
-                              </Typography>
-                            </Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {formatCurrency(batch.value)}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      ))}
-                      {batches.length > 5 && (
-                        <Typography 
-                          variant="caption" 
-                          color="text.secondary"
-                          sx={{ pl: 1, fontStyle: 'italic' }}
-                        >
-                          ... and {batches.length - 5} more
-                        </Typography>
-                      )}
-                    </Stack>
-                  )}
-                </Box>
-              ))}
-            </Stack>
-          </Paper>
-        )}
+        {tabValue === 1 && <ExpiryTimeline report={report} onBatchSelect={handleSelectBatch} />}
 
         {tabValue === 2 && <BatchExpiryCalendar />}
 
