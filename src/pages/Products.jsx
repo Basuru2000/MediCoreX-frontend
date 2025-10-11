@@ -49,7 +49,8 @@ import {
   ErrorOutline,
   CheckCircle,
   Close,
-  LocalShipping
+  LocalShipping,
+  Visibility
 } from '@mui/icons-material'
 import { useAuth } from '../context/AuthContext'
 import { 
@@ -74,6 +75,7 @@ import BarcodePrintDialog from '../components/products/BarcodePrintDialog'
 import BarcodeScanOptions from '../components/products/BarcodeScanOptions'
 import BatchManagementDialog from '../components/batch/BatchManagementDialog'
 import ProductSupplierOptions from '../components/products/ProductSupplierOptions'
+import ProductDetailsDialog from '../components/products/ProductDetailsDialog'
 
 function Products() {
   const theme = useTheme()
@@ -95,6 +97,8 @@ function Products() {
   const [selectedProductForSuppliers, setSelectedProductForSuppliers] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
+  const [openDetailsDialog, setOpenDetailsDialog] = useState(false)
+  const [selectedProductForDetails, setSelectedProductForDetails] = useState(null)
   const [tabValue, setTabValue] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
@@ -234,6 +238,11 @@ function Products() {
   const handleStockAdjustment = (product) => {
     setSelectedProduct(product)
     setOpenStockDialog(true)
+  }
+
+  const handleViewDetails = (product) => {
+    setSelectedProductForDetails(product)
+    setOpenDetailsDialog(true)
   }
 
   const handleSearch = async () => {
@@ -457,10 +466,22 @@ function Products() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 240,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={0.5}>
+          <Tooltip title="View Details">
+            <IconButton
+              size="small"
+              onClick={() => handleViewDetails(params.row)}
+              sx={{ 
+                color: theme.palette.info.main,
+                '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.1) }
+              }}
+            >
+              <Visibility sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Suppliers">
             <IconButton
               size="small"
@@ -1124,6 +1145,16 @@ function Products() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Product Details Dialog */}
+        <ProductDetailsDialog
+          open={openDetailsDialog}
+          onClose={() => {
+            setOpenDetailsDialog(false)
+            setSelectedProductForDetails(null)
+          }}
+          product={selectedProductForDetails}
+        />
 
         {/* Snackbar */}
         <Snackbar

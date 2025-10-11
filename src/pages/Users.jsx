@@ -34,6 +34,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { getUsers, createUser, updateUser, deleteUser, toggleUserStatus } from '../services/api'
 import UserForm from '../components/users/UserForm'
+import UserDetailsDialog from '../components/users/UserDetailsDialog'
 
 function Users() {
   const theme = useTheme()
@@ -44,6 +45,8 @@ function Users() {
   const [editingUser, setEditingUser] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  const [openDetails, setOpenDetails] = useState(false)
+  const [selectedUser, setSelectedUser] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -122,6 +125,11 @@ function Users() {
     } catch (error) {
       showSnackbar(error.response?.data?.message || 'Failed to update user status', 'error')
     }
+  }
+
+  const handleViewDetails = (user) => {
+    setSelectedUser(user)
+    setOpenDetails(true)
   }
 
   const showSnackbar = (message, severity) => {
@@ -270,53 +278,67 @@ function Users() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: isManager ? 140 : 80,
+      width: isManager ? 180 : 80,  // Adjusted width to accommodate View button
       sortable: false,
       headerAlign: 'center',
       align: 'center',
       renderCell: (params) => (
         <Box sx={{ display: 'flex', gap: 0.5 }}>
+          {/* View Details Button - Available for all roles */}
+          <Tooltip title="View Details" arrow>
+            <IconButton
+              size="small"
+              onClick={() => handleViewDetails(params.row)}
+              sx={{
+                color: theme.palette.info.main,
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.info.main, 0.1)
+                }
+              }}
+            >
+              <Visibility fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          {/* Edit/Toggle/Delete Buttons - Only for managers */}
           {isManager ? (
-            // Managers see all action buttons
             <>
-              <Tooltip title="Edit" arrow placement="top">
+              <Tooltip title="Edit User" arrow>
                 <IconButton
                   size="small"
                   onClick={() => handleOpenDialog(params.row)}
                   sx={{
-                    color: 'primary.main',
-                    '&:hover': { 
-                      bgcolor: alpha(theme.palette.primary.main, 0.08)
+                    color: theme.palette.primary.main,
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.1)
                     }
                   }}
                 >
                   <Edit fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title={params.row.active ? 'Deactivate' : 'Activate'} arrow placement="top">
+              <Tooltip title={params.row.active ? "Deactivate" : "Activate"} arrow>
                 <IconButton
                   size="small"
                   onClick={() => handleToggleStatus(params.row.id)}
                   sx={{
-                    color: params.row.active ? 'warning.main' : 'success.main',
-                    '&:hover': { 
-                      bgcolor: params.row.active 
-                        ? alpha(theme.palette.warning.main, 0.08)
-                        : alpha(theme.palette.success.main, 0.08)
+                    color: params.row.active ? theme.palette.warning.main : theme.palette.success.main,
+                    '&:hover': {
+                      bgcolor: alpha(params.row.active ? theme.palette.warning.main : theme.palette.success.main, 0.1)
                     }
                   }}
                 >
                   {params.row.active ? <Block fontSize="small" /> : <CheckCircle fontSize="small" />}
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Delete" arrow placement="top">
+              <Tooltip title="Delete User" arrow>
                 <IconButton
                   size="small"
                   onClick={() => handleDelete(params.row.id)}
                   sx={{
-                    color: 'error.main',
-                    '&:hover': { 
-                      bgcolor: alpha(theme.palette.error.main, 0.08)
+                    color: theme.palette.error.main,
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.error.main, 0.1)
                     }
                   }}
                 >
@@ -324,22 +346,7 @@ function Users() {
                 </IconButton>
               </Tooltip>
             </>
-          ) : (
-            // Staff only see view button
-            <Tooltip title="View Details" arrow placement="top">
-              <IconButton
-                size="small"
-                sx={{
-                  color: 'info.main',
-                  '&:hover': { 
-                    bgcolor: alpha(theme.palette.info.main, 0.08)
-                  }
-                }}
-              >
-                <Visibility fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
+          ) : null}
         </Box>
       )
     }
@@ -507,6 +514,16 @@ function Users() {
             user={editingUser}
           />
         )}
+
+        {/* User Details Dialog */}
+        <UserDetailsDialog
+          open={openDetails}
+          onClose={() => {
+            setOpenDetails(false)
+            setSelectedUser(null)
+          }}
+          user={selectedUser}
+        />
 
         {/* Snackbar */}
         <Snackbar
